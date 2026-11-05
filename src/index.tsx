@@ -14,6 +14,7 @@ import { initPluginResolver } from '@/lib/plugin-resolver'
 import { installEmberHook } from '@/lib/ember-hook'
 import { registerChromaRules } from '@/lib/features/chroma-unlock'
 import { enableNativeProfileHistory, registerNativeHistoryHooks } from '@/lib/features/native-history-entry'
+import { registerEnemyOpggMatchups } from '@/lib/features/enemy-opgg-matchups'
 import { installAdBlockXhrRules } from '@/lib/xhr'
 import '@/styles/index.css'
 import '@/styles/inject.css'
@@ -84,6 +85,7 @@ export function init(context: PenguContext) {
   installEmberHook(context)
   registerChromaRules()
   registerNativeHistoryHooks(context)
+  registerEnemyOpggMatchups()
 
   logger.printBanner()
 }

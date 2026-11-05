@@ -33,7 +33,6 @@ import { updateGameAnalysisPopup } from '@/lib/features/game-analysis-popup'
 import { updateTeamHistoryOverview } from '@/lib/features/team-history-overview'
 import { updateAutoReturnToLobby } from '@/lib/features/auto-return-to-lobby'
 import { updateOpggBuildRecommendation } from '@/lib/features/opgg-build-recommendation'
-import { enableEnemyOpggMatchups } from '@/lib/features/enemy-opgg-matchups'
 import { updateBeautifyCustomAvatar } from '@/lib/features/beautify-client/custom-avatar'
 import { initSocialSidebarGlass, updateSocialSidebarGlassConfig } from '@/lib/features/beautify-client/social-sidebar-glass'
 import { initBeautifyNavbarBlur, updateBeautifyNavbarBlur } from '@/lib/features/beautify-client/navbar-blur'
@@ -1104,7 +1103,6 @@ function pickRandomHomepageBackgroundOnStartup() {
 }
 
 export function initFeatures() {
-  enableEnemyOpggMatchups()
   preloadChampSelectTierBadgeData()
   updateTeamHistoryOverview(store.get('teamHistoryOverview'))
   store.onChange('teamHistoryOverview', updateTeamHistoryOverview)

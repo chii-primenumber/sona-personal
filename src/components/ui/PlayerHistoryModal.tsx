@@ -124,7 +124,16 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onInspect, onBack 
       <aside className="rh-sidebar">
         <section className="rh-panel"><h3>查询范围</h3><label>游戏模式<select aria-label="游戏模式" value={queueId} onChange={(event) => { setQueueId(Number(event.target.value)); resetLocalFilters() }}><option value={0}>全部模式</option>{queues.map((q) => <option key={q.id} value={q.id}>{q.name}</option>)}</select></label><label>每次加载<select aria-label="每次加载场次" value={batchSize} onChange={(e) => setBatchSize(Number(e.target.value))}>{[20, 50, 100].map((count) => <option value={count} key={count}>{count} 场</option>)}</select></label><p className="rh-footnote">模式筛选重新查询；右侧筛选只作用于已加载对局。</p></section>
         <section className="rh-panel"><h3>近期总览 <small>{stats.total} 场有效样本</small></h3>{strength && <div className="rh-score" title="Sona 原有的多维参考评分，范围 3–16；不是 Akari Score，也不是本局获胜概率。"><span>Sona 参考分</span><strong>{strength.score.toFixed(1)}</strong><small>{strength.validGames < 16 ? '样本偏少，仅供参考' : '仅供参考'}</small></div>}<SummaryStats matches={filtered} />{stats.total > 0 && <div className="rh-summary-extra"><span>{stats.streak}</span><span>蓝方 {stats.blue} / 红方 {stats.red}</span></div>}<p className="rh-footnote">按当前筛选后的已加载战绩计算；重开、终止和未知胜负不计入胜率。缺失指标不按 0 计算。</p></section>
-        <section className="rh-panel"><h3>近期常玩英雄</h3><ChampionStrip matches={allMatches} onSelect={(id) => { setChampionId(id); setTab('matches') }} limit={12} /><p className="rh-footnote">按当前模式已加载的有效场次排序</p></section>
+        <section className="rh-panel">
+          <h3>近期常玩英雄</h3>
+          <ChampionStrip matches={allMatches} selectedId={championId} limit={12}
+            onSelect={(id) => {
+              setChampionId((current) => current === id ? 0 : id)
+              setTab('matches')
+            }}
+          />
+          <p className="rh-footnote">再次点击当前英雄可显示全部英雄的战绩</p>
+        </section>
         <section className="rh-panel"><h3>英雄点数 <button type="button" className="rh-text-button" onClick={() => setShowAllMastery(!showAllMastery)}>{showAllMastery ? '收起' : '更多'}</button></h3>{mastery ? mastery.length ? <div className="rh-mastery">{mastery.slice(0, showAllMastery ? 60 : 6).map((m) => <button type="button" key={m.championId} onClick={() => { setChampionId(m.championId); setTab('matches') }} title="查看已加载的该英雄对局"><HistoryImage src={getChampIcon(m.championId)} label={championName(m.championId)} /><span><strong>{championName(m.championId)}</strong><small>{m.championLevel} 级</small></span><b>{numberText(m.championPoints)}</b></button>)}</div> : <p className="rh-muted">暂无英雄点数记录</p> : <p className="rh-muted">{masteryStatus}</p>}</section>
         {([['最近队友', teammates], ['最近对手', opponents]] as const).map(([title, people]) => (
           <section className="rh-panel" key={title}>

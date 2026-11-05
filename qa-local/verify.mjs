@@ -43,8 +43,6 @@ const makeGame = (n) => {
 }
 const games = Array.from({length:67},(_,i)=>makeGame(i))
 const bp = { queueId:440,localPlayerCellId:0,myTeam:names.slice(0,5).map((gameName,i)=>({ puuid:ids[i],gameName,tagLine:'DEMO',cellId:i,summonerId:i+100,assignedPosition:positions[(i+4)%5].toLowerCase(),championId:champions[i][0],nameVisibilityType:'PUBLIC',isHumanoid:true })),theirTeam:[] }
-bp.theirTeam = [{cellId:5,championId:154,assignedPosition:''},{cellId:6,championId:83,assignedPosition:'top'}]
-bp.actions = [[[{actorCellId:5,championId:154,type:'pick',completed:true},{actorCellId:6,championId:83,type:'pick',completed:false}]]]
 const game = { phase:'InProgress', map:{id:11,name:'召唤师峡谷'}, gameData:{ gameId:9828375, queue:queues[0], playerChampionSelections:ids.map((puuid,i)=>({puuid,championId:champions[i][0]})),teamOne:ids.slice(0,5).map((puuid,i)=>({puuid,championId:champions[i][0],teamParticipantId:i<2?1:0,selectedPosition:positions[i].toLowerCase()})), teamTwo:ids.slice(5).map((puuid,i)=>({puuid,championId:champions[i+5][0],teamParticipantId:0,selectedPosition:positions[i].toLowerCase()})) } }
 const items = [[3158,'明朗之靴'],[6617,'月石再生器'],[3504,'炽热香炉'],[6621,'黎明核心'],[3089,'灭世者的死亡之帽'],[3020,'法师之靴'],[3364,'神谕透镜']]
 const mockIcons = (array, type) => array.map(([id,name]) => ({id,name,iconPath:`/qa-art/${type}-${id}.svg`,description:`${name} · 离线演示图标`}))
@@ -133,6 +131,20 @@ try {
   await profileView.getByText('流光翡翠 I',{exact:true}).waitFor()
   await profileView.getByText('璀璨钻石 II',{exact:true}).waitFor()
   assert.equal(await profileView.locator('.rh-match').count(),49)
+  assert.ok(await profileView.getByText('最高输出', {exact:true}).count())
+  const recentChampion = profileView.locator('.rh-champion-strip button').first()
+  const heroFilter = profileView.getByLabel('筛选英雄')
+  await profileView.getByLabel('筛选胜负').selectOption('win')
+  const winsBefore = await profileView.locator('.rh-match').count()
+  await recentChampion.click()
+  assert.notEqual(await heroFilter.inputValue(), '0')
+  assert.equal(await recentChampion.getAttribute('aria-pressed'), 'true')
+  await recentChampion.click()
+  assert.equal(await heroFilter.inputValue(), '0')
+  assert.equal(await recentChampion.getAttribute('aria-pressed'), 'false')
+  assert.equal(await profileView.getByLabel('筛选胜负').inputValue(), 'win')
+  assert.equal(await profileView.locator('.rh-match').count(), winsBefore)
+  await profileView.getByLabel('筛选胜负').selectOption('')
   await profileView.getByText('350,000',{exact:true}).waitFor()
   const searchPlayer = profileView.getByRole('searchbox', {name:'搜索玩家'})
   await searchPlayer.fill('薄荷汽水')
@@ -185,10 +197,10 @@ try {
   await page.locator('[data-testid="qa-enemy-locked"][data-sona-enemy-matchup]').waitFor()
   await page.getByTestId('qa-enemy-preview').click()
   assert.equal(await matchupPanel.count(),0)
-  await page.evaluate((value)=>window.qaEmit('/lol-champ-select/v1/session',value), {...bp,queueId:430})
+  await page.evaluate(() => window.qaEnemyQueue(430))
   await locked.click()
   assert.equal(await matchupPanel.count(),0)
-  await page.evaluate((value)=>window.qaEmit('/lol-champ-select/v1/session',value), bp)
+  await page.evaluate(() => window.qaEnemyQueue(440))
   await locked.click()
   await matchupPanel.getByText('选择该英雄的分路以查询韩服对位。',{exact:true}).waitFor()
   assert.equal(matchupRequests.length,0)
@@ -211,6 +223,14 @@ try {
     ['/api/kr/champions/ranked/154/top','diamond_plus'],
     ['/api/kr/champions/ranked/154/support','diamond_plus'],
   ])
+  await page.keyboard.press('Escape')
+  await matchupPanel.waitFor({state:'hidden'})
+  await page.evaluate(() => window.qaEnemyQueue(0, true, 'AllRandomPickStrategy'))
+  await locked.click()
+  assert.equal(await matchupPanel.count(),0)
+  await page.evaluate(() => window.qaEnemyQueue(0, true, 'TournamentPickStrategy'))
+  await locked.click()
+  await matchupPanel.getByText('选择该英雄的分路以查询韩服对位。',{exact:true}).waitFor()
   await page.keyboard.press('Escape')
   await matchupPanel.waitFor({state:'hidden'})
   await page.getByRole('button',{name:'己方五人战绩',exact:true}).click()
@@ -323,7 +343,7 @@ try {
   await assertProfile('白昼拾荒#DEMO')
   assert.equal(errors.length,0,errors.join('\n'))
   assert.equal(writes.length,0,writes.join('\n'))
-  console.log(JSON.stringify({result:'passed', checks:['enemy locked picks in ranked only', 'Korean lane/tier queries and no-data state', 'personal history', 'player search and return', 'encounter profile icons', 'filters and pagination', 'native fallback', 'BP five and game ten', 'recent match detail', 'transparent nested scrollbars', 'nested Escape', 'phase exit', '1000px layout', 'native search clearance and exclusive profile entry', 'history and postgame context menus', 'no writes / no page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
+  console.log(JSON.stringify({result:'passed', checks:['native locked enemy row with nonstandard portrait path', 'ranked and custom draft gating', 'Korean lane/tier queries and no-data state', 'champion filter toggle and damage badge', 'personal history', 'player search and return', 'encounter profile icons', 'filters and pagination', 'native fallback', 'BP five and game ten', 'recent match detail', 'transparent nested scrollbars', 'nested Escape', 'phase exit', '1000px layout', 'native search clearance and exclusive profile entry', 'history and postgame context menus', 'no writes / no page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
 } finally {
   await browser?.close()
   await server.close()

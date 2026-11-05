@@ -1,5 +1,6 @@
 import { installEmberHook } from '@/lib/ember-hook'
 import { enableNativeProfileHistory, registerNativeHistoryHooks } from '@/lib/features/native-history-entry'
+import { registerEnemyOpggMatchups } from '@/lib/features/enemy-opgg-matchups'
 
 type Prototype = Record<string, unknown>
 type FixtureClass = { proto(): Prototype; extend(...mixins: Prototype[]): FixtureClass }
@@ -31,10 +32,24 @@ export async function setupNativeHistoryFixture() {
   } as unknown as PenguContext
   installEmberHook(context)
   registerNativeHistoryHooks(context)
+  registerEnemyOpggMatchups()
   enableNativeProfileHistory()
   const { Component } = await emberApi.getEmber()
+  const summonerClass = Component.extend({ classNames: ['summoner-object'] })
 
-  return function mount() {
+  function mountSummoner(element: HTMLElement, data: Record<string, unknown>) {
+    const row = Object.assign(Object.create(summonerClass.proto()), { element, get: (key: string) => data[key] })
+    row.didInsertElement()
+    return {
+      update(patch: Record<string, unknown>) {
+        Object.assign(data, patch)
+        row.didRender()
+      },
+      destroy: () => row.willDestroyElement(),
+    }
+  }
+
+  function mountHistory() {
     const fixture = document.createElement('section')
     fixture.innerHTML = `
       <div class="rcp-fe-lol-profiles-main" style="position:relative;min-height:175px">
@@ -110,4 +125,5 @@ export async function setupNativeHistoryFixture() {
       menu.addEventListener('click', () => menu.remove())
     })
   }
+  return { mountHistory, mountSummoner }
 }

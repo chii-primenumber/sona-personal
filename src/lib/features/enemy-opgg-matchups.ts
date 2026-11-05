@@ -1,39 +1,41 @@
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { EnemyOpggMatchupModal } from '@/components/ui/EnemyOpggMatchupModal'
-import { injector } from '@/lib/InjectorManager'
-import { lcu, LcuEventUri, type ChampSelectSession } from '@/lib/lcu'
-import { mapAssignedPosition, type OpggPosition } from '@/lib/opgg-api'
-import type { GameflowPhase } from '@/types/lcu'
+import { registerEmberRule } from '@/lib/ember-hook'
+import { lcu, LcuEventUri } from '@/lib/lcu'
+import { mapAssignedPosition } from '@/lib/opgg-api'
 
-const ENEMY_ICON = '.party.visible .summoner-wrapper.visible.right .champion-icon-container'
 const ATTR = 'data-sona-enemy-matchup'
-let started = false
-let inChampSelect = false
-let phaseRevision = 0
-let sessionRevision = 0
-let queueId = 0
-let lockedPicks = new Map<number, OpggPosition>()
-let root: Root | undefined
-let host: HTMLElement | undefined
-let openChampion = 0
+const DRAFT_MODES = new Set(['DraftModeSinglePickStrategy', 'TeamBuilderSimulBanStrategy', 'TeamBuilderDraftPickStrategy', 'TournamentPickStrategy'])
 
-function championIdFromIcon(icon: Element): number {
-  const image = icon.querySelector('img[src*="/champion-icons/"]')
-  const portrait = icon.querySelector('.portrait-icon[style*="/champion-icons/"]')
-  const source = image?.getAttribute('src') ?? portrait?.getAttribute('style') ?? ''
-  return Number(source.match(/\/champion-icons\/(\d+)\.(?:png|jpg|webp)\b/i)?.[1] ?? 0)
+interface SummonerRow {
+  element?: HTMLElement
+  get(key: string): unknown
+  _super(...args: unknown[]): unknown
 }
 
-function markEnemyIcons() {
-  for (const icon of document.querySelectorAll(`${ENEMY_ICON}, [${ATTR}]`)) {
-    const clickable = icon.matches(ENEMY_ICON) && lockedPicks.has(championIdFromIcon(icon))
-    if (clickable !== icon.hasAttribute(ATTR)) icon.toggleAttribute(ATTR, clickable)
-  }
-  return true
+const bindings = new WeakMap<SummonerRow, { icon: HTMLElement; click: (event: MouseEvent) => void }>()
+let root: Root | undefined
+let host: HTMLElement | undefined
+let openRow: SummonerRow | undefined
+let openChampion = 0
+
+function enemyPick(row: SummonerRow) {
+  const queueId = Number(row.get('queueId')) || 0
+  const allowed = row.get('isCustomGame')
+    ? DRAFT_MODES.has(String(row.get('summoner.root.queue.pickMode')))
+    : queueId === 420 || queueId === 440
+  if (!allowed || row.get('summoner.root.isSpectating') || row.get('isChampSelectShown') === false ||
+      row.get('isLeft') !== false || row.get('summoner.isOnPlayersTeam') !== false ||
+      row.get('summoner.isDonePicking') !== true) return null
+  const championId = Number(row.get('summoner.championId'))
+  if (!Number.isInteger(championId) || championId <= 0) return null
+  const position = row.get('summoner.assignedPosition')
+  return { championId, queueId, initialPosition: mapAssignedPosition(typeof position === 'string' ? position : undefined) }
 }
 
 function closeMatchups() {
+  openRow = undefined
   openChampion = 0
   root?.unmount()
   root = undefined
@@ -41,77 +43,71 @@ function closeMatchups() {
   host = undefined
 }
 
-function updatePicks(session: ChampSelectSession | null) {
-  const next = new Map<number, OpggPosition>()
-  if (session && !session.isCustomGame && !session.isSpectating && (session.queueId === 420 || session.queueId === 440)) {
-    const completed = new Map(session.actions?.flat(2)
-      .filter((action) => action.type === 'pick' && action.completed && action.championId > 0)
-      .map((action) => [action.actorCellId, action.championId]))
-    const finalized = session.timer?.phase === 'FINALIZATION' || session.timer?.phase === 'GAME_STARTING'
-    for (const player of session.theirTeam ?? []) {
-      const picked = completed.get(player.cellId)
-      if (!picked) continue
-      const championId = finalized && player.championId > 0 ? player.championId : picked
-      next.set(championId, mapAssignedPosition(player.assignedPosition))
-    }
-  }
-  const hadPicks = lockedPicks.size > 0
-  lockedPicks = next
-  queueId = session?.queueId ?? 0
-  if (openChampion && !lockedPicks.has(openChampion)) closeMatchups()
-  if (!hadPicks && next.size) injector.register(markEnemyIcons)
-  else if (hadPicks && !next.size) injector.unregister(markEnemyIcons)
-  if (hadPicks || next.size) {
-    markEnemyIcons()
-    if (next.size) requestAnimationFrame(markEnemyIcons)
-  }
+function removeBinding(row: SummonerRow) {
+  const binding = bindings.get(row)
+  if (!binding) return
+  binding.icon.removeEventListener('click', binding.click, true)
+  binding.icon.removeAttribute(ATTR)
+  bindings.delete(row)
 }
 
-function handleEnemyIconClick(event: MouseEvent) {
-  if (event.button !== 0 || !lockedPicks.size || !(event.target instanceof Element)) return
-  const icon = event.target.closest(ENEMY_ICON)
-  if (!icon) return
-  const championId = championIdFromIcon(icon)
-  const initialPosition = lockedPicks.get(championId)
-  if (!initialPosition) return
-  event.preventDefault()
-  event.stopPropagation()
-  if (!root) {
-    host = document.createElement('div')
-    document.body.appendChild(host)
-    root = createRoot(host)
-  }
-  openChampion = championId
-  root.render(createElement(EnemyOpggMatchupModal, { key: championId, championId, queueId, initialPosition, onClose: closeMatchups }))
-}
-
-function changePhase(phase: GameflowPhase) {
-  inChampSelect = phase === 'ChampSelect'
-  const revision = ++sessionRevision
-  if (!inChampSelect) {
-    updatePicks(null)
+function syncBinding(row: SummonerRow) {
+  // Read the same hero and lock state used by the native summoner row to render its portrait.
+  const pick = enemyPick(row)
+  const icon = row.element?.querySelector<HTMLElement>('.champion-icon-container')
+  if (openRow === row && pick?.championId !== openChampion) closeMatchups()
+  if (!pick || !icon) {
+    removeBinding(row)
     return
   }
-  void lcu.getChampSelectSession().then((session) => {
-    if (revision === sessionRevision) updatePicks(session)
-  }).catch(() => {})
+  if (bindings.get(row)?.icon === icon) return
+  removeBinding(row)
+
+  const click = (event: MouseEvent) => {
+    if (event.button !== 0) return
+    const current = enemyPick(row)
+    if (!current) return
+    event.preventDefault()
+    event.stopPropagation()
+    if (!root) {
+      host = document.createElement('div')
+      document.body.appendChild(host)
+      root = createRoot(host)
+    }
+    openRow = row
+    openChampion = current.championId
+    root.render(createElement(EnemyOpggMatchupModal, {
+      ...current,
+      key: current.championId,
+      onClose: closeMatchups,
+    }))
+  }
+  icon.setAttribute(ATTR, '')
+  icon.addEventListener('click', click, true)
+  bindings.set(row, { icon, click })
 }
 
-export function enableEnemyOpggMatchups() {
-  if (started) return
-  started = true
-  document.addEventListener('click', handleEnemyIconClick, true)
-  lcu.observe(LcuEventUri.CHAMP_SELECT, (event) => {
-    if (!inChampSelect) return
-    sessionRevision++
-    updatePicks(event.eventType === 'Delete' ? null : event.data as ChampSelectSession | null)
+export function registerEnemyOpggMatchups() {
+  registerEmberRule({
+    name: 'enemy-opgg-matchup-row',
+    matcher: 'summoner-object',
+    mixin: () => ({
+      didInsertElement(this: SummonerRow, ...args: unknown[]) {
+        this._super(...args)
+        syncBinding(this)
+      },
+      didRender(this: SummonerRow, ...args: unknown[]) {
+        this._super(...args)
+        syncBinding(this)
+      },
+      willDestroyElement(this: SummonerRow, ...args: unknown[]) {
+        removeBinding(this)
+        if (openRow === this) closeMatchups()
+        this._super(...args)
+      },
+    }),
   })
   lcu.observe(LcuEventUri.GAMEFLOW_PHASE_CHANGE, (event) => {
-    phaseRevision++
-    changePhase(event.data as GameflowPhase)
+    if (event.data !== 'ChampSelect' && openRow) closeMatchups()
   })
-  const revision = phaseRevision
-  void lcu.getGameflowPhase().then((phase) => {
-    if (revision === phaseRevision) changePhase(phase)
-  }).catch(() => {})
 }

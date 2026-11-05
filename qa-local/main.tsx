@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ToolsPage } from '@/components/pages/ToolsPage'
 import { lcu, LcuEventUri } from '@/lib/lcu'
@@ -15,22 +15,47 @@ lcu.bindContext({ socket: { observe(uri: string, callback: (value: unknown) => v
 await initAssets()
 injector.start()
 initFeatures()
-Object.assign(window, { qaNativeHistory: await setupNativeHistoryFixture() })
+const { mountHistory, mountSummoner } = await setupNativeHistoryFixture()
+Object.assign(window, { qaNativeHistory: mountHistory })
+
+function EnemyRows() {
+  const host = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const rows = Array.from(host.current!.querySelectorAll<HTMLElement>('.summoner-object')).map((element, index) =>
+      mountSummoner(element, {
+        queueId: 440,
+        isLeft: false,
+        isChampSelectShown: true,
+        'summoner.isOnPlayersTeam': false,
+        'summoner.isDonePicking': index === 0,
+        'summoner.championId': index === 0 ? 154 : 83,
+        'summoner.assignedPosition': '',
+      }))
+    Object.assign(window, {
+      qaEnemyQueue: (queueId: number, isCustomGame = false, pickMode = '') => rows.forEach((row) =>
+        row.update({ queueId, isCustomGame, 'summoner.root.queue.pickMode': pickMode })),
+    })
+    return () => rows.forEach((row) => row.destroy())
+  }, [])
+  return <div className="party visible" ref={host}>
+    {['locked', 'preview'].map((state) => (
+      <div className="summoner-wrapper visible right" key={state}>
+        <div className="summoner-object right">
+          <div className="champion-icon-container" data-testid={`qa-enemy-${state}`}>
+            <div className="portrait-icon fit-icon" style={{ width: 48, height: 48, backgroundImage: 'url(/fe/client/skin/opaque-portrait.webp)' }} />
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+}
 
 function Preview() {
   const [phase, setPhase] = useState<GameflowPhase>('None')
   const move = (next: GameflowPhase) => { setPhase(next); emit(LcuEventUri.GAMEFLOW_PHASE_CHANGE, next) }
   return <><div className="qa-toolbar"><strong>离线界面验证 · 全部数据均为虚构</strong><button type="button" onClick={() => move('ChampSelect')}>模拟 BP</button><button type="button" onClick={() => move('InProgress')}>模拟进游戏</button><button type="button" onClick={() => move('Lobby')}>模拟回大厅</button></div>
     {phase === 'ChampSelect' && <><div className="party visible">{[0,1,2,3,4].map((index) => <div className="summoner-wrapper visible left" key={index}><div className="summoner-container"><div className="champion-icon-container" data-testid={`preview-avatar-${index}`}>{index + 1}</div><div className="player-details">{index + 1} 楼</div></div></div>)}</div><div className="bottom-right-buttons" /></>}
-    {phase === 'ChampSelect' && <div className="party visible">
-      {[[154, 'locked'], [83, 'preview']].map(([id, state]) => (
-        <div className="summoner-wrapper visible right" key={id}>
-          <div className="champion-icon-container" data-testid={`qa-enemy-${state}`}>
-            <div className="portrait-icon fit-icon" style={{ width: 48, height: 48, backgroundImage: `url(/lol-game-data/assets/v1/champion-icons/${id}.png)` }} />
-          </div>
-        </div>
-      ))}
-    </div>}
+    {phase === 'ChampSelect' && <EnemyRows />}
     {phase === 'InProgress' && <div className="game-in-progress-container">游戏仍在进行中</div>}
     <div className="qa-tools"><ToolsPage /></div>
   </>

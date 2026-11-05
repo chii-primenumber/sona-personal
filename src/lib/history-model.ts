@@ -185,7 +185,13 @@ export function matchBadges(match: HistoryMatch) {
   for (const [key, label, tone] of maxima) {
     const value = metric(player, key, game)
     const values = teamMembers(player, game).map((p) => metric(p, key, game))
-    if (value != null && value > 0 && values.every((v) => v != null) && value >= Math.max(...values as number[])) result.push({ text: `${label}首位`, detail: `本场队内${label}最高（可能并列）；${numberText(value, key === 'timeCCingOthers' ? 1 : 0)}`, tone })
+    if (value != null && value > 0 && values.every((v) => v != null) && value >= Math.max(...values as number[])) {
+      result.push({
+        text: key === 'totalDamageDealtToChampions' ? '最高输出' : `${label}首位`,
+        detail: `本场队内${label}最高（可能并列）；${numberText(value, key === 'timeCCingOthers' ? 1 : 0)}`,
+        tone,
+      })
+    }
   }
   const solo = finite(player.challenges?.soloKills)
   if (solo != null && solo > 0) result.push({ text: `单杀 ×${solo}`, detail: '来自本场对局的单杀统计', tone: 'purple' })

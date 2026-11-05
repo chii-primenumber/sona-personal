@@ -45,8 +45,15 @@ export function SummaryStats({ matches, compact = false }: { matches: HistoryMat
   return <dl className={`rh-stats ${compact ? 'rh-stats-compact' : ''}`}>{metrics.map(([label, value, hint]) => <div key={label} title={hint}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
 }
 
-export function ChampionStrip({ matches, onSelect, limit = 5 }: { matches: HistoryMatch[]; onSelect?: (id: number) => void; limit?: number }) {
-  return <div className="rh-champion-strip">{championStats(matches).slice(0, limit).map((item) => <button type="button" key={item.id} onClick={() => onSelect?.(item.id)} title={`${championName(item.id)} · ${item.total} 场 · 胜率 ${percentText(item.winRate)}`} disabled={!onSelect}>
+export function ChampionStrip({ matches, onSelect, selectedId, limit = 5 }: {
+  matches: HistoryMatch[]
+  onSelect?: (id: number) => void
+  selectedId?: number
+  limit?: number
+}) {
+  return <div className="rh-champion-strip">{championStats(matches).slice(0, limit).map((item) => <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}
+    aria-pressed={onSelect && selectedId !== undefined ? selectedId === item.id : undefined}
+    title={`${championName(item.id)} · ${item.total} 场 · 胜率 ${percentText(item.winRate)}`} disabled={!onSelect}>
     <HistoryImage src={getChampIcon(item.id)} label={championName(item.id)} /><span>{item.total}</span>
   </button>)}</div>
 }

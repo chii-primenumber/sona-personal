@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { Modal } from '@/components/ui/Modal'
 import { MatchHistoryModal } from '@/components/ui/MatchHistoryModal'
+import { TeamHistoryModal } from '@/components/ui/TeamHistoryModal'
 import { lcu, queueIdToTag } from '@/lib/lcu'
 import { store } from '@/lib/store'
 import { getChampIcon } from '@/lib/assets'
@@ -137,7 +138,11 @@ export interface GameAnalysisModalProps {
   }
 }
 
-export function GameAnalysisModal({ open, onClose, mockData }: GameAnalysisModalProps) {
+export function GameAnalysisModal(props: GameAnalysisModalProps) {
+  return props.mockData ? <LegacyGameAnalysisModal {...props} /> : <TeamHistoryModal open={props.open} onClose={props.onClose} mode="game" />
+}
+
+function LegacyGameAnalysisModal({ open, onClose, mockData }: GameAnalysisModalProps) {
   const { t } = useI18n()
   const [blueTeam, setBlueTeam] = useState<PlayerAnalysis[]>([])
   const [redTeam, setRedTeam] = useState<PlayerAnalysis[]>([])

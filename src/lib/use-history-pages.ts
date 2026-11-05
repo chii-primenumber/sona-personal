@@ -1,0 +1,68 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { fetchHistoryPage } from '@/lib/history-api'
+import type { SgpGameSummaryLol, SgpMatchHistoryLol } from '@/types/sgp'
+
+interface PageState {
+  key: string; games: SgpGameSummaryLol[]; loading: boolean; loadingMore: boolean; hasMore: boolean;
+  error: string; source?: 'sgp' | 'lcu' | 'mixed'; scanLimit?: number; updatedAt: number
+}
+const empty: PageState = { key: '', games: [], loading: true, loadingMore: false, hasMore: true, error: '', updatedAt: 0 }
+
+export function useHistoryPages(puuid: string, queueId: number, count: number, open: boolean) {
+  const key = `${puuid}:${queueId}:${count}`
+  const [state, setState] = useState<PageState>(empty)
+  const [revision, setRevision] = useState(0)
+  const generation = useRef(0)
+  const controller = useRef<AbortController | null>(null)
+  const nextIndex = useRef(0)
+  const busy = useRef(false)
+  const stateRef = useRef(state)
+  stateRef.current = state
+
+  useEffect(() => {
+    const token = ++generation.current
+    controller.current?.abort()
+    const current = new AbortController(); controller.current = current
+    nextIndex.current = 0; busy.current = Boolean(open && puuid)
+    setState({ ...empty, key, loading: Boolean(open && puuid) })
+    if (!open || !puuid) return () => current.abort()
+    fetchHistoryPage(puuid, queueId, 0, count, current.signal).then((response) => {
+      if (token !== generation.current || current.signal.aborted) return
+      const games = response.games || []
+      nextIndex.current = games.length
+      setState({ key, games, loading: false, loadingMore: false, hasMore: games.length >= count, error: '', source: response.sonaSource, scanLimit: response.sonaScanLimit, updatedAt: Date.now() })
+    }).catch((error) => {
+      if (token !== generation.current || current.signal.aborted) return
+      setState({ ...empty, key, loading: false, error: error instanceof Error ? error.message : '查询失败，请重试' })
+    }).finally(() => { if (token === generation.current) busy.current = false })
+    return () => {
+      current.abort()
+      if (token === generation.current) { generation.current++; controller.current?.abort(); controller.current = null }
+    }
+  }, [puuid, queueId, count, open, revision, key])
+
+  const loadMore = useCallback(async () => {
+    const previous = stateRef.current
+    if (previous.key !== key || busy.current || !previous.hasMore || !open) return
+    const token = generation.current
+    const current = new AbortController(); controller.current = current; busy.current = true
+    setState((s) => ({ ...s, loadingMore: true, error: '' }))
+    try {
+      const response: SgpMatchHistoryLol = await fetchHistoryPage(puuid, queueId, nextIndex.current, count, current.signal)
+      if (token !== generation.current || current.signal.aborted) return
+      const existing = new Set(previous.games.map((g) => `${g.json.platformId}:${g.json.gameId}`))
+      const added = (response.games || []).filter((g) => !existing.has(`${g.json.platformId}:${g.json.gameId}`))
+      nextIndex.current += (response.games || []).length
+      setState((s) => ({ ...s, games: [...s.games, ...added], loadingMore: false, hasMore: (response.games || []).length >= count && added.length > 0,
+        source: s.source && response.sonaSource && s.source !== response.sonaSource ? 'mixed' : response.sonaSource || s.source,
+        scanLimit: response.sonaScanLimit || s.scanLimit, updatedAt: Date.now(),
+        error: !added.length && response.games?.length ? '接口返回重复对局，已停止翻页；可刷新后重试。' : '',
+      }))
+    } catch (error) {
+      if (token !== generation.current || current.signal.aborted) return
+      setState((s) => ({ ...s, loadingMore: false, error: error instanceof Error ? error.message : '加载更多失败，请重试' }))
+    } finally { if (token === generation.current) busy.current = false }
+  }, [key, puuid, queueId, count, open])
+
+  return { ...(state.key === key ? state : { ...empty, key }), loadMore, refresh: () => setRevision((v) => v + 1) }
+}

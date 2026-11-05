@@ -84,7 +84,7 @@ function penguServe(): Plugin {
  * Pengu Loader Build Plugin
  * - Patches asset paths for PenguLoader's plugin protocol
  * - Wraps code for proper load timing
- * - Copies build output to plugins directory
+ * - Leaves the personal edition in dist for explicit installation
  */
 function penguBuild(): Plugin {
   let config: ResolvedConfig
@@ -123,7 +123,7 @@ function penguBuild(): Plugin {
           '/**',
           ' * @name Sona',
           ` * @version ${pkg.version}`,
-          ' * @description 基于 Pengu Loader 的全服可用英雄联盟客户端增强插件',
+          ' * @description 基于 Sona 1.10.0 的个人战绩增强版：完整战绩、BP 五人和进游戏后双方总览',
           ' * @author WJZ_P',
           ' * @link https://github.com/WJZ-P/sona',
           ' */',
@@ -142,34 +142,8 @@ function penguBuild(): Plugin {
         fs.writeFileSync(cssPath, css)
       }
 
-      // Copy build output to plugins directory (skip if it's the project root)
-      const projectRoot = path.resolve(__dirname)
-      if (path.resolve(PLUGINS_DIR) === projectRoot) {
-        // Target is the project itself — just move dist contents to project root
-        copyDirSync(outDir, projectRoot)
-        console.log(`\n  ✅ Plugin "${PLUGIN_NAME}" built in-place (project root)\n`)
-      } else {
-        if (fs.existsSync(PLUGINS_DIR)) {
-          fs.rmSync(PLUGINS_DIR, { recursive: true })
-        }
-        fs.mkdirSync(PLUGINS_DIR, { recursive: true })
-        copyDirSync(outDir, PLUGINS_DIR)
-        console.log(`\n  ✅ Plugin "${PLUGIN_NAME}" built to ${PLUGINS_DIR}\n`)
-      }
+      console.log(`\n  ✅ Personal build saved to ${outDir}\n`)
     },
-  }
-}
-
-function copyDirSync(src: string, dest: string) {
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    const srcPath = path.join(src, entry.name)
-    const destPath = path.join(dest, entry.name)
-    if (entry.isDirectory()) {
-      fs.mkdirSync(destPath, { recursive: true })
-      copyDirSync(srcPath, destPath)
-    } else {
-      fs.copyFileSync(srcPath, destPath)
-    }
   }
 }
 

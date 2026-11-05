@@ -30,6 +30,7 @@ import { applyRankDisguise, updateRankDisguise } from '@/lib/features/rank-disgu
 import { updateCustomProfileBg } from '@/lib/features/profile-background'
 import { updateCustomBanner } from '@/lib/features/custom-banner'
 import { updateGameAnalysisPopup } from '@/lib/features/game-analysis-popup'
+import { updateTeamHistoryOverview } from '@/lib/features/team-history-overview'
 import { updateAutoReturnToLobby } from '@/lib/features/auto-return-to-lobby'
 import { updateOpggBuildRecommendation } from '@/lib/features/opgg-build-recommendation'
 import { updateBeautifyCustomAvatar } from '@/lib/features/beautify-client/custom-avatar'
@@ -1103,6 +1104,8 @@ function pickRandomHomepageBackgroundOnStartup() {
 
 export function initFeatures() {
   preloadChampSelectTierBadgeData()
+  updateTeamHistoryOverview(store.get('teamHistoryOverview'))
+  store.onChange('teamHistoryOverview', updateTeamHistoryOverview)
 
   updateAutoAccept(store.get('autoAcceptMatch'))
   store.onChange('autoAcceptMatch', updateAutoAccept)

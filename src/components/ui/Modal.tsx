@@ -4,6 +4,8 @@ import '@/styles/Modal.css'
 
 /** 退场动画 0.2s，略留余量后强制卸载，避免 animationend 不触发时卡死 */
 const CLOSE_ANIMATION_FALLBACK_MS = 400
+const modalStack: symbol[] = []
+let initialBodyOverflow = ''
 
 export interface ModalProps {
   /** 是否显示 */
@@ -32,6 +34,7 @@ export function Modal({
   closable = true,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
+  const modalId = useRef(Symbol('sona-modal'))
   const overlayRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const closeBtnRef = useRef<HTMLButtonElement>(null)
@@ -109,7 +112,7 @@ export function Modal({
   useEffect(() => {
     if (!open) return
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') requestClose()
+      if (e.key === 'Escape' && modalStack[modalStack.length - 1] === modalId.current) requestClose()
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
@@ -204,16 +207,17 @@ export function Modal({
 
   // 打开时阻止背景滚动
   useEffect(() => {
-    if (mounted && !closing) {
-      document.body.style.overflow = 'hidden'
-    }
-    if (!mounted) {
-      document.body.style.overflow = ''
-    }
+    if (!open || !mounted || closing) return
+    const id = modalId.current
+    if (!modalStack.length) initialBodyOverflow = document.body.style.overflow
+    modalStack.push(id)
+    document.body.style.overflow = 'hidden'
     return () => {
-      document.body.style.overflow = ''
+      const index = modalStack.lastIndexOf(id)
+      if (index !== -1) modalStack.splice(index, 1)
+      if (!modalStack.length) document.body.style.overflow = initialBodyOverflow
     }
-  }, [mounted, closing])
+  }, [open, mounted, closing])
 
   if (!mounted) return null
 

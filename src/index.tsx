@@ -13,7 +13,6 @@ import { lcu } from '@/lib/lcu'
 import { initPluginResolver } from '@/lib/plugin-resolver'
 import { installEmberHook } from '@/lib/ember-hook'
 import { registerChromaRules } from '@/lib/features/chroma-unlock'
-import { checkForUpdates } from '@/lib/update-checker'
 import { installAdBlockXhrRules } from '@/lib/xhr'
 import '@/styles/index.css'
 import '@/styles/inject.css'
@@ -98,7 +97,6 @@ export function load() {
   registerHotkey()         //  注册 F1 快捷键
   initAssets()             //  初始化装备/技能资源映射（异步，不阻塞）
   mountApp()
-  void checkForUpdates()
 }
 
 /**

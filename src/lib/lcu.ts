@@ -96,8 +96,8 @@ async function request<T = unknown>(endpoint: string, options: RequestInit = {})
   return text ? (JSON.parse(text) as T) : (undefined as unknown as T)
 }
 
-function get<T = unknown>(endpoint: string): Promise<T> {
-  return request<T>(endpoint, { method: 'GET' })
+function get<T = unknown>(endpoint: string, signal?: AbortSignal): Promise<T> {
+  return request<T>(endpoint, { method: 'GET', signal })
 }
 
 function post<T = unknown>(endpoint: string, body?: unknown): Promise<T> {
@@ -1052,11 +1052,11 @@ class LCUManager {
    * @param begIndex 起始索引，默认 0
    * @param endIndex 结束索引，默认 19（共 20 条）
    */
-  getMatchHistory(puuid?: string, begIndex = 0, endIndex = 19): Promise<MatchHistoryResponse> {
+  getMatchHistory(puuid?: string, begIndex = 0, endIndex = 19, signal?: AbortSignal): Promise<MatchHistoryResponse> {
     const base = puuid
       ? `/lol-match-history/v1/products/lol/${puuid}/matches`
       : '/lol-match-history/v1/products/lol/current-summoner/matches'
-    return get(`${base}?begIndex=${begIndex}&endIndex=${endIndex}`)
+    return get(`${base}?begIndex=${begIndex}&endIndex=${endIndex}`, signal)
   }
 
   /**
@@ -1257,6 +1257,7 @@ class LCUManager {
     startIndex?: number
     count?: number
     tag?: string
+    signal?: AbortSignal
   }): Promise<SgpMatchHistoryLol> {
     const debugContext: {
       platformId: string
@@ -1301,6 +1302,7 @@ class LCUManager {
       debugContext.requestUrl = url
 
       const resp = await fetch(url, {
+        signal: options?.signal,
         headers: {
           'Authorization': `Bearer ${token.accessToken}`,
           'User-Agent': 'LeagueOfLegendsClient/14.13.596.7996 (rcp-be-lol-match-history)',
@@ -1312,8 +1314,10 @@ class LCUManager {
         throw new Error(`[SGP] 请求失败: ${resp.status} ${resp.statusText} ${body.slice(0, 1000)}`)
       }
 
-      return resp.json()
+      const result = await resp.json() as SgpMatchHistoryLol
+      return { ...result, sonaSource: 'sgp' }
     } catch (err) {
+      if (options?.signal?.aborted) throw err
       console.error('[SGP] 战绩查询失败，回退到客户端原生战绩接口', {
         platformId: debugContext.platformId || 'unknown',
         sgpServerId: debugContext.sgpServerId || 'unknown',
@@ -1336,6 +1340,7 @@ class LCUManager {
     startIndex?: number
     count?: number
     tag?: string
+    signal?: AbortSignal
   }): Promise<SgpMatchHistoryLol> {
     const startIndex = Math.max(0, options?.startIndex ?? 0)
     const count = Math.max(1, options?.count ?? 100)
@@ -1346,14 +1351,16 @@ class LCUManager {
     const endIndex = queueId
       ? 99
       : startIndex + count - 1
-    const native = await this.getMatchHistory(puuid, begIndex, endIndex)
+    const native = await this.getMatchHistory(puuid, begIndex, endIndex, options?.signal)
     const nativeGames = native.games?.games ?? []
     const filteredGames = queueId
       ? nativeGames.filter((game) => game.queueId === queueId).slice(startIndex, startIndex + count)
       : nativeGames
 
     return {
-      games: filteredGames.map((game) => this.mapNativeMatchGameToSgpGame(game)),
+      games: filteredGames.map((game) => ({ ...this.mapNativeMatchGameToSgpGame(game), sonaDataSource: 'lcu' as const })),
+      sonaSource: 'lcu',
+      sonaScanLimit: queueId ? 100 : undefined,
     }
   }
 

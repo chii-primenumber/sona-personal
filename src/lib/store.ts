@@ -57,6 +57,8 @@ export interface SonaConfig {
   windowEffect: string
   /** 英雄选择玩家头像交互（点击队友头像展示历史数据） */
   champSelectAssist: boolean
+  /** Personal edition: manual team history entry in champ select and in game. */
+  teamHistoryOverview: boolean
   /** OP.GG 配装推荐（接管选好英雄后的技能预览面板点击） */
   opggBuildRecommendation: boolean
   /**
@@ -243,6 +245,7 @@ const DEFAULT_CONFIG: SonaConfig = {
   skippedUpdateVersion: null,
   windowEffect: 'none',
   champSelectAssist: false,
+  teamHistoryOverview: true,
   opggBuildRecommendation: false,
   smartBuildRecommendation: false,
   smartItemSetBuild: false,

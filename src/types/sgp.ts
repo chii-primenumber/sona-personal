@@ -12,11 +12,15 @@
 
 export interface SgpMatchHistoryLol {
   games: SgpGameSummaryLol[]
+  /** Personal history UI: identify a reduced native fallback without guessing completeness. */
+  sonaSource?: 'sgp' | 'lcu'
+  sonaScanLimit?: number
 }
 
 export interface SgpGameSummaryLol {
   metadata: SgpGameMetadataLol
   json: SgpGameSummaryJsonLol
+  sonaDataSource?: 'lcu'
 }
 
 export interface SgpGameMetadataLol {

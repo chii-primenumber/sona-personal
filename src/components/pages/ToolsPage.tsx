@@ -154,6 +154,7 @@ export function ToolsPage() {
   const [quickLobbyQueueOptions, setQuickLobbyQueueOptions] = useState<{ value: string; label: string }[]>([])
   const [windowEffect, setWindowEffect] = useState(store.get('windowEffect'))
   const [champSelectAssist, setChampSelectAssist] = useState(store.get('champSelectAssist'))
+  const [teamHistoryOverview, setTeamHistoryOverview] = useState(store.get('teamHistoryOverview'))
   const [opggBuildRecommendation, setOpggBuildRecommendation] = useState(store.get('opggBuildRecommendation'))
   const [smartBuildRecommendation, setSmartBuildRecommendation] = useState(store.get('smartBuildRecommendation'))
   const [smartItemSetBuild, setSmartItemSetBuild] = useState(store.get('smartItemSetBuild'))
@@ -238,6 +239,7 @@ export function ToolsPage() {
       store.onChange('quickLobbyQueueId', setQuickLobbyQueueId),
       store.onChange('windowEffect', setWindowEffect),
       store.onChange('champSelectAssist', setChampSelectAssist),
+      store.onChange('teamHistoryOverview', setTeamHistoryOverview),
       store.onChange('opggBuildRecommendation', setOpggBuildRecommendation),
       store.onChange('smartBuildRecommendation', setSmartBuildRecommendation),
       store.onChange('smartItemSetBuild', setSmartItemSetBuild),
@@ -561,6 +563,12 @@ export function ToolsPage() {
             checked={champSelectAssist}
             onChange={(v) => { setChampSelectAssist(v); store.set('champSelectAssist', v) }}
           />
+        </SettingCard>
+        <SettingCard
+          title="五人 / 十人战绩总览"
+          description="在英雄选择界面添加己方五人战绩按钮；进入游戏后可从客户端查看双方近期战绩。"
+        >
+          <SonaSwitch checked={teamHistoryOverview} onChange={(v) => { setTeamHistoryOverview(v); store.set('teamHistoryOverview', v) }} />
         </SettingCard>
         <SettingCard
           title={t('tools.opggBuildRecommendation.title')}

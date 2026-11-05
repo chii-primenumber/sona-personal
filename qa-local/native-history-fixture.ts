@@ -1,6 +1,5 @@
-import { installEmberHook } from '@/lib/ember-hook'
-import { enableNativeProfileHistory, registerNativeHistoryHooks } from '@/lib/features/native-history-entry'
-import { registerEnemyOpggMatchups } from '@/lib/features/enemy-opgg-matchups'
+import { init } from '@/index'
+import { enableNativeProfileHistory } from '@/lib/features/native-history-entry'
 
 type Prototype = Record<string, unknown>
 type FixtureClass = { proto(): Prototype; extend(...mixins: Prototype[]): FixtureClass }
@@ -19,10 +18,12 @@ function extend(parent: Prototype, ...mixins: Prototype[]): FixtureClass {
   return { proto: () => prototype, extend: (...next) => extend(prototype, ...next) }
 }
 
-export async function setupNativeHistoryFixture() {
+export async function setupNativeHistoryFixture(socket: PenguContext['socket']) {
   const matchApi = { displayMatchSummary(_options: unknown) {} }
   const emberApi = { getEmber: async () => ({ Component: extend({}) }) }
   const context = {
+    meta: { name: 'sona' },
+    socket,
     rcp: {
       postInit(name: string, callback: (api: unknown) => void) {
         if (name === 'rcp-fe-lol-match-history') callback(matchApi)
@@ -30,9 +31,7 @@ export async function setupNativeHistoryFixture() {
       },
     },
   } as unknown as PenguContext
-  installEmberHook(context)
-  registerNativeHistoryHooks(context)
-  registerEnemyOpggMatchups()
+  init(context)
   enableNativeProfileHistory()
   const { Component } = await emberApi.getEmber()
   const summonerClass = Component.extend({ classNames: ['summoner-object'] })

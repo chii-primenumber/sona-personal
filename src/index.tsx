@@ -15,7 +15,7 @@ import { installEmberHook } from '@/lib/ember-hook'
 import { registerChromaRules } from '@/lib/features/chroma-unlock'
 import { enableNativeProfileHistory, registerNativeHistoryHooks } from '@/lib/features/native-history-entry'
 import { registerEnemyOpggMatchups } from '@/lib/features/enemy-opgg-matchups'
-import { installAdBlockXhrRules } from '@/lib/xhr'
+import { installAdBlockXhrRules, installProfilePrivacyXhrRules } from '@/lib/xhr'
 import '@/styles/index.css'
 import '@/styles/inject.css'
 import '@/styles/availabilityMenu.css'
@@ -79,6 +79,7 @@ export function init(context: PenguContext) {
   penguContext = context
   initPluginResolver(import.meta.url, context)
   installAdBlockXhrRules()
+  installProfilePrivacyXhrRules()
   lcu.bindContext(context)
 
   // 必须在 init 阶段注册 RCP hook——要赶在客户端调用 getEmber 之前

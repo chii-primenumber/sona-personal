@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ToolsPage } from '@/components/pages/ToolsPage'
-import { lcu, LcuEventUri } from '@/lib/lcu'
+import { LcuEventUri } from '@/lib/lcu'
 import { initAssets } from '@/lib/assets'
 import { initFeatures } from '@/lib/features'
 import { injector } from '@/lib/InjectorManager'
@@ -11,11 +11,13 @@ import { setupNativeHistoryFixture } from './native-history-fixture'
 const events = new Map<string, (value: unknown) => void>()
 const emit = (uri: string, data: unknown) => events.get(uri)?.({ uri, data, eventType: 'Update' })
 Object.assign(window, { qaEmit: emit })
-lcu.bindContext({ socket: { observe(uri: string, callback: (value: unknown) => void) { events.set(uri, callback) }, disconnect() {} } } as unknown as Parameters<typeof lcu.bindContext>[0])
+const { mountHistory, mountSummoner } = await setupNativeHistoryFixture({
+  observe(uri, callback) { events.set(uri, callback) },
+  disconnect() {},
+})
 await initAssets()
 injector.start()
 initFeatures()
-const { mountHistory, mountSummoner } = await setupNativeHistoryFixture()
 Object.assign(window, { qaNativeHistory: mountHistory })
 
 function EnemyRows() {

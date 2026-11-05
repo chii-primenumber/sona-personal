@@ -143,6 +143,7 @@ export function ToolsPage() {
   const [unlockStatus, setUnlockStatus] = useState(store.get('unlockStatus'))
   const [unlockAvailability, setUnlockAvailability] = useState(store.get('unlockAvailability'))
   const [unlockChromas, setUnlockChromas] = useState(store.get('unlockChromas'))
+  const [ignoreProfilePrivacy, setIgnoreProfilePrivacy] = useState(store.get('ignoreProfilePrivacy'))
   const [benchNoCooldown, setBenchNoCooldown] = useState(store.get('benchNoCooldown'))
   const [hideTFT, setHideTFT] = useState(store.get('hideTFT'))
   const [hideClassicMode, setHideClassicMode] = useState(store.get('hideClassicMode'))
@@ -229,6 +230,7 @@ export function ToolsPage() {
       store.onChange('unlockStatus', setUnlockStatus),
       store.onChange('unlockAvailability', setUnlockAvailability),
       store.onChange('unlockChromas', setUnlockChromas),
+      store.onChange('ignoreProfilePrivacy', setIgnoreProfilePrivacy),
       store.onChange('benchNoCooldown', setBenchNoCooldown),
       store.onChange('hideTFT', setHideTFT),
       store.onChange('hideClassicMode', setHideClassicMode),
@@ -767,6 +769,15 @@ export function ToolsPage() {
       </SettingGroup>
 
       <SettingGroup title={t('tools.group.social')}>
+        <SettingCard
+          title={t('tools.ignoreProfilePrivacy.title')}
+          description={t('tools.ignoreProfilePrivacy.description')}
+        >
+          <SonaSwitch
+            checked={ignoreProfilePrivacy}
+            onChange={(value) => store.set('ignoreProfilePrivacy', value)}
+          />
+        </SettingCard>
         <SettingCard
           title={t('tools.unlockStatus.title')}
           description={t('tools.unlockStatus.description')}

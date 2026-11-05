@@ -177,10 +177,19 @@ function simulateNetworkError(xhr: XMLHttpRequest, meta: XhrRequestMeta) {
 
 function installResponseRewrite(xhr: XMLHttpRequest, meta: XhrRequestMeta, rule: XhrMatchedRule) {
   let rewritten = false
+  const previousReadyStateChange = xhr.onreadystatechange
+
+  function handleReadyStateChange(this: XMLHttpRequest, event: Event) {
+    rewrite()
+    previousReadyStateChange?.call(this, event)
+  }
 
   const rewrite = () => {
     if (rewritten || xhr.readyState !== XMLHttpRequest.DONE) return
     rewritten = true
+    xhr.removeEventListener('readystatechange', rewrite, true)
+    xhr.removeEventListener('load', rewrite, true)
+    if (xhr.onreadystatechange === handleReadyStateChange) xhr.onreadystatechange = previousReadyStateChange
 
     const rawValue = typeof rule.response === 'function'
       ? rule.response(meta, xhr)
@@ -200,6 +209,8 @@ function installResponseRewrite(xhr: XMLHttpRequest, meta: XhrRequestMeta, rule:
     defineXhrValue(xhr, 'responseText', textValue)
   }
 
+  // A client may have assigned its callback before send. Rewrite before that callback reads the response.
+  if (previousReadyStateChange) xhr.onreadystatechange = handleReadyStateChange
   xhr.addEventListener('readystatechange', rewrite, true)
   xhr.addEventListener('load', rewrite, true)
 }

@@ -103,6 +103,10 @@ try {
     if (p==='/entitlements/v1/token') return json({accessToken:'test-fixture-only',issuer:'http://hn1-k8s-bcs-internal.lol.qq.com:28088'})
     if (p.endsWith('/league-session-token')) return json('test-fixture-only')
     if (p==='/lol-summoner/v1/current-summoner') return json(profile(0))
+    if (p==='/lol-summoner/v1/profile-privacy-enabled') {
+      return json('ENABLED', url.searchParams.has('fail') ? 503 : 200)
+    }
+    if (p==='/lol-summoner/v1/profile-privacy-enabled-extra') return json('ENABLED')
     if (p.endsWith('/alias/lookup')) {
       const player = names.indexOf(url.searchParams.get('gameName'))
       return player >= 0 && url.searchParams.get('tagLine') === 'DEMO' ? json(profile(player)) : json({},404)
@@ -123,6 +127,33 @@ try {
     return route.continue()
   })
   await page.goto(`${origin}/qa-local/index.html`)
+  const privacySwitch = page.locator('.sona-setting-card').filter({hasText:'解锁隐藏生涯'}).getByRole('switch')
+  await privacySwitch.waitFor()
+  assert.equal(await privacySwitch.getAttribute('aria-checked'), 'true')
+  const privacy = await page.evaluate(async () => {
+    function read(path, responseType) {
+      return new Promise((resolve, reject) => {
+        const request = new XMLHttpRequest()
+        request.open('GET', `/lol-summoner/v1/${path}`)
+        request.responseType = responseType
+        request.onreadystatechange = () => {
+          if (request.readyState === XMLHttpRequest.DONE) resolve([request.status, request.response])
+        }
+        request.onerror = reject
+        request.send()
+      })
+    }
+    return Promise.all([
+      read('profile-privacy-enabled', 'text'),
+      read('profile-privacy-enabled', 'json'),
+      read('profile-privacy-enabled-extra', 'json'),
+      read('profile-privacy-enabled?fail', 'json'),
+    ])
+  })
+  assert.deepEqual(privacy, [[200, 'false'], [200, false], [200, 'ENABLED'], [503, false]])
+  await privacySwitch.click()
+  assert.equal(await page.evaluate(() => window.DataStore.get('sona:ignoreProfilePrivacy')), false)
+  await privacySwitch.click()
   const query = page.getByPlaceholder(/名字#Tag/)
   await query.fill('练习星轨#DEMO')
   await page.getByRole('button',{name:'查询战绩',exact:true}).click()

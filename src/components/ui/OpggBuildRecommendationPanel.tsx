@@ -21,12 +21,12 @@ import {
   getSpellName,
 } from '@/lib/assets'
 import { lcu } from '@/lib/lcu'
+import { getRankedMiniCrest } from '@/lib/ranked-assets'
 import { type OpggItemBuild, type OpggMatchup, type OpggMode, type OpggPosition, type OpggRuneBuild, type OpggTier } from '@/lib/opgg-api'
 import { translate, useI18n } from '@/i18n'
 import '@/styles/OpggBuildRecommendationPanel.css'
 
 const MAX_RECOMMENDATION_ROWS = 5
-const RANKED_MINI_CREST_BASE = '/fe/lol-static-assets/images/ranked-mini-crests'
 const OPGG_TIER_BASE_OPTIONS: Array<{ value: OpggTier; label: string }> = [
   { value: 'all', label: '全部段位' },
   { value: 'challenger', label: '最强王者' },
@@ -47,14 +47,9 @@ const OPGG_TIER_BASE_OPTIONS: Array<{ value: OpggTier; label: string }> = [
 ]
 const OPGG_TIER_OPTIONS: Array<{ value: OpggTier; label: string; icon?: string }> = OPGG_TIER_BASE_OPTIONS.map((option) => ({
   ...option,
-  icon: getOpggTierIcon(option.value),
+  icon: getRankedMiniCrest(option.value.replace('_plus', '')),
 }))
 const OPGG_POSITION_VALUES: OpggPosition[] = ['top', 'jungle', 'mid', 'adc', 'support']
-
-function getOpggTierIcon(tier: OpggTier): string {
-  if (tier === 'all' || tier === 'ibsg') return ''
-  return `${RANKED_MINI_CREST_BASE}/${tier.replace('_plus', '')}.svg`
-}
 
 export interface RecommendationContext {
   championId: number

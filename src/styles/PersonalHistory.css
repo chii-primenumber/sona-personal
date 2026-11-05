@@ -194,11 +194,10 @@
 .rh-team-portrait small { position: absolute; bottom: -2px; right: -2px; padding: 0 3px; background: #171424; color: #fff1cf; border-radius: 4px; font-size: 9px; }
 .rh-team-identity { min-width: 0; flex: 1; }
 .rh-team-identity > strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
-.rh-team-ranks { display: flex; flex-wrap: wrap; column-gap: 6px; font-size: 10px; color: #c3b9d4; }
-.rh-team-ranks > span { white-space: nowrap; }
-.rh-team-ranks .rh-rank-emerald { color: #88e1b4; }
-.rh-team-ranks .rh-rank-diamond { color: #a7c8fa; }
-.rh-team-ranks .rh-rank-master, .rh-team-ranks .rh-rank-grandmaster { color: #dda0ee; }
+.rh-team-ranks { display: grid; gap: 1px; min-height: 33px; font-size: 10px; line-height: 16px; color: #c3b9d4; }
+.rh-team-rank-row { display: grid; grid-template-columns: 4em 16px auto; align-items: center; column-gap: 5px; white-space: nowrap; }
+.rh-team-rank-icon { width: 16px; height: 16px; object-fit: contain; }
+.rh-team-rank-lp { font-variant-numeric: tabular-nums; }
 .rh-team-selection { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; min-height: 22px; margin: 4px 0 1px; color: #c9c0d8; font-size: 10px; }
 .rh-team-selection :is(img,.rh-image-fallback) { width: 16px; height: 16px; border-radius: 3px; }
 .rh-team-selection b { padding: 0 4px; border-radius: 3px; color: #ebd6ff; background: #5e467a; }

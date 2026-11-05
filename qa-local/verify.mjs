@@ -90,7 +90,7 @@ try {
       return json({games:games.filter((g)=>!queue||g.json.queueId===queue).slice(start,start+count)})
     }
     if (url.origin !== origin) { external.push(url.hostname); return route.abort().catch(()=>{}) }
-    if (p.startsWith('/qa-art/')||p.includes('/champion-icons/')||p.includes('/profile-icons/')) return route.fulfill({contentType:'image/svg+xml',body:image(p)}).catch(()=>{})
+    if (p.startsWith('/qa-art/')||p.includes('/champion-icons/')||p.includes('/profile-icons/')||p.includes('/ranked-mini-crests/')) return route.fulfill({contentType:'image/svg+xml',body:image(p)}).catch(()=>{})
     if (p.endsWith('/champion-summary.json')) return json([...champions,[154,'扎克'],[83,'约里克']].map(([id,name])=>({id,name,title:'英雄',alias:`Preview${id}`,squarePortraitPath:`/qa-art/champion-${id}.svg`})))
     if (p.endsWith('/items.json')) return json(mockIcons(items,'item'))
     if (p.endsWith('/summoner-spells.json')) return json(mockIcons([[4,'闪现'],[7,'治疗'],[32,'雪球']],'spell'))
@@ -240,6 +240,15 @@ try {
   await bpView.getByText('练习星轨#DEMO',{exact:true}).waitFor()
   assert.equal(await bpView.getByText('白昼拾荒#DEMO',{exact:true}).count(),0)
   await bpView.locator('.rh-team-card-stats').nth(4).waitFor()
+  const rankRows = bpView.locator('.rh-team-card').first().locator('.rh-team-rank-row')
+  await rankRows.nth(1).waitFor()
+  assert.deepEqual(await rankRows.allTextContents(), ['单双排55 LP','灵活组排40 LP'])
+  assert.deepEqual(await rankRows.locator('img').evaluateAll((icons) => icons.map((icon) => icon.getAttribute('src'))), [
+    '/fe/lol-static-assets/images/ranked-mini-crests/emerald.svg',
+    '/fe/lol-static-assets/images/ranked-mini-crests/diamond.svg',
+  ])
+  assert.equal(await rankRows.first().getAttribute('title'), '单双排 · 流光翡翠 I · 55 LP')
+  assert.ok((await rankRows.nth(1).boundingBox()).y > (await rankRows.first().boundingBox()).y)
   await bpView.getByLabel('队伍战绩范围').selectOption('2400')
   await bpView.locator('.rh-team-match').first().getByText('海克斯大乱斗', {exact:true}).waitFor()
   await bpView.getByLabel('队伍战绩范围').selectOption('-1')

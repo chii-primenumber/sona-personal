@@ -6,6 +6,7 @@ import { lcu, LcuEventUri } from '@/lib/lcu'
 import { store } from '@/lib/store'
 import { deobfuscateChampSelectPuuid } from '@/lib/champ-select-puuid'
 import { getChampIcon, getPlayableQueues, getQueueName } from '@/lib/assets'
+import { getRankedMiniCrest } from '@/lib/ranked-assets'
 import { deadline, fetchHistoryRanks, fetchHistorySummoner, rankText, type HistoryRank } from '@/lib/history-api'
 import { mean, numberText, percentText, POSITION_NAMES, profileIconUrl, summarize, toHistoryMatches, validMatches, type HistoryMatch } from '@/lib/history-model'
 import { calculateSonaPlayerStrengthScore } from '@/lib/player-strength-score'
@@ -223,11 +224,18 @@ function TeamPlayerCard({ member, queueId, count, open, premade, onInspect, onMa
         <span className="rh-team-identity">
           <strong>{name}</strong>
           <span className="rh-team-ranks">
-            {ranks?.map((rank) => (
-              <span key={rank.key} className={`rh-rank-${rank.tier.toLowerCase()}`} title={`${rank.label} ${rankText(rank)}`}>
-                {rank.key === 'RANKED_SOLO_5x5' ? '单双' : '灵活'} {rankText(rank)}{rank.lp != null && rank.tier !== 'UNRANKED' ? ` ${rank.lp}` : ''}
-              </span>
-            )) ?? (rankLoading && member.puuid ? '段位查询中…' : '段位暂不可用')}
+            {ranks?.map((rank) => {
+              const queueName = rank.key === 'RANKED_SOLO_5x5' ? '单双排' : '灵活组排'
+              const lp = rank.lp != null && rank.tier !== 'UNRANKED' ? `${rank.lp} LP` : '—'
+              const description = [queueName, rankText(rank), lp !== '—' && lp].filter(Boolean).join(' · ')
+              return (
+                <span key={rank.key} className="rh-team-rank-row" title={description}>
+                  <span>{queueName}</span>
+                  <HistoryImage src={getRankedMiniCrest(rank.tier)} label={description} className="rh-team-rank-icon" />
+                  <span className="rh-team-rank-lp">{lp}</span>
+                </span>
+              )
+            }) ?? (rankLoading && member.puuid ? '段位查询中…' : '段位暂不可用')}
           </span>
         </span>
       </button>

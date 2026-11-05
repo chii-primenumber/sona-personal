@@ -73,6 +73,20 @@
 .rh-main-toolbar, .rh-local-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .rh-main-toolbar { justify-content: space-between; border-bottom: 1px solid var(--rh-line); margin: 0 2px 7px; }
 .rh-main-toolbar > span { font-size: 10px; }
+.rh-player-search { display: flex; gap: 5px; width: min(100%, 300px); margin-left: auto; align-items: center; }
+.rh-player-search input {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 5px 8px;
+  font: inherit;
+  color: var(--rh-ink);
+  color-scheme: dark;
+  background: #182432;
+  border: 1px solid #46566c;
+  border-radius: 5px;
+}
+.rh-player-search input:focus { outline: 1px solid #b69862; outline-offset: 0; }
+.rh-shell .rh-search-error { margin: 0 2px 7px; color: #ffa3b2; font-size: 11px; }
 .rh-tabs, .rh-segment { display: flex; gap: 4px; }
 .rh-tabs button { padding: 6px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #c1cbd9; font-weight: 650; }
 .rh-tabs button.is-active { color: #f2d79a; border-color: #d8b775; }
@@ -217,7 +231,7 @@
 .rh-team-entry { color: #f1d6a4; background: #112337; border: 1px solid #b4965e; border-radius: 3px; padding: 6px 10px; margin: 3px 7px; min-height: 26px; font: 600 12px 'Microsoft YaHei UI', sans-serif; cursor: pointer; white-space: nowrap; }
 .rh-team-entry:hover { background: #284560; color: #ffe5b4; }
 .rh-team-entry-floating { position: fixed; right: 22px; bottom: 68px; z-index: 820; }
-.sona-profile-history-entry { position: absolute; top: 88px; right: 66px; z-index: 4; padding: 3px 11px; color: #f0d6a0; background: #132335; border: 1px solid #8c7448; border-radius: 2px; font-size: 12px; cursor: pointer; }
+.sona-profile-history-entry { position: absolute; top: 136px; right: 70px; z-index: 4; padding: 3px 11px; color: #f0d6a0; background: #132335; border: 1px solid #8c7448; border-radius: 2px; font-size: 12px; cursor: pointer; }
 .rcp-fe-lol-profiles-modal .sona-profile-history-entry { top: 9px; }
 .sona-profile-history-entry:hover { color: #fff0cf; border-color: #c3a66e; }
 .sona-postgame-history-entry { display: block; width: 100%; border: 0; background: transparent; padding: 6px 10px; text-align: left; color: #f0d6a0; cursor: pointer; }

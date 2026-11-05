@@ -17,6 +17,7 @@ type MenuItem = { label: string; target: Component; action: () => void }
 type MenuManager = { setMenuItems(items: MenuItem[]): void; openAtEvent(event: MouseEvent): void }
 
 let historyRoot: Root | undefined
+let profileEntry: HTMLButtonElement | undefined
 let latestRequest = 0
 const summaryIdentities = new WeakMap<Element, Identity>()
 const rowListeners = new WeakMap<Component, (event: Event) => void>()
@@ -81,34 +82,37 @@ function profileIdentity(screen: Element): Identity | undefined {
   return playerIdentity({ puuid: icon.getAttribute('puuid'), summonerId: icon.getAttribute('summoner-id') })
 }
 
-function injectProfileButtons() {
-  document.querySelectorAll(profileScreen).forEach((screen) => {
-    const navigation = screen.querySelector('.style-profile-sub-nav')
-    if (!navigation || !visible(navigation)) return
-    const host = navigation.parentElement
-    if (!host) return
-    let button = host.querySelector<HTMLButtonElement>(':scope > .sona-profile-history-entry')
-    const identity = profileIdentity(screen)
-    if (!identity) {
-      button?.remove()
-      return
-    }
-    if (button) return
-    button = document.createElement('button')
-    button.type = 'button'
-    button.className = 'sona-profile-history-entry'
-    button.textContent = label
-    button.addEventListener('click', () => {
-      const current = profileIdentity(screen)
+function activeProfileScreen() {
+  const screens = Array.from(document.querySelectorAll(profileScreen)).filter(visible).reverse()
+  return screens.find((screen) => screen.classList.contains('rcp-fe-lol-profiles-modal')) ?? screens[0]
+}
+
+function injectProfileButton() {
+  const screen = activeProfileScreen()
+  const navigation = screen?.querySelector('.style-profile-sub-nav')
+  const host = navigation?.parentElement
+  if (!screen || !navigation || !host || !visible(navigation) || !profileIdentity(screen)) {
+    profileEntry?.remove()
+    return true
+  }
+
+  if (!profileEntry) {
+    profileEntry = document.createElement('button')
+    profileEntry.type = 'button'
+    profileEntry.className = 'sona-profile-history-entry'
+    profileEntry.textContent = label
+    profileEntry.addEventListener('click', () => {
+      const active = activeProfileScreen()
+      const current = active && profileIdentity(active)
       if (current) void openHistory(current)
     })
-    host.append(button)
-  })
+  }
+  if (profileEntry.parentElement !== host) host.append(profileEntry)
   return true
 }
 
 export function enableNativeProfileHistory() {
-  injector.register(injectProfileButtons)
+  injector.register(injectProfileButton)
 }
 
 export function registerNativeHistoryHooks(context: PenguContext) {

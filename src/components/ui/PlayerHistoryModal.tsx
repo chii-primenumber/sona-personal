@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Modal } from './Modal'
 import { ChampionStrip, HistoryImage, HistoryMatchCard, RankCards, SummaryStats, championName } from './HistoryWidgets'
 import { getChampIcon, getPlayableQueues, getQueueName } from '@/lib/assets'
-import { fetchHistoryMastery, fetchHistoryRanks, fetchHistorySummoner, type HistoryMastery, type HistoryRank } from '@/lib/history-api'
+import { deadline, fetchHistoryMastery, fetchHistoryRanks, fetchHistorySummoner, type HistoryMastery, type HistoryRank } from '@/lib/history-api'
+import { lcu } from '@/lib/lcu'
 import { championStats, encounters, numberText, percentText, POSITION_NAMES, profileIconUrl, summarize, toHistoryMatches } from '@/lib/history-model'
 import { calculateSonaPlayerStrengthScore } from '@/lib/player-strength-score'
 import { useHistoryPages } from '@/lib/use-history-pages'
@@ -41,7 +42,45 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onInspect, onBack 
   const [masteryStatus, setMasteryStatus] = useState('正在查询英雄点数…')
   const [showAllMastery, setShowAllMastery] = useState(false)
   const [profileRevision, setProfileRevision] = useState(0)
+  const [searchText, setSearchText] = useState('')
+  const [searchError, setSearchError] = useState('')
+  const [searching, setSearching] = useState(false)
+  const searchRequest = useRef<AbortController | null>(null)
   const pages = useHistoryPages(target.puuid, queueId, batchSize, open)
+
+  useEffect(() => {
+    if (open) return () => searchRequest.current?.abort()
+  }, [open])
+
+  async function searchPlayer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (searchRequest.current) return
+    const parts = searchText.split(/[#＃]/).map((part) => part.trim())
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      setSearchError('请输入完整的名字#编号。')
+      return
+    }
+    const [gameName, tagLine] = parts
+    const controller = new AbortController()
+    searchRequest.current = controller
+    setSearching(true)
+    setSearchError('')
+    try {
+      const found = await deadline(() => lcu.resolveSummonerPuuidByRiotId(gameName, tagLine), controller.signal)
+      if (controller.signal.aborted) return
+      if (!found) {
+        setSearchError('未找到该玩家，请检查名字和编号。')
+        return
+      }
+      setSearchText('')
+      onInspect(found, `${gameName}#${tagLine}`)
+    } catch {
+      if (!controller.signal.aborted) setSearchError('暂时无法搜索玩家，请重试。')
+    } finally {
+      searchRequest.current = null
+      setSearching(false)
+    }
+  }
 
   useEffect(() => {
     if (!open) return
@@ -106,7 +145,22 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onInspect, onBack 
         ))}
       </aside>
       <main className="rh-main">
-        <div className="rh-main-toolbar"><div className="rh-tabs"><button type="button" className={tab === 'matches' ? 'is-active' : ''} onClick={() => setTab('matches')}>战绩明细 <small>{filtered.length}</small></button><button type="button" className={tab === 'champions' ? 'is-active' : ''} onClick={() => setTab('champions')}>英雄统计 <small>{filteredChampions.length}</small></button></div><span className="rh-muted">{pages.updatedAt ? `更新于 ${new Date(pages.updatedAt).toLocaleTimeString('zh-CN')}` : '正在查询'}</span></div>
+        <div className="rh-main-toolbar">
+          <div className="rh-tabs">
+            <button type="button" className={tab === 'matches' ? 'is-active' : ''} onClick={() => setTab('matches')}>战绩明细 <small>{filtered.length}</small></button>
+            <button type="button" className={tab === 'champions' ? 'is-active' : ''} onClick={() => setTab('champions')}>英雄统计 <small>{filteredChampions.length}</small></button>
+          </div>
+          <form className="rh-player-search" onSubmit={searchPlayer} role="search">
+            <input type="search" aria-label="搜索玩家" placeholder="名字#编号" autoComplete="off"
+              value={searchText} disabled={searching}
+              onChange={(event) => { setSearchText(event.target.value); setSearchError('') }} />
+            <button type="submit" className="rh-button" disabled={searching || !searchText.trim()}>
+              {searching ? '搜索中…' : '搜索玩家'}
+            </button>
+          </form>
+          <span className="rh-muted">{pages.updatedAt ? `更新于 ${new Date(pages.updatedAt).toLocaleTimeString('zh-CN')}` : '正在查询'}</span>
+        </div>
+        {searchError && <p className="rh-search-error" role="alert">{searchError}</p>}
         <div className="rh-local-filters"><select aria-label="筛选英雄" value={championId} onChange={(e) => setChampionId(Number(e.target.value))}><option value={0}>全部英雄</option>{champions.map((c) => <option key={c.id} value={c.id}>{championName(c.id)} · {c.total} 场</option>)}{championId > 0 && !champions.some((c) => c.id === championId) && <option value={championId}>{championName(championId)} · 当前未加载</option>}</select><select aria-label="筛选位置" value={position} onChange={(e) => setPosition(e.target.value)}><option value="">全部位置</option>{Object.entries(POSITION_NAMES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><select aria-label="筛选胜负" value={result} onChange={(e) => setResult(e.target.value)}><option value="">全部胜负</option><option value="win">胜利</option><option value="loss">失败</option></select><label><input type="checkbox" checked={hideAborted} onChange={(e) => setHideAborted(e.target.checked)} />隐藏重开 / 终止</label><button type="button" className="rh-text-button" onClick={resetLocalFilters}>重置筛选</button></div>
         {pages.source && pages.source !== 'sgp' && <div className="rh-notice">部分或全部战绩使用客户端备用接口。{pages.scanLimit ? `模式筛选仅覆盖最近 ${pages.scanLimit} 场；更早的记录未被检索。` : '可用范围由客户端接口决定。'}友方治疗、护盾等缺失数据以 — 显示。</div>}
         {pages.error && <div className="rh-error" role="alert">{pages.error}<button type="button" onClick={allMatches.length && pages.hasMore ? () => void pages.loadMore() : refresh}>重试</button></div>}

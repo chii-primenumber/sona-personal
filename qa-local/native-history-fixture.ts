@@ -37,6 +37,13 @@ export async function setupNativeHistoryFixture() {
   return function mount() {
     const fixture = document.createElement('section')
     fixture.innerHTML = `
+      <div class="rcp-fe-lol-profiles-main" style="position:relative;min-height:175px">
+        <div class="style-profile-sub-nav">自己的生涯导航</div>
+        <lol-regalia-profile-v2-element puuid="preview-player-0">我的生涯</lol-regalia-profile-v2-element>
+        <input aria-label="原生搜索框" style="position:absolute;right:70px;top:93px;width:240px;height:32px">
+      </div>
+      <button type="button" id="qa-open-profile">查看他人生涯</button>
+      <button type="button" id="qa-close-profile">关闭他人生涯</button>
       <div class="rcp-fe-lol-profiles-modal" style="position:relative;min-height:60px">
         <div class="style-profile-sub-nav">生涯导航</div>
         <lol-regalia-profile-v2-element puuid="preview-player-2">召唤师生涯</lol-regalia-profile-v2-element>
@@ -48,6 +55,9 @@ export async function setupNativeHistoryFixture() {
       </div>`
     document.body.prepend(fixture)
     const profile = fixture.querySelector('.rcp-fe-lol-profiles-modal')!
+    profile.remove()
+    fixture.querySelector('#qa-open-profile')!.addEventListener('click', () => fixture.prepend(profile))
+    fixture.querySelector('#qa-close-profile')!.addEventListener('click', () => profile.remove())
     fixture.querySelector('#qa-open-summary')!.addEventListener('click', () => {
       profile.querySelector('lol-regalia-profile-v2-element')?.remove()
       const summary = document.createElement('div')

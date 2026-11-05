@@ -43,6 +43,8 @@ const makeGame = (n) => {
 }
 const games = Array.from({length:67},(_,i)=>makeGame(i))
 const bp = { queueId:440,localPlayerCellId:0,myTeam:names.slice(0,5).map((gameName,i)=>({ puuid:ids[i],gameName,tagLine:'DEMO',cellId:i,summonerId:i+100,assignedPosition:positions[(i+4)%5].toLowerCase(),championId:champions[i][0],nameVisibilityType:'PUBLIC',isHumanoid:true })),theirTeam:[] }
+bp.theirTeam = [{cellId:5,championId:154,assignedPosition:''},{cellId:6,championId:83,assignedPosition:'top'}]
+bp.actions = [[[{actorCellId:5,championId:154,type:'pick',completed:true},{actorCellId:6,championId:83,type:'pick',completed:false}]]]
 const game = { phase:'InProgress', map:{id:11,name:'召唤师峡谷'}, gameData:{ gameId:9828375, queue:queues[0], playerChampionSelections:ids.map((puuid,i)=>({puuid,championId:champions[i][0]})),teamOne:ids.slice(0,5).map((puuid,i)=>({puuid,championId:champions[i][0],teamParticipantId:i<2?1:0,selectedPosition:positions[i].toLowerCase()})), teamTwo:ids.slice(5).map((puuid,i)=>({puuid,championId:champions[i+5][0],teamParticipantId:0,selectedPosition:positions[i].toLowerCase()})) } }
 const items = [[3158,'明朗之靴'],[6617,'月石再生器'],[3504,'炽热香炉'],[6621,'黎明核心'],[3089,'灭世者的死亡之帽'],[3020,'法师之靴'],[3364,'神谕透镜']]
 const mockIcons = (array, type) => array.map(([id,name]) => ({id,name,iconPath:`/qa-art/${type}-${id}.svg`,description:`${name} · 离线演示图标`}))
@@ -52,6 +54,7 @@ await server.listen()
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`
 let browser
 const errors = [], writes = [], external = [], counts = []
+const matchupRequests = []
 let slowQueue = 0, failSgp = false, failMastery = false
 
 function image(url) {
@@ -71,6 +74,15 @@ try {
     const json = (body,status=200)=>route.fulfill({status,json:body,headers:{'access-control-allow-origin':'*'}}).catch(()=>{})
     if (method === 'OPTIONS') return route.fulfill({status:204,headers:{'access-control-allow-origin':'*','access-control-allow-methods':'GET, OPTIONS','access-control-allow-headers':'authorization,user-agent'}}).catch(()=>{})
     if (method !== 'GET') { writes.push(`${method} ${p}`); return json({},405) }
+    if (url.hostname === 'lol-api-champion.op.gg' && p.startsWith('/api/kr/champions/ranked/')) {
+      const tier = url.searchParams.get('tier')
+      matchupRequests.push([p, tier])
+      const play = tier === 'diamond_plus' ? 80 : 100
+      return json({meta:{version:'16.22'},data:{counters:p.endsWith('/support') ? [] : [
+        {champion_id:64,play,win:p.endsWith('/top') ? 28 : 32},
+        {champion_id:16,play:100,win:55},
+      ]}})
+    }
     if (p.includes('/match-history-query/')) {
       const queue = Number((url.searchParams.get('tag')||'').replace('q_',''))
       const start=Number(url.searchParams.get('startIndex')||0), count=Number(url.searchParams.get('count')||50)
@@ -81,7 +93,7 @@ try {
     }
     if (url.origin !== origin) { external.push(url.hostname); return route.abort().catch(()=>{}) }
     if (p.startsWith('/qa-art/')||p.includes('/champion-icons/')||p.includes('/profile-icons/')) return route.fulfill({contentType:'image/svg+xml',body:image(p)}).catch(()=>{})
-    if (p.endsWith('/champion-summary.json')) return json(champions.map(([id,name])=>({id,name,title:'英雄',alias:`Preview${id}`,squarePortraitPath:`/qa-art/champion-${id}.svg`})))
+    if (p.endsWith('/champion-summary.json')) return json([...champions,[154,'扎克'],[83,'约里克']].map(([id,name])=>({id,name,title:'英雄',alias:`Preview${id}`,squarePortraitPath:`/qa-art/champion-${id}.svg`})))
     if (p.endsWith('/items.json')) return json(mockIcons(items,'item'))
     if (p.endsWith('/summoner-spells.json')) return json(mockIcons([[4,'闪现'],[7,'治疗'],[32,'雪球']],'spell'))
     if (p.endsWith('/perks.json')) return json(mockIcons([[8214,'召唤艾黎'],[8453,'复苏']],'perk'))
@@ -168,6 +180,39 @@ try {
   await page.keyboard.press('Escape')
   await profileView.waitFor({state:'hidden'})
   await page.getByRole('button',{name:'模拟 BP'}).click()
+  const matchupPanel = page.getByTestId('enemy-opgg-matchups')
+  const locked = page.getByTestId('qa-enemy-locked')
+  await page.locator('[data-testid="qa-enemy-locked"][data-sona-enemy-matchup]').waitFor()
+  await page.getByTestId('qa-enemy-preview').click()
+  assert.equal(await matchupPanel.count(),0)
+  await page.evaluate((value)=>window.qaEmit('/lol-champ-select/v1/session',value), {...bp,queueId:430})
+  await locked.click()
+  assert.equal(await matchupPanel.count(),0)
+  await page.evaluate((value)=>window.qaEmit('/lol-champ-select/v1/session',value), bp)
+  await locked.click()
+  await matchupPanel.getByText('选择该英雄的分路以查询韩服对位。',{exact:true}).waitFor()
+  assert.equal(matchupRequests.length,0)
+  await matchupPanel.getByRole('button',{name:'选择分路',exact:true}).click()
+  await matchupPanel.getByRole('button',{name:'打野',exact:true}).click()
+  await matchupPanel.getByText('32.0%',{exact:true}).waitFor()
+  await matchupPanel.getByRole('button',{name:'流光翡翠+',exact:true}).click()
+  await matchupPanel.getByRole('button',{name:'璀璨钻石+',exact:true}).click()
+  await matchupPanel.getByText('40.0%',{exact:true}).waitFor()
+  await matchupPanel.getByRole('button',{name:'打野',exact:true}).click()
+  await matchupPanel.getByRole('button',{name:'上路',exact:true}).click()
+  await matchupPanel.getByText('35.0%',{exact:true}).waitFor()
+  await matchupPanel.screenshot({path:path.join(out,'敌方韩服对位_模拟数据.png')})
+  await matchupPanel.getByRole('button',{name:'上路',exact:true}).click()
+  await matchupPanel.getByRole('button',{name:'辅助',exact:true}).click()
+  await matchupPanel.getByText('暂无对局克制数据',{exact:true}).waitFor()
+  assert.deepEqual(matchupRequests,[
+    ['/api/kr/champions/ranked/154/jungle','emerald_plus'],
+    ['/api/kr/champions/ranked/154/jungle','diamond_plus'],
+    ['/api/kr/champions/ranked/154/top','diamond_plus'],
+    ['/api/kr/champions/ranked/154/support','diamond_plus'],
+  ])
+  await page.keyboard.press('Escape')
+  await matchupPanel.waitFor({state:'hidden'})
   await page.getByRole('button',{name:'己方五人战绩',exact:true}).click()
   const bpView = page.getByTestId('bp-history')
   await bpView.locator('.rh-team-card').nth(4).waitFor()
@@ -278,7 +323,7 @@ try {
   await assertProfile('白昼拾荒#DEMO')
   assert.equal(errors.length,0,errors.join('\n'))
   assert.equal(writes.length,0,writes.join('\n'))
-  console.log(JSON.stringify({result:'passed', checks:['personal history', 'player search and return', 'encounter profile icons', 'filters and pagination', 'native fallback', 'BP five and game ten', 'recent match detail', 'transparent nested scrollbars', 'nested Escape', 'phase exit', '1000px layout', 'native search clearance and exclusive profile entry', 'history and postgame context menus', 'no writes / no page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
+  console.log(JSON.stringify({result:'passed', checks:['enemy locked picks in ranked only', 'Korean lane/tier queries and no-data state', 'personal history', 'player search and return', 'encounter profile icons', 'filters and pagination', 'native fallback', 'BP five and game ten', 'recent match detail', 'transparent nested scrollbars', 'nested Escape', 'phase exit', '1000px layout', 'native search clearance and exclusive profile entry', 'history and postgame context menus', 'no writes / no page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
 } finally {
   await browser?.close()
   await server.close()

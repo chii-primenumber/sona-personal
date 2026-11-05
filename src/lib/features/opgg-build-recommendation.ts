@@ -20,6 +20,8 @@ import { store } from '@/lib/store'
 import { aramggApi, type AramggChampionRecommendation, type AramggChampionStatEntry, type AramggCoreItemBuild, type AramggMayhemAugments } from '@/lib/aramgg-api'
 import {
   opggApi,
+  mapAssignedPosition,
+  mapOpggMatchups,
   type OpggAugmentGroup,
   type OpggArenaModeChampion,
   type OpggChampion,
@@ -166,27 +168,6 @@ function isLocalChampionLocked(session: ChampSelectSession): boolean {
   // the completed action may still point to the originally locked champion, while
   // localPlayer.championId has already changed to the swapped champion.
   return localPickActions.some((action) => action.completed)
-}
-
-function mapAssignedPosition(position: string | undefined): OpggPosition {
-  switch (position?.trim().toLowerCase()) {
-    case 'top':
-      return 'top'
-    case 'jungle':
-      return 'jungle'
-    case 'middle':
-    case 'mid':
-      return 'mid'
-    case 'bottom':
-    case 'bot':
-    case 'adc':
-      return 'adc'
-    case 'utility':
-    case 'support':
-      return 'support'
-    default:
-      return 'none'
-  }
 }
 
 function isRankedQueue(queueId: number): boolean {
@@ -1632,17 +1613,6 @@ function mapOpggAugments(augmentGroups: OpggAugmentGroup[]): BuildRecommendation
 function getAramggAugmentRarity(augmentId: number, mayhemAugments: AramggMayhemAugments): number | null {
   return normalizeAugmentRarity(getAugmentInfo(augmentId)?.rarity)
     ?? normalizeMayhemAugmentRarity(mayhemAugments[String(augmentId)]?.rarity, mayhemAugments)
-}
-
-function mapOpggMatchups(counters: NonNullable<OpggNormalModeChampion['data']['counters']>): BuildRecommendation['matchups'] {
-  return counters
-    .map((counter) => ({
-      championId: counter.champion_id,
-      play: counter.play,
-      win: counter.win,
-      winRate: counter.play > 0 ? counter.win / counter.play : 0,
-    }))
-    .filter((counter) => counter.championId > 0 && counter.play > 0)
 }
 
 function mapAramggAugments(augments: Record<string, AramggChampionStatEntry>, mayhemAugments: AramggMayhemAugments): BuildRecommendation['augments'] {

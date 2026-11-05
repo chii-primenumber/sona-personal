@@ -3,6 +3,21 @@ export type OpggMode = 'aram' | 'arena' | 'nexus_blitz' | 'urf' | 'ranked'
 export type OpggTier = 'all' | 'ibsg' | 'iron' | 'bronze' | 'silver' | 'gold' | 'gold_plus' | 'platinum' | 'platinum_plus' | 'emerald' | 'emerald_plus' | 'diamond' | 'diamond_plus' | 'master' | 'master_plus' | 'grandmaster' | 'challenger'
 export type OpggPosition = 'mid' | 'jungle' | 'adc' | 'top' | 'support' | 'all' | 'none'
 
+export function mapAssignedPosition(position: string | undefined): OpggPosition {
+  switch (position?.trim().toLowerCase()) {
+    case 'top': return 'top'
+    case 'jungle': return 'jungle'
+    case 'middle':
+    case 'mid': return 'mid'
+    case 'bottom':
+    case 'bot':
+    case 'adc': return 'adc'
+    case 'utility':
+    case 'support': return 'support'
+    default: return 'none'
+  }
+}
+
 export interface OpggVersions {
   data: string[]
 }
@@ -135,6 +150,22 @@ export interface OpggCounter {
   champion_id: number
   play: number
   win: number
+}
+
+export interface OpggMatchup {
+  championId: number
+  play: number
+  win: number
+  winRate: number
+}
+
+export function mapOpggMatchups(counters: OpggCounter[] | undefined): OpggMatchup[] {
+  return (counters ?? [])
+    .filter(({ champion_id, play, win }) =>
+      Number.isInteger(champion_id) && champion_id > 0 &&
+      Number.isInteger(play) && play > 0 &&
+      Number.isInteger(win) && win >= 0 && win <= play)
+    .map(({ champion_id, play, win }) => ({ championId: champion_id, play, win, winRate: win / play }))
 }
 
 export interface OpggNormalChampionData {

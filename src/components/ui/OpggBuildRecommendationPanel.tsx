@@ -21,7 +21,7 @@ import {
   getSpellName,
 } from '@/lib/assets'
 import { lcu } from '@/lib/lcu'
-import { type OpggItemBuild, type OpggMode, type OpggPosition, type OpggRuneBuild, type OpggTier } from '@/lib/opgg-api'
+import { type OpggItemBuild, type OpggMatchup, type OpggMode, type OpggPosition, type OpggRuneBuild, type OpggTier } from '@/lib/opgg-api'
 import { translate, useI18n } from '@/i18n'
 import '@/styles/OpggBuildRecommendationPanel.css'
 
@@ -77,12 +77,7 @@ export interface BuildRecommendation {
   prismItems: OpggItemBuild[]
   lastItems: OpggItemBuild[]
   runePages: OpggRuneBuild[]
-  matchups: Array<{
-    championId: number
-    play: number
-    win: number
-    winRate: number
-  }>
+  matchups: OpggMatchup[]
   augments: Array<{
     rarity: number
     label?: string
@@ -111,6 +106,7 @@ export interface OpggBuildRecommendationPanelProps {
   onTierChange: (tier: OpggTier) => void
   onPositionChange: (position: OpggPosition) => void
   onClose: () => void
+  koreanMatchups?: { items: OpggMatchup[]; version?: string }
 }
 
 export function OpggBuildRecommendationPanel({
@@ -122,15 +118,18 @@ export function OpggBuildRecommendationPanel({
   onTierChange,
   onPositionChange,
   onClose,
+  koreanMatchups,
 }: OpggBuildRecommendationPanelProps) {
   const { t } = useI18n()
   const champion = getChampionById(context.championId)
   const championName = champion ? `${champion.title} ${champion.name}` : t('opgg.unrecognizedChampion')
   const queueText = recommendation?.modeLabel || (context.queueId > 0 ? getQueueName(context.queueId) : t('opgg.unknownQueue'))
   const positionText = recommendation?.position ?? context.position
-  const modeTags = [queueText, formatPositionText(positionText)].filter(Boolean).join(' · ')
+  const modeTags = koreanMatchups
+    ? ['OP.GG', '韩服单双排', formatPositionText(positionText), koreanMatchups.version && `${koreanMatchups.version} 版本`].filter(Boolean).join(' · ')
+    : [queueText, formatPositionText(positionText)].filter(Boolean).join(' · ')
   const showAugments = isKiwiMode(context) || recommendation?.mode === 'arena'
-  const showPositionFilter = supportsPositionFilter(context, recommendation)
+  const showPositionFilter = !!koreanMatchups || supportsPositionFilter(context, recommendation)
 
   return (
     <div className="sobp">
@@ -151,7 +150,7 @@ export function OpggBuildRecommendationPanel({
         </div>
         <div className="sobp-title-actions">
           {showPositionFilter && (
-            <PositionFilterSelect value={context.position} onChange={onPositionChange} />
+            <PositionFilterSelect value={context.position} onChange={onPositionChange} allowUnselected={!!koreanMatchups} />
           )}
           <TierFilterSelect value={selectedTier} onChange={onTierChange} />
           <TrendMeta meta={recommendation?.meta} />
@@ -163,37 +162,49 @@ export function OpggBuildRecommendationPanel({
       </header>
 
       <main className="sobp-body">
-        <div className="sobp-grid">
-          <ItemSection title={t('opgg.section.core')} builds={recommendation?.coreItems} itemLimit={3} />
-          <RuneSection title={t('opgg.section.runes')} runes={recommendation?.runePages} championName={championName} modeLabel={recommendation?.modeLabel || queueText} />
-          <SpellSection title={t('opgg.section.spells')} builds={recommendation?.summonerSpells} limit={MAX_RECOMMENDATION_ROWS} />
-        </div>
-
-        <div className="sobp-trend-wrap">
-          <LastItemTrendSection title={t('opgg.section.trends')} builds={recommendation?.lastItems} />
-        </div>
-
-        <MatchupSection title={t('opgg.section.matchups')} matchups={recommendation?.matchups} />
-
-        {showAugments && <AugmentSection title={t('opgg.section.augments')} groups={recommendation?.augments} winRateFirst={isKiwiMode(context)} />}
+        {koreanMatchups ? (
+          <>
+            {context.position === 'none' && <PanelMessage>选择该英雄的分路以查询韩服对位。</PanelMessage>}
+            {context.position !== 'none' && !isLoading && !loadError &&
+              <MatchupSection title="对位克制 · 胜率以所查英雄为视角" matchups={koreanMatchups.items} koreanView />}
+          </>
+        ) : (
+          <>
+            <div className="sobp-grid">
+              <ItemSection title={t('opgg.section.core')} builds={recommendation?.coreItems} itemLimit={3} />
+              <RuneSection title={t('opgg.section.runes')} runes={recommendation?.runePages} championName={championName} modeLabel={recommendation?.modeLabel || queueText} />
+              <SpellSection title={t('opgg.section.spells')} builds={recommendation?.summonerSpells} limit={MAX_RECOMMENDATION_ROWS} />
+            </div>
+            <div className="sobp-trend-wrap">
+              <LastItemTrendSection title={t('opgg.section.trends')} builds={recommendation?.lastItems} />
+            </div>
+            <MatchupSection title={t('opgg.section.matchups')} matchups={recommendation?.matchups} />
+            {showAugments && <AugmentSection title={t('opgg.section.augments')} groups={recommendation?.augments} winRateFirst={isKiwiMode(context)} />}
+          </>
+        )}
 
         {isLoading && <PanelMessage>{t('opgg.loading')}</PanelMessage>}
         {loadError && <PanelMessage warning>{t('opgg.loadFailed', { error: loadError })}</PanelMessage>}
         {recommendation?.warning && <PanelMessage warning>{recommendation.warning}</PanelMessage>}
-        {!isLoading && !loadError && !recommendation && <PanelMessage>{t('opgg.noData')}</PanelMessage>}
+        {!isLoading && !loadError && !recommendation && !koreanMatchups && <PanelMessage>{t('opgg.noData')}</PanelMessage>}
       </main>
     </div>
   )
 }
 
-function PositionFilterSelect({ value, onChange }: { value: OpggPosition; onChange: (position: OpggPosition) => void }) {
+function PositionFilterSelect({ value, onChange, allowUnselected }: {
+  value: OpggPosition
+  onChange: (position: OpggPosition) => void
+  allowUnselected?: boolean
+}) {
   const { t } = useI18n()
-  const normalizedValue = OPGG_POSITION_VALUES.includes(value) ? value : 'mid'
+  const normalizedValue = OPGG_POSITION_VALUES.includes(value) ? value : allowUnselected ? 'none' : 'mid'
 
   return (
     <div className="sobp-position-filter" title={t('opgg.position.select')}>
       <SonaSelect
         value={normalizedValue}
+        placeholder={allowUnselected ? '选择分路' : undefined}
         onChange={(nextValue) => onChange(nextValue as OpggPosition)}
         options={OPGG_POSITION_VALUES.map((position) => ({
           value: position,
@@ -457,30 +468,32 @@ function SpellSection({ title, builds, limit }: { title: string; builds?: OpggIt
   )
 }
 
-function MatchupSection({ title, matchups }: { title: string; matchups?: BuildRecommendation['matchups'] }) {
+function MatchupSection({ title, matchups, koreanView }: { title: string; matchups?: OpggMatchup[]; koreanView?: boolean }) {
   const { t } = useI18n()
   const items = matchups ?? []
-  const advantages = [...items]
+  const advantages = (koreanView ? items.filter((item) => item.winRate > 0.5) : [...items])
     .sort((a, b) => b.winRate - a.winRate || b.play - a.play)
     .slice(0, 9)
-  const disadvantages = [...items]
+  const disadvantages = (koreanView ? items.filter((item) => item.winRate < 0.5) : [...items])
     .sort((a, b) => a.winRate - b.winRate || b.play - a.play)
     .slice(0, 9)
-  const hasData = advantages.length > 0 || disadvantages.length > 0
+  const even = koreanView ? items.filter((item) => item.winRate === 0.5).sort((a, b) => b.play - a.play).slice(0, 9) : []
+  const hasData = advantages.length > 0 || disadvantages.length > 0 || even.length > 0
 
   return (
     <div className="sobp-matchup-wrap">
       <Section title={title} empty={!hasData} emptyText={t('opgg.noMatchups')}>
         <div className="sobp-matchup-columns">
-          <MatchupGroup title={t('opgg.matchup.advantage')} items={advantages} tone="good" />
-          <MatchupGroup title={t('opgg.matchup.disadvantage')} items={disadvantages} tone="bad" />
+          <MatchupGroup title={koreanView ? '可反制该英雄' : t('opgg.matchup.advantage')} items={koreanView ? disadvantages : advantages} tone={koreanView ? 'bad' : 'good'} />
+          <MatchupGroup title={koreanView ? '该英雄表现占优' : t('opgg.matchup.disadvantage')} items={koreanView ? advantages : disadvantages} tone={koreanView ? 'good' : 'bad'} />
+          {even.length > 0 && <MatchupGroup title="均势对位" items={even} tone="neutral" />}
         </div>
       </Section>
     </div>
   )
 }
 
-function MatchupGroup({ title, items, tone }: { title: string; items: BuildRecommendation['matchups']; tone: 'good' | 'bad' }) {
+function MatchupGroup({ title, items, tone }: { title: string; items: OpggMatchup[]; tone: 'good' | 'bad' | 'neutral' }) {
   return (
     <div className="sobp-matchup-group">
       <div className={`sobp-matchup-heading sobp-matchup-heading--${tone}`}>{title}</div>

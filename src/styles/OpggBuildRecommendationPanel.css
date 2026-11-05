@@ -10,6 +10,16 @@
   color: #a09b8c;
 }
 
+.champion-icon-container[data-sona-enemy-matchup] {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.champion-icon-container[data-sona-enemy-matchup]:hover .portrait-icon {
+  outline: 2px solid #c8aa6e;
+  outline-offset: -2px;
+}
+
 .sona-opgg-modal-content {
   height: 100%;
   min-height: 0;

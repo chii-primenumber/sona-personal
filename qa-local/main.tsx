@@ -22,6 +22,15 @@ function Preview() {
   const move = (next: GameflowPhase) => { setPhase(next); emit(LcuEventUri.GAMEFLOW_PHASE_CHANGE, next) }
   return <><div className="qa-toolbar"><strong>离线界面验证 · 全部数据均为虚构</strong><button type="button" onClick={() => move('ChampSelect')}>模拟 BP</button><button type="button" onClick={() => move('InProgress')}>模拟进游戏</button><button type="button" onClick={() => move('Lobby')}>模拟回大厅</button></div>
     {phase === 'ChampSelect' && <><div className="party visible">{[0,1,2,3,4].map((index) => <div className="summoner-wrapper visible left" key={index}><div className="summoner-container"><div className="champion-icon-container" data-testid={`preview-avatar-${index}`}>{index + 1}</div><div className="player-details">{index + 1} 楼</div></div></div>)}</div><div className="bottom-right-buttons" /></>}
+    {phase === 'ChampSelect' && <div className="party visible">
+      {[[154, 'locked'], [83, 'preview']].map(([id, state]) => (
+        <div className="summoner-wrapper visible right" key={id}>
+          <div className="champion-icon-container" data-testid={`qa-enemy-${state}`}>
+            <div className="portrait-icon fit-icon" style={{ width: 48, height: 48, backgroundImage: `url(/lol-game-data/assets/v1/champion-icons/${id}.png)` }} />
+          </div>
+        </div>
+      ))}
+    </div>}
     {phase === 'InProgress' && <div className="game-in-progress-container">游戏仍在进行中</div>}
     <div className="qa-tools"><ToolsPage /></div>
   </>

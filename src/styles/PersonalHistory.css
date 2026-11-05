@@ -41,7 +41,7 @@
 .rh-text-button { border: 0; padding: 0; background: transparent; color: var(--rh-gold) !important; font-size: 11px !important; white-space: nowrap; }
 .rh-text-button:hover { text-decoration: underline; }
 .rh-workspace { flex: 1 1 auto; display: grid; grid-template-columns: 255px minmax(0,1fr); gap: 11px; padding: 11px; min-height: 0; overflow: hidden; }
-.rh-sidebar, .rh-content, .rh-team-body { overflow: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: #586577 #192332; }
+.rh-sidebar, .rh-content, .rh-team-body { overflow: auto; min-height: 0; }
 .rh-sidebar { padding-right: 4px; }
 .rh-panel { margin: 0 0 8px; padding: 10px 11px; background: var(--rh-panel); border: 1px solid #313d4c; border-radius: 7px; }
 .rh-panel h3, .rh-team-group h3 { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; margin-bottom: 7px; font-size: 14px; color: #efe6d3; }
@@ -135,7 +135,7 @@
 .rh-report-toolbar > span { color: #aebdd0; font-size: 10px; }
 .rh-report-toolbar .rh-segment { margin-left: auto; font-size: 10px; }
 .rh-segment button.is-active { border-color: #c9ac78; color: #f2d8a4; }
-.rh-table-scroll { overflow: auto; scrollbar-width: thin; }
+.rh-table-scroll { overflow: auto; }
 .rh-report-table, .rh-champion-table { width: 100%; border-collapse: collapse; font-size: 11px; }
 .rh-report-table { min-width: 680px; }
 .rh-champion-table { min-width: 510px; }
@@ -201,7 +201,7 @@
 .rh-team-card .rh-champion-strip { flex-wrap: nowrap; gap: 3px; overflow: hidden; margin-bottom: 7px; }
 .rh-team-card .rh-champion-strip button { flex: 0 0 clamp(16px, 1.35vw, 22px); width: clamp(16px, 1.35vw, 22px); height: clamp(16px, 1.35vw, 22px); }
 .rh-team-card .rh-champion-strip button > span:last-child { font-size: 8px; }
-.rh-team-recent-list { display: grid; gap: 3px; max-height: 178px; overflow: auto; scrollbar-width: thin; }
+.rh-team-recent-list { display: grid; gap: 3px; max-height: 178px; overflow: auto; }
 .rh-team-match { display: grid; grid-template-columns: 25px minmax(0,1fr) auto; align-items: center; gap: 5px; padding: 3px 5px; border: 1px solid #4c609d; border-radius: 4px; background: #354775; text-align: left; }
 .rh-team-match-loss { background: #53364d; border-color: #78506b; }
 .rh-team-match:hover { filter: brightness(1.22); }

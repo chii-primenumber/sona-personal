@@ -13,7 +13,7 @@ const postgameActions = '.scoreboard-row-actions-button, .strawberry-scoreboard-
 
 type Identity = { puuid?: string; summonerId?: number; name?: string; ownProfile?: boolean }
 type Component = { element?: Element; get(key: string): unknown; _super(...args: unknown[]): unknown }
-type MenuItem = { label: string; action: () => void }
+type MenuItem = { label: string; target: Component; action: () => void }
 type MenuManager = { setMenuItems(items: MenuItem[]): void; openAtEvent(event: MouseEvent): void }
 
 let historyRoot: Root | undefined
@@ -61,8 +61,9 @@ async function openHistory(identity: Identity) {
   }
 }
 
-function menuItem(identity: Identity): MenuItem {
-  return { label, action: () => void openHistory(identity) }
+function menuItem(identity: Identity, target: Component): MenuItem {
+  // The client's context menu dispatches actions only when the item has a target.
+  return { label, target, action: () => void openHistory(identity) }
 }
 
 function visible(element: Element) {
@@ -135,8 +136,9 @@ export function registerNativeHistoryHooks(context: PenguContext) {
       name: 'getMenuItemModel',
       replacement(original, args) {
         const items = original(...args)
-        const identity = playerIdentity((this as Component).get('participant.player'))
-        return identity && Array.isArray(items) ? [...items, menuItem(identity)] : items
+        const component = this as Component
+        const identity = playerIdentity(component.get('participant.player'))
+        return identity && Array.isArray(items) ? [...items, menuItem(identity, component)] : items
       },
     }],
   })
@@ -181,7 +183,7 @@ export function registerNativeHistoryHooks(context: PenguContext) {
             event.stopPropagation()
             if (trigger) trigger.click()
             else {
-              menu!.setMenuItems([menuItem(identity)])
+              menu!.setMenuItems([menuItem(identity, this)])
               menu!.openAtEvent(event)
             }
           }

@@ -165,6 +165,23 @@ try {
   await bpView.locator('.rh-team-match').first().getByText('海克斯大乱斗', {exact:true}).waitFor()
   await bpView.getByLabel('队伍战绩范围').selectOption('-1')
   await bpView.locator('.rh-team-match').first().getByText('排位赛 灵活排位', {exact:true}).waitFor()
+  await page.setViewportSize({width:1000,height:650})
+  for (const selector of ['.rh-team-body', '.rh-team-recent-list']) {
+    const scrollbar = await bpView.locator(selector).first().evaluate((element) => {
+      const track = getComputedStyle(element, '::-webkit-scrollbar-track')
+      const thumb = getComputedStyle(element, '::-webkit-scrollbar-thumb')
+      const buttons = getComputedStyle(element, '::-webkit-scrollbar-button')
+      element.scrollTop = 40
+      const scrolls = element.scrollTop > 0
+      element.scrollTop = 0
+      return { track: track.backgroundColor, thumb: thumb.backgroundColor, buttons: buttons.display, scrolls }
+    })
+    assert.equal(scrollbar.track, 'rgba(0, 0, 0, 0)')
+    assert.ok(['rgba(194, 186, 218, 0.28)', 'rgba(194, 186, 218, 0.52)'].includes(scrollbar.thumb))
+    assert.equal(scrollbar.buttons, 'none')
+    assert.ok(scrollbar.scrolls)
+  }
+  await page.setViewportSize({width:1450,height:940})
   await bpView.locator('.rh-team-match').first().click()
   await page.locator('.rh-team-match-detail .rh-report').waitFor()
   await page.keyboard.press('Escape')
@@ -232,7 +249,7 @@ try {
   await assertProfile('白昼拾荒#DEMO')
   assert.equal(errors.length,0,errors.join('\n'))
   assert.equal(writes.length,0,writes.join('\n'))
-  console.log(JSON.stringify({result:'passed', checks:['personal history', 'encounter profile icons', 'filters and pagination', 'native fallback', 'BP five and game ten', 'recent match detail', 'nested Escape', 'phase exit', '1000px layout', 'native profile and match record entry', 'history and postgame context menus', 'no writes / no page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
+  console.log(JSON.stringify({result:'passed', checks:['personal history', 'encounter profile icons', 'filters and pagination', 'native fallback', 'BP five and game ten', 'recent match detail', 'transparent nested scrollbars', 'nested Escape', 'phase exit', '1000px layout', 'native profile and match record entry', 'history and postgame context menus', 'no writes / no page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
 } finally {
   await browser?.close()
   await server.close()

@@ -19,3 +19,43 @@
 #sona-root * {
   box-sizing: border-box;
 }
+
+/* The main panel, body-level dialogs and in-client builds share one scrollbar skin. */
+:is(#sona-root, .sona-modal-overlay, .sobp),
+:is(#sona-root, .sona-modal-overlay, .sobp) * {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+
+:is(#sona-root, .sona-modal-overlay, .sobp)::-webkit-scrollbar,
+:is(#sona-root, .sona-modal-overlay, .sobp) *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent;
+}
+
+:is(#sona-root, .sona-modal-overlay, .sobp) ::-webkit-scrollbar-track,
+:is(#sona-root, .sona-modal-overlay, .sobp) ::-webkit-scrollbar-track-piece,
+:is(#sona-root, .sona-modal-overlay, .sobp) ::-webkit-scrollbar-corner {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+:is(#sona-root, .sona-modal-overlay, .sobp) ::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+:is(#sona-root, .sona-modal-overlay, .sobp) ::-webkit-scrollbar-thumb {
+  background: rgba(194, 186, 218, 0.28);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+:is(#sona-root, .sona-modal-overlay, .sobp) ::-webkit-scrollbar-thumb:hover,
+:is(#sona-root, .sona-modal-overlay, .sobp) ::-webkit-scrollbar-thumb:active {
+  background: rgba(194, 186, 218, 0.52);
+}

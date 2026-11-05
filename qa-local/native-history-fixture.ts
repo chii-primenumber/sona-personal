@@ -60,7 +60,7 @@ export async function setupNativeHistoryFixture() {
       Object.assign(Object.create(klass.proto()), { element, get: (key: string) => data[key] })
     const historyClass = Component.extend({
       classNames: ['player-history-object'],
-      getMenuItemModel() { return [{ label: '查看资料', action() {} }] },
+      getMenuItemModel() { return [{ label: '查看资料', target: this, action() {} }] },
     })
     const historyRow = fixture.querySelector('.player-history-object')!
     const history = createInstance(historyClass, historyRow, {
@@ -74,7 +74,11 @@ export async function setupNativeHistoryFixture() {
       for (const item of history.getMenuItemModel()) {
         const button = document.createElement('button')
         button.textContent = item.label
-        button.addEventListener('click', () => { menu.remove(); item.action() })
+        button.addEventListener('click', () => {
+          if (!item.target) return
+          item.action.call(item.target)
+          menu.remove()
+        })
         menu.append(button)
       }
       historyRow.after(menu)

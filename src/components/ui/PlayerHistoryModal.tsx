@@ -3,7 +3,7 @@ import { Modal } from './Modal'
 import { ChampionStrip, HistoryImage, HistoryMatchCard, RankCards, SummaryStats, championName } from './HistoryWidgets'
 import { getChampIcon, getPlayableQueues, getQueueName } from '@/lib/assets'
 import { fetchHistoryMastery, fetchHistoryRanks, fetchHistorySummoner, type HistoryMastery, type HistoryRank } from '@/lib/history-api'
-import { championStats, encounters, numberText, percentText, POSITION_NAMES, summarize, toHistoryMatches } from '@/lib/history-model'
+import { championStats, encounters, numberText, percentText, POSITION_NAMES, profileIconUrl, summarize, toHistoryMatches } from '@/lib/history-model'
 import { calculateSonaPlayerStrengthScore } from '@/lib/player-strength-score'
 import { useHistoryPages } from '@/lib/use-history-pages'
 import type { SummonerInfo } from '@/types/lcu'
@@ -75,7 +75,7 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onInspect, onBack 
   return <div className="rh-shell" data-testid="player-history">
     <header className="rh-header">
       <div className="rh-profile">{onBack && <button className="rh-back" type="button" onClick={onBack} title="返回上一位玩家">‹ 返回</button>}
-        <HistoryImage src={profile ? `/lol-game-data/assets/v1/profile-icons/${profile.profileIconId}.jpg` : undefined} label={name} className="rh-profile-icon" />
+        <HistoryImage src={profileIconUrl(profile?.profileIconId)} label={name} className="rh-profile-icon" />
         <div><span className="rh-eyebrow">SONA · 个人战绩增强</span><h2>{name}</h2><span className="rh-muted">{profile ? `等级 ${profile.summonerLevel}` : '玩家资料查询中或暂不可用'} · 已加载 {allMatches.length} 场</span></div>
       </div>
       <RankCards ranks={ranks} status={rankStatus} />
@@ -87,7 +87,23 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onInspect, onBack 
         <section className="rh-panel"><h3>近期总览 <small>{stats.total} 场有效样本</small></h3>{strength && <div className="rh-score" title="Sona 原有的多维参考评分，范围 3–16；不是 Akari Score，也不是本局获胜概率。"><span>Sona 参考分</span><strong>{strength.score.toFixed(1)}</strong><small>{strength.validGames < 16 ? '样本偏少，仅供参考' : '仅供参考'}</small></div>}<SummaryStats matches={filtered} />{stats.total > 0 && <div className="rh-summary-extra"><span>{stats.streak}</span><span>蓝方 {stats.blue} / 红方 {stats.red}</span></div>}<p className="rh-footnote">按当前筛选后的已加载战绩计算；重开、终止和未知胜负不计入胜率。缺失指标不按 0 计算。</p></section>
         <section className="rh-panel"><h3>近期常玩英雄</h3><ChampionStrip matches={allMatches} onSelect={(id) => { setChampionId(id); setTab('matches') }} limit={12} /><p className="rh-footnote">按当前模式已加载的有效场次排序</p></section>
         <section className="rh-panel"><h3>英雄点数 <button type="button" className="rh-text-button" onClick={() => setShowAllMastery(!showAllMastery)}>{showAllMastery ? '收起' : '更多'}</button></h3>{mastery ? mastery.length ? <div className="rh-mastery">{mastery.slice(0, showAllMastery ? 60 : 6).map((m) => <button type="button" key={m.championId} onClick={() => { setChampionId(m.championId); setTab('matches') }} title="查看已加载的该英雄对局"><HistoryImage src={getChampIcon(m.championId)} label={championName(m.championId)} /><span><strong>{championName(m.championId)}</strong><small>{m.championLevel} 级</small></span><b>{numberText(m.championPoints)}</b></button>)}</div> : <p className="rh-muted">暂无英雄点数记录</p> : <p className="rh-muted">{masteryStatus}</p>}</section>
-        {([['最近队友', teammates], ['最近对手', opponents]] as const).map(([title, people]) => <section className="rh-panel" key={title}><h3>{title}</h3><div className="rh-encounters">{people.slice(0, 8).map((p) => <button type="button" key={p.puuid} onClick={() => onInspect(p.puuid, p.name)} title="点击查询该玩家；胜负是当前玩家与其共同出现的对局结果"><HistoryImage src={getChampIcon(p.championId)} label={championName(p.championId)} /><span>{p.name}</span><small>{p.count} 场 · {p.wins} 胜 {p.losses} 负</small></button>)}</div>{!people.length && <p className="rh-muted">暂无可用记录</p>}<p className="rh-footnote">来自当前筛选样本，不代表固定开黑关系</p></section>)}
+        {([['最近队友', teammates], ['最近对手', opponents]] as const).map(([title, people]) => (
+          <section className="rh-panel" key={title}>
+            <h3>{title}</h3>
+            <div className="rh-encounters">
+              {people.slice(0, 8).map((person) => (
+                <button type="button" key={person.puuid} onClick={() => onInspect(person.puuid, person.name)}
+                  title="查看该玩家。胜负来自当前玩家与其同场的记录。">
+                  <HistoryImage src={profileIconUrl(person.profileIcon)} label={person.name} />
+                  <span>{person.name}</span>
+                  <small>{person.count} 场 · {person.wins} 胜 {person.losses} 负</small>
+                </button>
+              ))}
+            </div>
+            {!people.length && <p className="rh-muted">暂无可用记录</p>}
+            <p className="rh-footnote">统计范围为当前筛选的战绩。</p>
+          </section>
+        ))}
       </aside>
       <main className="rh-main">
         <div className="rh-main-toolbar"><div className="rh-tabs"><button type="button" className={tab === 'matches' ? 'is-active' : ''} onClick={() => setTab('matches')}>战绩明细 <small>{filtered.length}</small></button><button type="button" className={tab === 'champions' ? 'is-active' : ''} onClick={() => setTab('champions')}>英雄统计 <small>{filteredChampions.length}</small></button></div><span className="rh-muted">{pages.updatedAt ? `更新于 ${new Date(pages.updatedAt).toLocaleTimeString('zh-CN')}` : '正在查询'}</span></div>

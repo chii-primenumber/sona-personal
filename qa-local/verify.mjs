@@ -13,7 +13,7 @@ const names = ['练习星轨', '薄荷汽水', '雨后回声', '微光纸船', '
 const champions = [[16,'索拉卡'],[350,'悠米'],[117,'璐璐'],[37,'娑娜'],[267,'娜美'],[103,'阿狸'],[99,'拉克丝'],[22,'艾希'],[51,'凯特琳'],[64,'李青'],[157,'亚索'],[222,'金克丝']]
 const positions = ['TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY']
 const ids = names.map((_, i) => `preview-player-${i}`)
-const queues = [[440,'排位赛 灵活排位'],[420,'排位赛 单双排'],[450,'极地大乱斗'],[2400,'海克斯大乱斗'],[430,'匹配模式']].map(([id,name]) => ({ id,name,description:name, gameMode:id >= 450 ? 'ARAM' : 'CLASSIC', queueAvailability:'Available', category:'PvP', isRanked:id===440||id===420, mapId:id>=450?12:11 }))
+const queues = [[440,'排位赛 灵活排位'],[420,'排位赛 单双排'],[450,'极地大乱斗'],[2400,'海克斯大乱斗'],[430,'匹配模式']].map(([id,name]) => ({ id,name,description:name, gameMode:id >= 450 ? 'ARAM' : 'CLASSIC', queueAvailability:'Available', isEnabled:true, category:'PvP', isRanked:id===440||id===420, mapId:id>=450?12:11 }))
 const ranks = { queueMap: { RANKED_SOLO_5x5: {tier:'EMERALD',division:'I',leaguePoints:55,wins:10,losses:7}, RANKED_FLEX_SR: {tier:'DIAMOND',division:'II',leaguePoints:40,wins:126,losses:91} } }
 const profile = (i) => ({ puuid: ids[i], gameName: names[i], tagLine:'DEMO', displayName:names[i], summonerId:i+100, profileIconId:i+1, summonerLevel:241-i*13, privacy:'PUBLIC' })
 const makeGame = (n) => {
@@ -46,7 +46,8 @@ const bp = { queueId:440,localPlayerCellId:0,myTeam:names.slice(0,5).map((gameNa
 const game = { phase:'InProgress', map:{id:11,name:'召唤师峡谷'}, gameData:{ gameId:9828375, queue:queues[0], playerChampionSelections:ids.map((puuid,i)=>({puuid,championId:champions[i][0]})),teamOne:ids.slice(0,5).map((puuid,i)=>({puuid,championId:champions[i][0],teamParticipantId:i<2?1:0,selectedPosition:positions[i].toLowerCase()})), teamTwo:ids.slice(5).map((puuid,i)=>({puuid,championId:champions[i+5][0],teamParticipantId:0,selectedPosition:positions[i].toLowerCase()})) } }
 const items = [[3158,'明朗之靴'],[6617,'月石再生器'],[3504,'炽热香炉'],[6621,'黎明核心'],[3089,'灭世者的死亡之帽'],[3020,'法师之靴'],[3364,'神谕透镜']]
 const mockIcons = (array, type) => array.map(([id,name]) => ({id,name,iconPath:`/qa-art/${type}-${id}.svg`,description:`${name} · 离线演示图标`}))
-const server = await createServer({ root:base, configFile:false, resolve:{alias:{'@':path.join(base,'src')}},define:{__PLUGIN_VERSION__:JSON.stringify('1.10.0-personal.1')},server:{host:'127.0.0.1',port:0,open:false,strictPort:true},publicDir:false })
+const version = JSON.parse(await fs.readFile(path.join(base, 'package.json'), 'utf8')).version
+const server = await createServer({ root:base, configFile:false, resolve:{alias:{'@':path.join(base,'src')}},define:{__PLUGIN_VERSION__:JSON.stringify(version)},server:{host:'127.0.0.1',port:0,open:false,strictPort:true},publicDir:false })
 await server.listen()
 const origin = `http://127.0.0.1:${server.httpServer.address().port}`
 let browser
@@ -92,6 +93,7 @@ try {
     if (p==='/entitlements/v1/token') return json({accessToken:'test-fixture-only',issuer:'http://hn1-k8s-bcs-internal.lol.qq.com:28088'})
     if (p.endsWith('/league-session-token')) return json('test-fixture-only')
     if (p==='/lol-summoner/v1/current-summoner'||p.endsWith('/alias/lookup')) return json(profile(0))
+    if (/^\/lol-summoner\/v1\/summoners\/\d+$/.test(p)) return json(profile(Number(p.split('/').at(-1)) - 100))
     if (p.includes('/lol-summoner/v2/summoners/puuid/')) return json(profile(Math.max(0,ids.indexOf(p.split('/').at(-1)))))
     if (p.startsWith('/lol-ranked/')) return json(ranks)
     if (p.endsWith('/champion-mastery')) return failMastery?json({},403):json(champions.map(([championId],i)=>({championId,championLevel:30-i,championPoints:350000-i*24700})))
@@ -116,6 +118,9 @@ try {
   await profileView.getByText('璀璨钻石 II',{exact:true}).waitFor()
   assert.equal(await profileView.locator('.rh-match').count(),49)
   await profileView.getByText('350,000',{exact:true}).waitFor()
+  const encounterIcons = await profileView.locator('.rh-encounters img').evaluateAll((images) => images.map((img) => img.getAttribute('src')))
+  assert.equal(encounterIcons.length, 9)
+  assert.ok(encounterIcons.every((src) => src.includes('/profile-icons/')))
   await profileView.screenshot({path:path.join(out,'个人战绩_模拟数据.png')})
   await profileView.locator('.rh-expand').first().click()
   await profileView.getByText('10 人详细战报',{exact:true}).waitFor()
@@ -156,6 +161,14 @@ try {
   await bpView.getByText('练习星轨#DEMO',{exact:true}).waitFor()
   assert.equal(await bpView.getByText('白昼拾荒#DEMO',{exact:true}).count(),0)
   await bpView.locator('.rh-team-card-stats').nth(4).waitFor()
+  await bpView.getByLabel('队伍战绩范围').selectOption('2400')
+  await bpView.locator('.rh-team-match').first().getByText('海克斯大乱斗', {exact:true}).waitFor()
+  await bpView.getByLabel('队伍战绩范围').selectOption('-1')
+  await bpView.locator('.rh-team-match').first().getByText('排位赛 灵活排位', {exact:true}).waitFor()
+  await bpView.locator('.rh-team-match').first().click()
+  await page.locator('.rh-team-match-detail .rh-report').waitFor()
+  await page.keyboard.press('Escape')
+  await page.locator('.rh-team-match-detail').waitFor({state:'hidden'})
   await bpView.screenshot({path:path.join(out,'BP己方五人_模拟数据.png')})
   await bpView.locator('.rh-team-card-head').first().click()
   await profileView.locator('.rh-match').first().waitFor()
@@ -178,6 +191,8 @@ try {
   const gameView = page.getByTestId('game-history')
   await gameView.locator('.rh-team-card').nth(9).waitFor()
   assert.equal(await gameView.locator('.rh-team-card').count(),10)
+  assert.equal(await gameView.locator('.rh-team-blue .rh-team-card').count(),5)
+  assert.equal(await gameView.locator('.rh-team-red .rh-team-card').count(),5)
   await gameView.locator('.rh-team-card-stats').nth(9).waitFor()
   await gameView.getByText('组队 A',{exact:true}).first().waitFor()
   await gameView.screenshot({path:path.join(out,'游戏后双方总览_模拟数据.png')})
@@ -192,9 +207,32 @@ try {
   await profileView.getByText('该玩家的英雄点数暂不可用',{exact:true}).waitFor()
   await profileView.locator('.rh-match').first().waitFor()
   assert.ok(await profileView.evaluate((element)=>element.scrollWidth <= element.clientWidth+2))
+  await page.keyboard.press('Escape')
+  await profileView.waitFor({state:'hidden'})
+  await page.evaluate(() => window.qaNativeHistory())
+  async function assertProfile(name) {
+    await profileView.getByRole('heading', { name, exact: true }).waitFor()
+    await profileView.locator('.rh-match').first().waitFor()
+    await page.keyboard.press('Escape')
+    await profileView.waitFor({state:'hidden'})
+  }
+  await page.locator('.sona-profile-history-entry').click()
+  await assertProfile('雨后回声#DEMO')
+  await page.getByRole('button', {name:'切换至对局记录'}).click()
+  await page.locator('.sona-profile-history-entry').click()
+  await assertProfile('微光纸船#DEMO')
+  await page.getByText('历史战报玩家', {exact:true}).click({button:'right'})
+  assert.equal(await page.locator('.qa-context-menu').getByRole('button', {name:'查看资料'}).count(),1)
+  await page.locator('.qa-context-menu').getByRole('button', {name:'详细战绩'}).click()
+  await assertProfile('海盐风铃#DEMO')
+  await page.getByText('结算玩家', {exact:true}).click({button:'right'})
+  const actions = page.locator('.player-actions-menu-container')
+  assert.equal(await actions.getByRole('button', {name:'查看资料'}).count(),1)
+  await actions.getByRole('button', {name:'详细战绩'}).click()
+  await assertProfile('白昼拾荒#DEMO')
   assert.equal(errors.length,0,errors.join('\n'))
   assert.equal(writes.length,0,writes.join('\n'))
-  console.log(JSON.stringify({result:'passed', checks:['actual ToolsPage search', 'profile and dual ranks', 'mastery available / unavailable', '50 + more', 'win and mode filter', 'remake hidden', 'SGP failure / native fallback', 'ten-player match details', 'support stats', 'BP five', 'BP avatar entry', 'game ten', 'nested Escape', 'phase exit cleanup', '1000px layout', 'no writes / no page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
+  console.log(JSON.stringify({result:'passed', checks:['personal history', 'encounter profile icons', 'filters and pagination', 'native fallback', 'BP five and game ten', 'recent match detail', 'nested Escape', 'phase exit', '1000px layout', 'native profile and match record entry', 'history and postgame context menus', 'no writes / no page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
 } finally {
   await browser?.close()
   await server.close()

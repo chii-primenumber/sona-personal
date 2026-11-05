@@ -6,6 +6,7 @@ import { initAssets } from '@/lib/assets'
 import { initFeatures } from '@/lib/features'
 import { injector } from '@/lib/InjectorManager'
 import type { GameflowPhase } from '@/types/lcu'
+import { setupNativeHistoryFixture } from './native-history-fixture'
 
 const events = new Map<string, (value: unknown) => void>()
 const emit = (uri: string, data: unknown) => events.get(uri)?.({ uri, data, eventType: 'Update' })
@@ -14,6 +15,7 @@ lcu.bindContext({ socket: { observe(uri: string, callback: (value: unknown) => v
 await initAssets()
 injector.start()
 initFeatures()
+Object.assign(window, { qaNativeHistory: await setupNativeHistoryFixture() })
 
 function Preview() {
   const [phase, setPhase] = useState<GameflowPhase>('None')

@@ -150,7 +150,7 @@ export function championStats(matches: HistoryMatch[]) {
 }
 
 export function encounters(matches: HistoryMatch[], relation: 'ally' | 'enemy') {
-  const people = new Map<string, { puuid: string; name: string; championId: number; count: number; wins: number; losses: number }>()
+  const people = new Map<string, { puuid: string; name: string; profileIcon: number | null; count: number; wins: number; losses: number }>()
   for (const match of validMatches(matches)) {
     const seen = new Set<string>()
     for (const player of match.game.json.participants) {
@@ -158,12 +158,20 @@ export function encounters(matches: HistoryMatch[], relation: 'ally' | 'enemy') 
       seen.add(player.puuid)
       const same = teamKey(player, match.game) === teamKey(match.player, match.game)
       if (same !== (relation === 'ally')) continue
-      const entry = people.get(player.puuid) ?? { puuid: player.puuid, name: riotName(player), championId: player.championId, count: 0, wins: 0, losses: 0 }
+      const icon = finite(player.profileIcon)
+      const entry = people.get(player.puuid) ?? { puuid: player.puuid, name: riotName(player), profileIcon: null, count: 0, wins: 0, losses: 0 }
+      if (entry.profileIcon == null && icon != null && icon >= 0) entry.profileIcon = icon
       entry.count++; if (match.outcome === 'win') entry.wins++; else entry.losses++
       people.set(player.puuid, entry)
     }
   }
   return [...people.values()].sort((a, b) => b.count - a.count || b.wins - a.wins)
+}
+
+export function profileIconUrl(icon: number | null | undefined): string | undefined {
+  return typeof icon === 'number' && Number.isInteger(icon) && icon >= 0
+    ? `/lol-game-data/assets/v1/profile-icons/${icon}.jpg`
+    : undefined
 }
 
 export function matchBadges(match: HistoryMatch) {

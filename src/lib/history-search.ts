@@ -56,8 +56,14 @@ export function historyPlayerFromFriend(friend: ChatFriend, currentServer: strin
   const name = friend.gameName || friend.name
   if (!friend.puuid || !name) return null
   const serverId = historySearchServers(currentServer).find((key) => key === `TENCENT_${friend.platformId?.toUpperCase()}`)
+  const gameStatus = friend.lol?.gameStatus
+  let availability = friend.availability
+  if (availability !== 'offline') {
+    if (gameStatus === 'inQueue') availability = 'inQueue'
+    if (gameStatus === 'inGame' || gameStatus === 'championSelect') availability = 'dnd'
+  }
   return { puuid: friend.puuid, name: [name, friend.gameTag].filter(Boolean).join('#'), iconId: friend.icon,
-    availability: friend.availability, serverId }
+    availability, serverId }
 }
 
 export function historyPlayerMatches(player: HistoryPlayer, query: string) {

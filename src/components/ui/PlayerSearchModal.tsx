@@ -18,7 +18,9 @@ interface SearchState {
 }
 
 const emptySearch: SearchState = { query: '', pending: false, results: [] }
-const ONLINE_STATUS: Record<string, string> = { chat: '在线', dnd: '游戏中', away: '离开', mobile: '移动端', offline: '离线' }
+const ONLINE_STATUS: Record<string, string> = {
+  chat: '在线', dnd: '游戏中', inQueue: '队列中', away: '离开', mobile: '移动端', offline: '离线',
+}
 
 export function PlayerSearchModal({ open, initialQuery = '', onClose, onSelect }: {
   open: boolean; initialQuery?: string; onClose: () => void; onSelect: (player: HistoryPlayer) => void

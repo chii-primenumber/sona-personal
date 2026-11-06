@@ -139,9 +139,11 @@ try {
     if (p==='/lol-game-queues/v1/queues') return json(queues)
     if (p==='/lol-chat/v1/me') return json({platformId:'HN1',puuid:ids[0],gameName:names[0],tagLine:'DEMO'})
     if (p==='/lol-lobby/v2/lobby') return json({gameConfig:{isCustom:false},members:[{puuid:ids[0]},{puuid:ids[1]}]})
-    if (p==='/lol-chat/v1/friends') return json([2,3].map((index) => ({
+    if (p==='/lol-chat/v1/friends') return json([
+      [2,'chat'], [3,'offline'], [4,'dnd'], [5,'chat','inQueue'], [6,'away'], [7,'chat','inGame'],
+    ].map(([index,availability,gameStatus]) => ({
       puuid:ids[index], gameName:names[index], gameTag:'DEMO', icon:index+1,
-      availability:index === 2 ? 'chat' : 'offline', platformId:'HN1',
+      availability, platformId:'HN1', lol:{gameStatus},
     })))
     if (p==='/entitlements/v1/token') return json({accessToken:'test-fixture-only',issuer:'http://hn1-k8s-bcs-internal.lol.qq.com:28088'})
     if (p.endsWith('/league-session-token')) return json('test-fixture-only')
@@ -280,6 +282,15 @@ try {
   const recent = searchPanel.getByRole('region',{name:'最近访问',exact:true})
   await profileView.getByRole('button',{name:'搜索玩家',exact:true}).click()
   await friends.getByRole('button',{name:'查看 雨后回声#DEMO 的战绩'}).waitFor()
+  for (const [index, label, color] of [
+    [2,'在线','rgb(36, 189, 130)'], [3,'离线','rgb(115, 127, 139)'],
+    [4,'游戏中','rgb(0, 200, 223)'], [5,'队列中','rgb(0, 200, 223)'],
+    [6,'离开','rgb(232, 64, 87)'], [7,'游戏中','rgb(0, 200, 223)'],
+  ]) {
+    const dot = friends.getByRole('button',{name:`查看 ${names[index]}#DEMO 的战绩`}).locator('.rh-search-status')
+    assert.equal(await dot.getAttribute('title'),label)
+    assert.equal(await dot.evaluate((node) => getComputedStyle(node).backgroundColor),color)
+  }
   await recent.getByRole('button',{name:'查看 练习星轨#DEMO 的战绩'}).waitFor()
   await friends.getByRole('searchbox').fill('雨后')
   assert.equal(await friends.locator('.rh-search-player').count(),1)

@@ -1,4 +1,7 @@
 ## 一款基于Pengu Loader的全服可用英雄联盟客户端增强插件
+
+本仓库是基于 WJZ-P 的 Sona v1.10.0 制作的个人战绩增强版。本次定制整理于 2026-11-07。安装前请阅读 [个人版安装与回退说明](README_个人版.md)。下方介绍记录上游 Sona 的功能。
+
 <!-- PROJECT SHIELDS -->
 
 <div align="center">

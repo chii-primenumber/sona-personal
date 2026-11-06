@@ -1,5 +1,7 @@
 ## A League of Legends Client Enhancement Plugin for Pengu Loader
 
+This personal match-history edition is based on WJZ-P's Sona v1.10.0. The customized release was prepared on 2026-11-07. See the [personal edition installation guide](README_个人版.md) before installing. The rest of this README documents upstream Sona.
+
 <div align="center">
 
   <a href="https://github.com/WJZ-P/sona/graphs/contributors">

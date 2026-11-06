@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   check-and-update:
+    if: github.repository == 'WJZ-P/sona'
     runs-on: ubuntu-latest
 
     steps:

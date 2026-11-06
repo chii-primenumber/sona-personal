@@ -5,7 +5,7 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 
 const require = createRequire(import.meta.url)
-const { chromium } = require(String.raw`C:\Users\CarryJQKA\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\node_modules\playwright`)
+const { chromium } = require(process.env.SONA_PLAYWRIGHT_PATH || 'playwright')
 const base = path.resolve(import.meta.dirname, '..')
 const out = path.resolve(base, '..', 'sona-preview')
 await fs.mkdir(out, { recursive: true })
@@ -72,7 +72,7 @@ function image(url) {
 }
 
 try {
-  browser = await chromium.launch({ executablePath:String.raw`C:\Program Files\Google\Chrome\Application\chrome.exe`,headless:true,args:['--disable-gpu','--disable-background-networking'] })
+  browser = await chromium.launch({ executablePath:process.env.SONA_CHROME_PATH,headless:true,args:['--disable-gpu','--disable-background-networking'] })
   const context = await browser.newContext({ viewport:{width:1450,height:940}, reducedMotion:'reduce' })
   await context.grantPermissions(['clipboard-read','clipboard-write'])
   const page = await context.newPage()

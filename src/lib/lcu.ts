@@ -55,11 +55,15 @@ export { SGP_SERVERS, TENCENT_MATCH_HISTORY_INTEROP, TENCENT_SERVER_NAMES, queue
 export { LcuEventUri, QueueId } from '@/types/lcu'
 
 /** SGP summoner-ledge 按名查询返回的关键字段（仅取解析所需，容错处理） */
-interface SgpSummonerLite {
+export interface SgpSummonerLite {
   puuid?: string
   gameName?: string
   tagLine?: string
   name?: string
+  displayName?: string
+  profileIconId?: number
+  profileIcon?: number
+  summonerLevel?: number
 }
 
 type GameSettingsBackup = {
@@ -549,6 +553,7 @@ class LCUManager {
     regionKey: string,
     gameName: string,
     accessToken: string,
+    signal?: AbortSignal,
   ): Promise<SgpSummonerLite | null> {
     const server = SGP_SERVERS[regionKey]
     const base = server?.common ?? server?.matchHistory
@@ -558,24 +563,56 @@ class LCUManager {
     const url = `${base}/summoner-ledge/v1/regions/${regionCode}/summoners/name/${encodeURIComponent(gameName)}`
 
     const resp = await fetch(url, {
+      signal,
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'User-Agent': 'LeagueOfLegendsClient/14.13.596.7996 (rcp-be-lol-summoner)',
       },
     })
 
-    const text = await resp.text().catch(() => '')
-    console.log('[CrossRegion] [%s] %s → %d %s | body: %s', regionKey, url, resp.status, resp.statusText, text.slice(0, 800) || '(空)')
+    if (resp.status === 404 || resp.status === 204) return null
+    if (!resp.ok) throw new Error(`大区查询失败 (${resp.status})`)
+    return resp.json() as Promise<SgpSummonerLite>
+  }
 
-    if (!resp.ok) return null
-    if (!text) return null
-
-    try {
-      return JSON.parse(text) as SgpSummonerLite
-    } catch (err) {
-      console.warn('[CrossRegion] [%s] JSON 解析失败:', regionKey, err)
-      return null
+  /** Player lookup is restricted to the current Tencent account's interoperable servers. */
+  private async getTencentHistoryServer(regionKey: string) {
+    const current = await this.getSgpServerId()
+    if (!current.startsWith('TENCENT_') || !TENCENT_MATCH_HISTORY_INTEROP.some((key) => key === regionKey)) {
+      throw new Error('当前登录大区无法查询所选大区。')
     }
+    return SGP_SERVERS[regionKey]
+  }
+
+  async getHistorySummonerByName(regionKey: string, name: string, signal?: AbortSignal) {
+    await this.getTencentHistoryServer(regionKey)
+    const token = this._entitlementsToken ?? await this.getEntitlementsToken()
+    return this._getSgpSummonerByName(regionKey, name, token.accessToken, signal)
+  }
+
+  private async readHistorySgp<T>(regionKey: string, path: string, options: RequestInit) {
+    const server = await this.getTencentHistoryServer(regionKey)
+    if (!server.common) throw new Error('所选大区的资料接口暂不可用。')
+    const token = this._leagueSessionToken ?? await this.getLeagueSessionToken()
+    const response = await fetch(`${server.common}${path}`, {
+      ...options,
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    })
+    if (response.status === 404 || response.status === 204) return null
+    if (!response.ok) throw new Error(`大区查询失败 (${response.status})`)
+    return response.json() as Promise<T>
+  }
+
+  async getHistorySgpSummoner(regionKey: string, puuid: string, signal?: AbortSignal) {
+    const regionCode = encodeURIComponent(regionKey.replace(/^TENCENT_/, ''))
+    const profiles = await this.readHistorySgp<SgpSummonerLite[]>(regionKey,
+      `/summoner-ledge/v1/regions/${regionCode}/summoners/puuids`,
+      { method: 'POST', body: JSON.stringify([puuid]), signal })
+    return Array.isArray(profiles) ? profiles.find((profile) => profile?.puuid === puuid) ?? null : null
+  }
+
+  getHistorySgpRanks<T>(regionKey: string, puuid: string, signal?: AbortSignal) {
+    return this.readHistorySgp<T>(regionKey, `/leagues-ledge/v2/rankedStats/puuid/${encodeURIComponent(puuid)}`, { signal })
   }
 
   /** 设置当前召唤师头像 */
@@ -1258,6 +1295,7 @@ class LCUManager {
     count?: number
     tag?: string
     signal?: AbortSignal
+    serverId?: string
   }): Promise<SgpMatchHistoryLol> {
     const debugContext: {
       platformId: string
@@ -1283,9 +1321,9 @@ class LCUManager {
       }
       debugContext.issuer = token.issuer ?? debugContext.issuer
 
-      const sgpServerId = await this.getSgpServerId()
+      const sgpServerId = options?.serverId || await this.getSgpServerId()
       debugContext.sgpServerId = sgpServerId
-      const server = SGP_SERVERS[sgpServerId.toUpperCase()]
+      const server = options?.serverId ? await this.getTencentHistoryServer(sgpServerId) : SGP_SERVERS[sgpServerId.toUpperCase()]
       debugContext.matchHistoryBaseUrl = server?.matchHistory ?? ''
       if (!server?.matchHistory) {
         throw new Error(`[SGP] 找不到服务器配置: ${sgpServerId}`)
@@ -1298,7 +1336,7 @@ class LCUManager {
         params.set('tag', options.tag)
       }
 
-      const url = `${server.matchHistory}/match-history-query/v1/products/lol/player/${puuid}/SUMMARY?${params}`
+      const url = `${server.matchHistory}/match-history-query/v1/products/lol/player/${encodeURIComponent(puuid)}/SUMMARY?${params}`
       debugContext.requestUrl = url
 
       const resp = await fetch(url, {
@@ -1317,7 +1355,7 @@ class LCUManager {
       const result = await resp.json() as SgpMatchHistoryLol
       return { ...result, sonaSource: 'sgp' }
     } catch (err) {
-      if (options?.signal?.aborted) throw err
+      if (options?.signal?.aborted || options?.serverId) throw err
       console.error('[SGP] 战绩查询失败，回退到客户端原生战绩接口', {
         platformId: debugContext.platformId || 'unknown',
         sgpServerId: debugContext.sgpServerId || 'unknown',
@@ -1670,7 +1708,7 @@ class LCUManager {
   }
 
   /** 获取斗魂竞技场 / 海克斯模式强化符文数据 */
-  getAugments(): Promise<Array<{ id: number; nameTRA: string; simpleNameTRA: string; augmentSmallIconPath: string; rarity: string }>> {
+  getAugments(): Promise<Array<{ id: number; nameTRA: string; simpleNameTRA: string; augmentSmallIconPath: string; rarity: string; summaryDescription?: string }>> {
     return get('/lol-game-data/assets/v1/cherry-augments.json')
   }
 

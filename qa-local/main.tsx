@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ToolsPage } from '@/components/pages/ToolsPage'
+import { SettingsPage } from '@/components/pages/SettingsPage'
 import { LcuEventUri } from '@/lib/lcu'
 import { initAssets } from '@/lib/assets'
 import { initFeatures } from '@/lib/features'
 import { injector } from '@/lib/InjectorManager'
+import { initSonaTheme } from '@/lib/theme'
 import type { GameflowPhase } from '@/types/lcu'
 import { setupNativeHistoryFixture } from './native-history-fixture'
 
@@ -16,6 +18,7 @@ const { mountHistory, mountSummoner } = await setupNativeHistoryFixture({
   disconnect() {},
 })
 await initAssets()
+initSonaTheme()
 injector.start()
 initFeatures()
 Object.assign(window, { qaNativeHistory: mountHistory })
@@ -60,6 +63,7 @@ function Preview() {
     {phase === 'ChampSelect' && <EnemyRows />}
     {phase === 'InProgress' && <div className="game-in-progress-container">游戏仍在进行中</div>}
     <div className="qa-tools"><ToolsPage /></div>
+    <div className="qa-tools"><SettingsPage /></div>
   </>
 }
 

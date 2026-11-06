@@ -20,7 +20,7 @@ function normalizePath(raw: string): string {
 }
 
 /** Riot 资源描述里常带 HTML 标签，这里转成适合 tooltip 的纯文本。 */
-function normalizeDescription(raw: unknown): string {
+export function normalizeDescription(raw: unknown): string {
   if (typeof raw !== 'string') return ''
 
   return raw
@@ -262,8 +262,7 @@ async function tryInit(attempt: number) {
         name: augment.nameTRA || String(augment.id),
         iconPath: augment.augmentSmallIconPath ? normalizePath(augment.augmentSmallIconPath) : '',
         rarity: augment.rarity || '',
-        // cherry-augments.json 目前只暴露名称、图标和稀有度，没有效果描述字段。
-        description: '',
+        description: normalizeDescription(augment.summaryDescription),
       })
     }
   }

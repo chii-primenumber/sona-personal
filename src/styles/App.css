@@ -24,12 +24,12 @@
 }
 
 .sona-content::-webkit-scrollbar-thumb {
-  background: rgba(200, 170, 110, 0.2);
+  background: rgb(var(--sona-accent-rgb) / 0.2);
   border-radius: 3px;
 }
 
 .sona-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(200, 170, 110, 0.35);
+  background: rgb(var(--sona-accent-rgb) / 0.35);
 }
 
 /* ---- 占位页面 ---- */
@@ -38,7 +38,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 14px;
   letter-spacing: 0.05em;
 }

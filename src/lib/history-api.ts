@@ -4,6 +4,7 @@ import type { SgpMatchHistoryLol } from '@/types/sgp'
 
 export interface HistoryRank {
   key: string; label: string; tier: string; division: string; lp: number | null; wins: number | null; losses: number | null
+  peak?: { tier: string; division: string }
 }
 export interface HistoryMastery { championId: number; championLevel: number; championPoints: number; lastPlayTime?: number }
 
@@ -32,9 +33,9 @@ export async function deadline<T>(execute: (signal: AbortSignal) => Promise<T>, 
   }
 }
 
-export function fetchHistoryPage(puuid: string, queueId: number, startIndex: number, count = 20, signal?: AbortSignal): Promise<SgpMatchHistoryLol> {
+export function fetchHistoryPage(puuid: string, queueId: number, startIndex: number, count = 20, signal?: AbortSignal, serverId?: string): Promise<SgpMatchHistoryLol> {
   return deadline(async (requestSignal) => {
-    const response = await lcu.getSgpMatchHistory(puuid, { startIndex, count, tag: queueIdToTag(queueId) || undefined, signal: requestSignal })
+    const response = await lcu.getSgpMatchHistory(puuid, { startIndex, count, tag: queueIdToTag(queueId) || undefined, signal: requestSignal, serverId })
     if (!Array.isArray(response?.games)) throw new Error('战绩接口返回的数据格式异常')
     return response
   }, signal)
@@ -52,13 +53,27 @@ export function fetchHistorySummoner(puuid: string, signal?: AbortSignal) {
   return readJson<SummonerInfo>(`/lol-summoner/v2/summoners/puuid/${encodeURIComponent(puuid)}`, signal)
 }
 
-export async function fetchHistoryRanks(puuid: string, signal?: AbortSignal): Promise<HistoryRank[]> {
-  const response = await readJson<{ queueMap?: Record<string, Record<string, unknown>> }>(`/lol-ranked/v1/ranked-stats/${encodeURIComponent(puuid)}`, signal)
-  if (!response || typeof response !== 'object' || !response.queueMap) throw new Error('段位数据暂不可用')
+export async function fetchHistoryRanks(puuid: string, signal?: AbortSignal, serverId?: string): Promise<HistoryRank[]> {
+  type RankedResponse = {
+    queueMap?: Record<string, Record<string, unknown>>
+    queues?: Array<Record<string, unknown>>
+  }
+  const response = serverId
+    ? await deadline((requestSignal) => lcu.getHistorySgpRanks<RankedResponse>(serverId, puuid, requestSignal), signal, 10000)
+    : await readJson<RankedResponse>(`/lol-ranked/v1/ranked-stats/${encodeURIComponent(puuid)}`, signal)
+  if (!response?.queueMap && !Array.isArray(response?.queues)) throw new Error('段位数据暂不可用')
   return [['RANKED_SOLO_5x5', '单双排位'], ['RANKED_FLEX_SR', '灵活排位']].map(([key, label]) => {
-    const rank = response.queueMap?.[key] ?? {}
+    const rank = response.queueMap?.[key] ?? (Array.isArray(response.queues) ? response.queues.find((entry) => entry?.queueType === key) : null) ?? {}
     const num = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null
-    return { key, label, tier: String(rank.tier || 'UNRANKED'), division: String(rank.division || ''), lp: num(rank.leaguePoints), wins: num(rank.wins), losses: num(rank.losses) }
+    const highestTier = String(rank.highestTier ?? '').toUpperCase()
+    const peak = highestTier !== 'UNRANKED' && Object.prototype.hasOwnProperty.call(RANK_NAMES, highestTier)
+      ? { tier: highestTier, division: String(rank.highestDivision ?? '') }
+      : undefined
+    const tier = String(rank.tier || 'UNRANKED').toUpperCase()
+    return {
+      key, label, tier: ['NA', 'NONE'].includes(tier) ? 'UNRANKED' : tier, division: String(rank.division || ''),
+      lp: num(rank.leaguePoints), wins: num(rank.wins), losses: num(rank.losses), peak,
+    }
   })
 }
 
@@ -70,4 +85,6 @@ export async function fetchHistoryMastery(puuid: string, signal?: AbortSignal): 
 }
 
 export const RANK_NAMES: Record<string, string> = { IRON: '坚韧黑铁', BRONZE: '英勇黄铜', SILVER: '不屈白银', GOLD: '荣耀黄金', PLATINUM: '华贵铂金', EMERALD: '流光翡翠', DIAMOND: '璀璨钻石', MASTER: '超凡大师', GRANDMASTER: '傲世宗师', CHALLENGER: '最强王者', UNRANKED: '未定级' }
-export function rankText(rank: HistoryRank): string { return `${RANK_NAMES[rank.tier] || rank.tier}${rank.division && rank.division !== 'NA' ? ` ${rank.division}` : ''}` }
+export function rankText(rank: Pick<HistoryRank, 'tier' | 'division'>): string {
+  return `${RANK_NAMES[rank.tier] || rank.tier}${rank.tier !== 'UNRANKED' && rank.division && !['NA', 'NONE'].includes(rank.division) ? ` ${rank.division}` : ''}`
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Modal } from './Modal'
 import { PlayerHistoryModal } from './PlayerHistoryModal'
 import { ChampionStrip, HistoryImage, MatchReport, championName } from './HistoryWidgets'
+import { HistoryDisplaySettings } from './HistoryDisplaySettings'
 import { lcu, LcuEventUri } from '@/lib/lcu'
 import { store } from '@/lib/store'
 import { deobfuscateChampSelectPuuid } from '@/lib/champ-select-puuid'
@@ -11,6 +12,8 @@ import { deadline, fetchHistoryRanks, fetchHistorySummoner, rankText, type Histo
 import { mean, numberText, percentText, POSITION_NAMES, profileIconUrl, summarize, toHistoryMatches, validMatches, type HistoryMatch } from '@/lib/history-model'
 import { calculateSonaPlayerStrengthScore } from '@/lib/player-strength-score'
 import { useHistoryPages } from '@/lib/use-history-pages'
+import { useHistoryHiddenFields } from '@/lib/use-history-display'
+import { isHistoryFieldVisible, type HistoryDisplayField, type HistoryHiddenFields } from '@/lib/history-display'
 import type { ChampSelectSession, GameflowSession, SummonerInfo } from '@/types/lcu'
 import '@/styles/PersonalHistory.css'
 
@@ -66,8 +69,10 @@ export function TeamHistoryModal({ open, onClose, mode }: { open: boolean; onClo
   const [selectedQueue, setSelectedQueue] = useState(-1)
   const [target, setTarget] = useState<{ puuid: string; name: string } | null>(null)
   const [selectedMatch, setSelectedMatch] = useState<HistoryMatch | null>(null)
+  const [showSettings, setShowSettings] = useState(false)
+  const hidden = useHistoryHiddenFields()
   useEffect(() => {
-    if (!open) { setTarget(null); setSelectedMatch(null); return }
+    if (!open) { setTarget(null); setSelectedMatch(null); setShowSettings(false); return }
     const controller = new AbortController()
     let previous = ''
     const update = (next: Snapshot) => {
@@ -104,19 +109,21 @@ export function TeamHistoryModal({ open, onClose, mode }: { open: boolean; onClo
               {[20, 50, 100].map((n) => <option key={n} value={n}>每人 {n} 场</option>)}
             </select>
             <button type="button" className="rh-button" onClick={() => setRevision((n) => n + 1)}>刷新</button>
+            <button type="button" className="rh-button" onClick={() => setShowSettings(true)}>显示设置</button>
           </div>
         </header>
         <div className="rh-team-body">
           {error ? <div className="rh-error" role="alert">{error}<button type="button" onClick={() => setRevision((n) => n + 1)}>重试</button></div> : !snapshot ? <div className="rh-empty"><span className="rh-spinner" />读取当前对局…</div> : !playerCount ? <div className="rh-empty">客户端还未提供参赛者信息，可稍后刷新。</div> :
             <div className="rh-team-groups">
               {snapshot.teams.map((team) => (
-                <TeamSection key={team.id} team={team} queueId={queueId} count={count} open={open}
+                <TeamSection key={team.id} team={team} queueId={queueId} count={count} open={open} hidden={hidden}
                   onInspect={(puuid, name) => setTarget({ puuid, name })} onMatch={setSelectedMatch} />
               ))}
             </div>}
         </div><footer className="rh-team-footer">每位玩家独立加载。样本数按实际返回计算；当前模式无记录时，可切换到全部模式。近况仅供参考。</footer>
       </div>
     </Modal>
+    <HistoryDisplaySettings open={open && showSettings} onClose={() => setShowSettings(false)} initialSection="team" />
     <Modal open={Boolean(open && selectedMatch)} onClose={() => setSelectedMatch(null)} width="min(1200px, 95vw)" height="min(720px, 88vh)">
       {selectedMatch && (
         <div className="rh-shell rh-team-match-detail">
@@ -130,8 +137,8 @@ export function TeamHistoryModal({ open, onClose, mode }: { open: boolean; onClo
   </>
 }
 
-function TeamSection({ team, queueId, count, open, onInspect, onMatch }: {
-  team: Team; queueId: number; count: number; open: boolean
+function TeamSection({ team, queueId, count, open, hidden, onInspect, onMatch }: {
+  team: Team; queueId: number; count: number; open: boolean; hidden: HistoryHiddenFields
   onInspect: (puuid: string, name: string) => void; onMatch: (match: HistoryMatch) => void
 }) {
   const [summaries, setSummaries] = useState<Record<string, PlayerSummary>>({})
@@ -152,18 +159,19 @@ function TeamSection({ team, queueId, count, open, onInspect, onMatch }: {
   const available = team.members.flatMap((member) => summaries[member.key] ? [summaries[member.key]] : [])
   const winRate = mean(available.map((summary) => summary.winRate))
   const kda = mean(available.map((summary) => summary.kda))
+  const showSummary = isHistoryFieldVisible(hidden, 'team', 'teamSummary')
   return (
     <section className={`rh-team-group rh-team-${team.id}`}>
       <h3>
         <span className="rh-team-dot" aria-hidden="true" />{team.label}
-        {winRate != null && <strong title="有有效战绩的队员近期胜率的平均值">{percentText(winRate)}</strong>}
-        {kda != null && <small title="有有效战绩的队员近期 KDA 的平均值">{numberText(kda, 2)} KDA</small>}
+        {showSummary && winRate != null && <strong title="有有效战绩的队员近期胜率的平均值">{percentText(winRate)}</strong>}
+        {showSummary && kda != null && <small title="有有效战绩的队员近期 KDA 的平均值">{numberText(kda, 2)} KDA</small>}
         <small className="rh-team-sample">{available.length}/{team.members.length} 人有数据</small>
       </h3>
       <div className="rh-team-cards">
         {team.members.map((member) => {
           const party = member.premade ? parties.indexOf(member.premade) : -1
-          return <TeamPlayerCard key={member.key} member={member} queueId={queueId} count={count} open={open}
+          return <TeamPlayerCard key={member.key} member={member} queueId={queueId} count={count} open={open} hidden={hidden}
             premade={party >= 0 ? String.fromCharCode(65 + party) : undefined}
             onInspect={(name) => onInspect(member.puuid, name)} onMatch={onMatch} updateSummary={updateSummary} />
         })}
@@ -172,8 +180,8 @@ function TeamSection({ team, queueId, count, open, onInspect, onMatch }: {
   )
 }
 
-function TeamPlayerCard({ member, queueId, count, open, premade, onInspect, onMatch, updateSummary }: {
-  member: Member; queueId: number; count: number; open: boolean; premade?: string
+function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspect, onMatch, updateSummary }: {
+  member: Member; queueId: number; count: number; open: boolean; hidden: HistoryHiddenFields; premade?: string
   onInspect: (name: string) => void; onMatch: (match: HistoryMatch) => void
   updateSummary: (key: string, stats: PlayerSummary | null) => void
 }) {
@@ -206,14 +214,15 @@ function TeamPlayerCard({ member, queueId, count, open, premade, onInspect, onMa
     }
   }, [valid, member.puuid])
   const name = profile?.gameName ? `${profile.gameName}${profile.tagLine ? `#${profile.tagLine}` : ''}` : member.name
-  const tags = [
-    { text: stats.streak.replace(' ', ''), tone: stats.streak.includes('连胜') ? 'green' : 'red' },
-    { text: stats.participation == null ? '' : `参团 ${percentText(stats.participation)}`, tone: 'blue' },
-    { text: stats.damageShare == null ? '' : `伤害 ${percentText(stats.damageShare)}`, tone: 'red' },
-    { text: stats.takenShare == null ? '' : `承伤 ${percentText(stats.takenShare)}`, tone: 'purple' },
-    { text: stats.goldShare == null ? '' : `经济 ${percentText(stats.goldShare)}`, tone: 'gold' },
-    { text: score == null ? '' : `Sona ${numberText(score, 1)}`, tone: 'purple' },
-  ]
+  const show = (field: HistoryDisplayField<'team'>) => isHistoryFieldVisible(hidden, 'team', field)
+  const tags = ([
+    { field: 'streak', text: stats.streak.replace(' ', ''), tone: stats.streak.includes('连胜') ? 'green' : 'red' },
+    { field: 'participation', text: stats.participation == null ? '' : `参团 ${percentText(stats.participation)}`, tone: 'blue' },
+    { field: 'damage', text: stats.damageShare == null ? '' : `伤害 ${percentText(stats.damageShare)}`, tone: 'red' },
+    { field: 'taken', text: stats.takenShare == null ? '' : `承伤 ${percentText(stats.takenShare)}`, tone: 'purple' },
+    { field: 'gold', text: stats.goldShare == null ? '' : `经济 ${percentText(stats.goldShare)}`, tone: 'gold' },
+    { field: 'score', text: score == null ? '' : `Sona ${numberText(score, 1)}`, tone: 'purple' },
+  ] as const).filter(({ field, text }) => text && show(field))
   return (
     <article className={`rh-team-card${member.self ? ' is-self' : ''}`}>
       <button type="button" className="rh-team-card-head" title="打开个人详细战绩" disabled={!member.puuid} onClick={() => onInspect(name)}>
@@ -223,7 +232,7 @@ function TeamPlayerCard({ member, queueId, count, open, premade, onInspect, onMa
         </span>
         <span className="rh-team-identity">
           <strong>{name}</strong>
-          <span className="rh-team-ranks">
+          {show('ranks') && <span className="rh-team-ranks">
             {ranks?.map((rank) => {
               const queueName = rank.key === 'RANKED_SOLO_5x5' ? '单双排' : '灵活组排'
               const lp = rank.lp != null && rank.tier !== 'UNRANKED' ? `${rank.lp} LP` : '—'
@@ -236,33 +245,33 @@ function TeamPlayerCard({ member, queueId, count, open, premade, onInspect, onMa
                 </span>
               )
             }) ?? (rankLoading && member.puuid ? '段位查询中…' : '段位暂不可用')}
-          </span>
+          </span>}
         </span>
       </button>
-      <div className="rh-team-selection">
+      {show('selection') && <div className="rh-team-selection">
         {member.championId > 0 && <HistoryImage src={getChampIcon(member.championId)} label={championName(member.championId)} />}
         {member.position && <span>{member.position}</span>}
         {member.self && <b>自己</b>}
         {premade && <b title="客户端提供的预组队标识">组队 {premade}</b>}
-      </div>
+      </div>}
       {!member.puuid ? <div className="rh-card-state">玩家身份暂不可查询</div>
         : pages.loading ? <div className="rh-card-state"><span className="rh-spinner" />查询中…</div>
         : pages.error ? <div className="rh-card-state">战绩查询失败<button type="button" className="rh-text-button" onClick={pages.refresh}>重试</button></div>
         : stats.total === 0 ? <div className="rh-card-state">本范围暂无有效记录</div>
         : <>
-          <div className="rh-team-card-stats">
-            <strong className={(stats.winRate ?? 0) >= 0.5 ? 'rh-team-positive' : 'rh-team-negative'}>
+          {(show('winRate') || show('kda')) && <div className="rh-team-card-stats">
+            {show('winRate') && <strong className={(stats.winRate ?? 0) >= 0.5 ? 'rh-team-positive' : 'rh-team-negative'}>
               {percentText(stats.winRate)} <small title="有效对局数">({stats.total})</small>
-            </strong>
-            <strong>{numberText(stats.kda, 2)} <small>KDA</small></strong>
-          </div>
-          <div className="rh-team-tags">
-            {tags.filter(({ text }) => text).map(({ text, tone }) => (
+            </strong>}
+            {show('kda') && <strong>{numberText(stats.kda, 2)} <small>KDA</small></strong>}
+          </div>}
+          {tags.length > 0 && <div className="rh-team-tags">
+            {tags.map(({ text, tone }) => (
               <span key={text} className={`rh-team-tag rh-team-tag-${tone}`} title={text.startsWith('Sona') ? 'Sona 近期表现参考分，范围 3–16' : text}>{text}</span>
             ))}
-          </div>
-          <ChampionStrip matches={valid} limit={9} />
-          <div className="rh-team-recent-list" aria-label="最近对局">
+          </div>}
+          {show('champions') && <ChampionStrip matches={valid} limit={9} />}
+          {show('recent') && <div className="rh-team-recent-list" aria-label="最近对局">
             {valid.slice(0, 8).map((match) => (
               <button type="button" className={`rh-team-match rh-team-match-${match.outcome}`} key={match.id}
                 title="打开这场对局的详细战报" onClick={() => onMatch(match)}>
@@ -274,7 +283,7 @@ function TeamPlayerCard({ member, queueId, count, open, premade, onInspect, onMa
                 <b>{numberText(match.player.kills)} / {numberText(match.player.deaths)} / {numberText(match.player.assists)}</b>
               </button>
             ))}
-          </div>
+          </div>}
           {pages.source === 'lcu' && <small className="rh-card-note">备用战绩{pages.scanLimit ? ` · 最近 ${pages.scanLimit} 场内` : ''}</small>}
         </>}
     </article>

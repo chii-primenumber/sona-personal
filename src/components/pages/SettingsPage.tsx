@@ -4,6 +4,7 @@ import { SonaSwitch } from '@/components/ui/SonaSwitch'
 import { SonaSelect } from '@/components/ui/SonaSelect'
 import { SonaButton } from '@/components/ui/SonaButton'
 import { store } from '@/lib/store'
+import type { SonaTheme } from '@/lib/theme'
 import { checkForUpdates, clearSkippedUpdateVersion } from '@/lib/update-checker'
 import { useI18n, type SonaLocaleSetting } from '@/i18n'
 import '@/styles/SettingsPage.css'
@@ -22,6 +23,7 @@ export function SettingsPage() {
   const [hotkey, setHotkey] = useState(store.get('hotkey'))
   const [hideSonaIcon, setHideSonaIcon] = useState(store.get('hideSonaIcon'))
   const [globalParticle, setGlobalParticle] = useState(store.get('globalParticle'))
+  const [theme, setTheme] = useState(store.get('theme'))
   const [skippedUpdateVersion, setSkippedUpdateVersion] = useState(store.get('skippedUpdateVersion'))
   const localeOptions = [
     { value: 'auto', label: t('settings.language.auto') },
@@ -35,6 +37,7 @@ export function SettingsPage() {
       store.onChange('hotkey', setHotkey),
       store.onChange('hideSonaIcon', setHideSonaIcon),
       store.onChange('globalParticle', setGlobalParticle),
+      store.onChange('theme', setTheme),
       store.onChange('skippedUpdateVersion', setSkippedUpdateVersion),
     ]
     return () => unsubs.forEach((fn) => fn())
@@ -45,6 +48,12 @@ export function SettingsPage() {
       <h2 className="sona-settings-title">{t('settings.title')}</h2>
 
       <SettingGroup title={t('settings.group.general')}>
+        <SettingCard title={t('settings.theme.title')} description={t('settings.theme.description')}>
+          <SonaSelect options={[
+            { value: 'client', label: t('settings.theme.client') },
+            { value: 'slate', label: t('settings.theme.slate') },
+          ]} value={theme === 'slate' ? 'slate' : 'client'} onChange={(value) => store.set('theme', value as SonaTheme)} />
+        </SettingCard>
         <SettingCard
           title={t('settings.language.title')}
           description={t('settings.language.description')}

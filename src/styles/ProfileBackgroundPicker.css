@@ -19,7 +19,7 @@
 
 .spbg-title {
   flex-shrink: 0;
-  color: #f0e6d2;
+  color: rgb(var(--sona-text-rgb));
   font-size: 17px;
   font-weight: bold;
   letter-spacing: 2px;
@@ -38,9 +38,9 @@
 .spbg-search {
   flex: 1;
   max-width: 320px;
-  background: #010a13;
-  border: 1px solid #3c2e16;
-  color: #f0e6d2;
+  background: rgb(var(--sona-base-rgb));
+  border: 1px solid rgb(var(--sona-border-rgb));
+  color: rgb(var(--sona-text-rgb));
   font-size: 14px;
   padding: 8px 12px;
   outline: none;
@@ -52,18 +52,18 @@
 }
 
 .spbg-search:focus {
-  border-color: #c8aa6e;
+  border-color: rgb(var(--sona-accent-rgb));
 }
 
 .spbg-count {
-  color: #c8aa6e;
+  color: rgb(var(--sona-accent-rgb));
   font-size: 14px;
   font-weight: bold;
   white-space: nowrap;
 }
 
 .spbg-status {
-  color: #c8aa6e;
+  color: rgb(var(--sona-accent-rgb));
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
@@ -87,12 +87,12 @@
 }
 
 .spbg-grid-wrap::-webkit-scrollbar-thumb {
-  background: #3c2e16;
+  background: rgb(var(--sona-border-rgb));
   border-radius: 2px;
 }
 
 .spbg-grid-wrap::-webkit-scrollbar-thumb:hover {
-  background: #c8aa6e;
+  background: rgb(var(--sona-accent-rgb));
 }
 
 .spbg-grid {
@@ -123,12 +123,12 @@
   width: 200px;
   height: 200px;
   overflow: hidden;
-  border: 2px solid #1e2328;
+  border: 2px solid rgb(var(--sona-raised-rgb));
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .spbg-card:hover .spbg-card-img-wrap {
-  border-color: #c8aa6e;
+  border-color: rgb(var(--sona-accent-rgb));
 }
 
 .spbg-applied .spbg-card-img-wrap {
@@ -159,7 +159,7 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.5);
-  color: #f0e6d2;
+  color: rgb(var(--sona-text-rgb));
   font-size: 13px;
   font-weight: bold;
   letter-spacing: 2px;
@@ -179,7 +179,7 @@
   top: 0;
   right: 0;
   background: #00e5ff;
-  color: #010a13;
+  color: rgb(var(--sona-base-rgb));
   font-size: 10px;
   font-weight: bold;
   padding: 1px 6px;
@@ -192,7 +192,7 @@
   text-align: center;
   font-size: 12px;
   font-weight: 600;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -201,9 +201,9 @@
 }
 
 .spbg-card:hover .spbg-card-name {
-  color: #f0e6d2;
+  color: rgb(var(--sona-text-rgb));
 }
 
 .spbg-applied .spbg-card-name {
-  color: #f0e6d2;
+  color: rgb(var(--sona-text-rgb));
 }

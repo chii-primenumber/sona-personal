@@ -3,12 +3,12 @@
 .sona-availability-menu {
   position: fixed;
   min-width: 100px;
-  background: rgba(1, 10, 19, 0.97);
-  border: 1px solid #785a28;
+  background: rgb(var(--sona-base-rgb) / 0.97);
+  border: 1px solid rgb(var(--sona-highlight-rgb));
   border-radius: 3px;
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.7),
-    0 0 12px rgba(200, 170, 110, 0.12);
+    0 0 12px rgb(var(--sona-accent-rgb) / 0.12);
   z-index: 821;
   overflow: hidden;
   animation: sona-avail-menu-in 0.15s ease-out;
@@ -35,7 +35,7 @@
   background: none;
   border: none;
   border-left: 2px solid transparent;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 11px;
   font-family: inherit;
   cursor: pointer;
@@ -45,19 +45,19 @@
 }
 
 .sona-availability-option:hover {
-  background: rgba(30, 35, 40, 0.8);
-  color: #f0e6d2;
+  background: rgb(var(--sona-raised-rgb) / 0.8);
+  color: rgb(var(--sona-text-rgb));
 }
 
 .sona-availability-option--active {
-  background: rgba(200, 170, 110, 0.15);
-  color: #c8aa6e;
-  border-left-color: #c8aa6e;
+  background: rgb(var(--sona-accent-rgb) / 0.15);
+  color: rgb(var(--sona-accent-rgb));
+  border-left-color: rgb(var(--sona-accent-rgb));
 }
 
 .sona-availability-option--active:hover {
-  background: rgba(200, 170, 110, 0.2);
-  color: #c8aa6e;
+  background: rgb(var(--sona-accent-rgb) / 0.2);
+  color: rgb(var(--sona-accent-rgb));
 }
 
 /* 状态圆点 */

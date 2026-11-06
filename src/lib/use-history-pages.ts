@@ -8,8 +8,8 @@ interface PageState {
 }
 const empty: PageState = { key: '', games: [], loading: true, loadingMore: false, hasMore: true, error: '', updatedAt: 0 }
 
-export function useHistoryPages(puuid: string, queueId: number, count: number, open: boolean) {
-  const key = `${puuid}:${queueId}:${count}`
+export function useHistoryPages(puuid: string, queueId: number, count: number, open: boolean, serverId?: string) {
+  const key = `${serverId ?? ''}:${puuid}:${queueId}:${count}`
   const [state, setState] = useState<PageState>(empty)
   const [revision, setRevision] = useState(0)
   const generation = useRef(0)
@@ -26,7 +26,7 @@ export function useHistoryPages(puuid: string, queueId: number, count: number, o
     nextIndex.current = 0; busy.current = Boolean(open && puuid)
     setState({ ...empty, key, loading: Boolean(open && puuid) })
     if (!open || !puuid) return () => current.abort()
-    fetchHistoryPage(puuid, queueId, 0, count, current.signal).then((response) => {
+    fetchHistoryPage(puuid, queueId, 0, count, current.signal, serverId).then((response) => {
       if (token !== generation.current || current.signal.aborted) return
       const games = response.games || []
       nextIndex.current = games.length
@@ -39,7 +39,7 @@ export function useHistoryPages(puuid: string, queueId: number, count: number, o
       current.abort()
       if (token === generation.current) { generation.current++; controller.current?.abort(); controller.current = null }
     }
-  }, [puuid, queueId, count, open, revision, key])
+  }, [puuid, queueId, count, open, revision, key, serverId])
 
   const loadMore = useCallback(async () => {
     const previous = stateRef.current
@@ -48,7 +48,7 @@ export function useHistoryPages(puuid: string, queueId: number, count: number, o
     const current = new AbortController(); controller.current = current; busy.current = true
     setState((s) => ({ ...s, loadingMore: true, error: '' }))
     try {
-      const response: SgpMatchHistoryLol = await fetchHistoryPage(puuid, queueId, nextIndex.current, count, current.signal)
+      const response: SgpMatchHistoryLol = await fetchHistoryPage(puuid, queueId, nextIndex.current, count, current.signal, serverId)
       if (token !== generation.current || current.signal.aborted) return
       const existing = new Set(previous.games.map((g) => `${g.json.platformId}:${g.json.gameId}`))
       const added = (response.games || []).filter((g) => !existing.has(`${g.json.platformId}:${g.json.gameId}`))
@@ -62,7 +62,7 @@ export function useHistoryPages(puuid: string, queueId: number, count: number, o
       if (token !== generation.current || current.signal.aborted) return
       setState((s) => ({ ...s, loadingMore: false, error: error instanceof Error ? error.message : '加载更多失败，请重试' }))
     } finally { if (token === generation.current) busy.current = false }
-  }, [key, puuid, queueId, count, open])
+  }, [key, puuid, queueId, count, open, serverId])
 
   return { ...(state.key === key ? state : { ...empty, key }), loadMore, refresh: () => setRevision((v) => v + 1) }
 }

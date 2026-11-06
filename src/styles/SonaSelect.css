@@ -13,9 +13,9 @@
   justify-content: space-between;
   width: 100%;
   padding: 8px 14px;
-  background: rgba(1, 10, 19, 0.8);
-  border: 1px solid #3c2e16;
-  color: #a09b8c;
+  background: rgb(var(--sona-base-rgb) / 0.8);
+  border: 1px solid rgb(var(--sona-border-rgb));
+  color: rgb(var(--sona-muted-rgb));
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
@@ -24,14 +24,14 @@
 }
 
 .sona-select-trigger:hover {
-  border-color: #785a28;
-  color: #f0e6d2;
+  border-color: rgb(var(--sona-highlight-rgb));
+  color: rgb(var(--sona-text-rgb));
 }
 
 .sona-select-trigger--open {
-  border-color: #c8aa6e;
-  color: #f0e6d2;
-  box-shadow: 0 0 10px rgba(200, 170, 110, 0.2);
+  border-color: rgb(var(--sona-accent-rgb));
+  color: rgb(var(--sona-text-rgb));
+  box-shadow: 0 0 10px rgb(var(--sona-accent-rgb) / 0.2);
 }
 
 .sona-select-value {
@@ -59,7 +59,7 @@
 
 .sona-select-arrow--open {
   transform: rotate(180deg);
-  color: #c8aa6e;
+  color: rgb(var(--sona-accent-rgb));
 }
 
 /* 下拉列表 */
@@ -69,11 +69,11 @@
   width: max-content;
   min-width: max(100%, 100px);
   margin-top: 4px;
-  background: #010a13;
-  border: 1px solid #785a28;
+  background: rgb(var(--sona-base-rgb));
+  border: 1px solid rgb(var(--sona-highlight-rgb));
   box-shadow:
     0 10px 30px rgba(0, 0, 0, 0.8),
-    0 0 15px rgba(200, 170, 110, 0.15);
+    0 0 15px rgb(var(--sona-accent-rgb) / 0.15);
   max-height: 200px;
   overflow-y: auto;
 }
@@ -83,15 +83,15 @@
 }
 
 .sona-select-dropdown::-webkit-scrollbar-track {
-  background: rgba(1, 10, 19, 0.8);
+  background: rgb(var(--sona-base-rgb) / 0.8);
 }
 
 .sona-select-dropdown::-webkit-scrollbar-thumb {
-  background: #3c2e16;
+  background: rgb(var(--sona-border-rgb));
 }
 
 .sona-select-dropdown::-webkit-scrollbar-thumb:hover {
-  background: #785a28;
+  background: rgb(var(--sona-highlight-rgb));
 }
 
 /* 选项 */
@@ -104,7 +104,7 @@
   background: none;
   border: none;
   border-left: 2px solid transparent;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
@@ -123,18 +123,18 @@
 }
 
 .sona-select-option:hover {
-  background: #1e2328;
-  color: #f0e6d2;
+  background: rgb(var(--sona-raised-rgb));
+  color: rgb(var(--sona-text-rgb));
 }
 
 .sona-select-option--active {
-  background: rgba(200, 170, 110, 0.2);
-  color: #c8aa6e;
+  background: rgb(var(--sona-accent-rgb) / 0.2);
+  color: rgb(var(--sona-accent-rgb));
   font-weight: 600;
-  border-left-color: #c8aa6e;
+  border-left-color: rgb(var(--sona-accent-rgb));
 }
 
 .sona-select-option--active:hover {
-  background: rgba(200, 170, 110, 0.25);
-  color: #c8aa6e;
+  background: rgb(var(--sona-accent-rgb) / 0.25);
+  color: rgb(var(--sona-accent-rgb));
 }

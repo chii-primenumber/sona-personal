@@ -1,0 +1,44 @@
+/* Sona palette inherited by the panel, body-level dialogs, and injected controls. */
+:root {
+  --sona-base-rgb: 1 10 19;
+  --sona-raised-rgb: 30 35 40;
+  --sona-hover-rgb: 9 20 40;
+  --sona-text-rgb: 240 230 210;
+  --sona-muted-rgb: 160 155 140;
+  --sona-accent-rgb: 200 170 110;
+  --sona-border-rgb: 60 46 22;
+  --sona-highlight-rgb: 120 90 40;
+  --sona-pale-rgb: 205 190 145;
+  --sona-history-panel: #0a151e;
+  --sona-history-raised: #111e28;
+  --sona-history-hover: #1c2b35;
+  --sona-history-header: #101d27;
+  --sona-history-line: #3c3528;
+  --sona-history-focus: #243039;
+  --sona-history-win: #0c2637;
+  --sona-history-loss: #301c26;
+  --sona-history-blue: #84c6e8;
+  --sona-history-red: #ef9aab;
+}
+
+:root[data-sona-theme="slate"] {
+  --sona-base-rgb: 16 24 35;
+  --sona-raised-rgb: 30 43 59;
+  --sona-hover-rgb: 33 52 77;
+  --sona-text-rgb: 234 241 250;
+  --sona-muted-rgb: 174 190 210;
+  --sona-accent-rgb: 154 194 243;
+  --sona-border-rgb: 58 75 96;
+  --sona-highlight-rgb: 98 130 169;
+  --sona-pale-rgb: 184 211 244;
+  --sona-history-panel: #14202e;
+  --sona-history-raised: #1c2c40;
+  --sona-history-hover: #2a3d55;
+  --sona-history-header: #202e40;
+  --sona-history-line: #394a60;
+  --sona-history-focus: #32465e;
+  --sona-history-win: #233a53;
+  --sona-history-loss: #392e43;
+  --sona-history-blue: #a8d5ff;
+  --sona-history-red: #ffb4c0;
+}

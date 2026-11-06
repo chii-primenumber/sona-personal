@@ -15,21 +15,21 @@
 }
 
 .sona-settings::-webkit-scrollbar-thumb {
-  background: rgba(200, 170, 110, 0.2);
+  background: rgb(var(--sona-accent-rgb) / 0.2);
   border-radius: 3px;
 }
 
 .sona-settings::-webkit-scrollbar-thumb:hover {
-  background: rgba(200, 170, 110, 0.35);
+  background: rgb(var(--sona-accent-rgb) / 0.35);
 }
 
 .sona-settings-title {
   margin: 0 0 28px 0;
   font-size: 22px;
   font-weight: 700;
-  color: #f0e6d2;
+  color: rgb(var(--sona-text-rgb));
   letter-spacing: 2px;
-  text-shadow: 0 0 8px rgba(200, 170, 110, 0.2);
+  text-shadow: 0 0 8px rgb(var(--sona-accent-rgb) / 0.2);
 }
 
 /* ---- 调试页按钮行 ---- */
@@ -43,8 +43,8 @@
 .sona-debug-output {
   margin-top: 20px;
   padding: 16px;
-  background: rgba(1, 10, 19, 0.6);
-  border: 1px solid #3c2e16;
+  background: rgb(var(--sona-base-rgb) / 0.6);
+  border: 1px solid rgb(var(--sona-border-rgb));
   border-radius: 4px;
   max-height: 240px;
   overflow: auto;
@@ -59,7 +59,7 @@
 }
 
 .sona-debug-output::-webkit-scrollbar-thumb {
-  background: rgba(200, 170, 110, 0.2);
+  background: rgb(var(--sona-accent-rgb) / 0.2);
   border-radius: 3px;
 }
 
@@ -67,7 +67,7 @@
   margin: 0;
   font-size: 11px;
   font-family: 'Consolas', 'Monaco', monospace;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   white-space: pre-wrap;
   word-break: break-all;
   line-height: 1.6;
@@ -76,14 +76,14 @@
 .sona-debug-image-preview {
   margin-top: 12px;
   padding: 12px;
-  background: rgba(1, 10, 19, 0.45);
-  border: 1px solid rgba(200, 170, 110, 0.25);
+  background: rgb(var(--sona-base-rgb) / 0.45);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.25);
   border-radius: 4px;
 }
 
 .sona-debug-image-meta {
   margin-bottom: 10px;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 12px;
   line-height: 1.5;
   word-break: break-all;
@@ -94,14 +94,14 @@
   max-width: 100%;
   max-height: 360px;
   object-fit: contain;
-  border: 1px solid rgba(120, 90, 40, 0.45);
+  border: 1px solid rgb(var(--sona-highlight-rgb) / 0.45);
   background: rgba(0, 0, 0, 0.25);
 }
 
 .sona-asset-browser {
   padding: 14px;
-  background: rgba(1, 10, 19, 0.35);
-  border: 1px solid rgba(200, 170, 110, 0.14);
+  background: rgb(var(--sona-base-rgb) / 0.35);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.14);
   border-radius: 4px;
 }
 
@@ -114,14 +114,14 @@
 }
 
 .sona-asset-browser-title {
-  color: #c8aa6e;
+  color: rgb(var(--sona-accent-rgb));
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
 
 .sona-asset-browser-hint {
-  color: #785a28;
+  color: rgb(var(--sona-highlight-rgb));
   font-size: 11px;
   line-height: 1.5;
   text-align: right;
@@ -129,7 +129,7 @@
 
 .sona-asset-browser-status {
   margin: 0;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 12px;
   line-height: 1.5;
 }
@@ -154,7 +154,7 @@
 
 .sona-asset-empty {
   margin: 10px 0 0;
-  color: #785a28;
+  color: rgb(var(--sona-highlight-rgb));
   font-size: 12px;
 }
 
@@ -169,8 +169,8 @@
   position: relative;
   min-width: 0;
   padding: 8px;
-  background: rgba(30, 35, 40, 0.4);
-  border: 1px solid rgba(200, 170, 110, 0.1);
+  background: rgb(var(--sona-raised-rgb) / 0.4);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.1);
   border-radius: 4px;
   cursor: grab;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
@@ -178,8 +178,8 @@
 
 .sona-asset-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(200, 170, 110, 0.28);
-  background: rgba(30, 35, 40, 0.58);
+  border-color: rgb(var(--sona-accent-rgb) / 0.28);
+  background: rgb(var(--sona-raised-rgb) / 0.58);
 }
 
 .sona-asset-card:active {
@@ -205,7 +205,7 @@
   object-fit: contain;
   pointer-events: none;
   background: rgba(0, 0, 0, 0.24);
-  border: 1px solid rgba(120, 90, 40, 0.28);
+  border: 1px solid rgb(var(--sona-highlight-rgb) / 0.28);
 }
 
 .sona-asset-card--error img,
@@ -235,7 +235,7 @@
 }
 
 .sona-asset-card-error small {
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 9px;
   line-height: 1.35;
 }
@@ -243,7 +243,7 @@
 .sona-asset-card span {
   display: block;
   margin-top: 8px;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 11px;
   line-height: 1.4;
   overflow: hidden;
@@ -258,10 +258,10 @@
   width: 22px;
   height: 22px;
   padding: 0;
-  border: 1px solid rgba(200, 170, 110, 0.12);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.12);
   border-radius: 3px;
-  background: rgba(1, 10, 19, 0.78);
-  color: #a09b8c;
+  background: rgb(var(--sona-base-rgb) / 0.78);
+  color: rgb(var(--sona-muted-rgb));
   line-height: 20px;
   cursor: pointer;
   opacity: 0;
@@ -276,7 +276,7 @@
 .sona-asset-card-remove:hover {
   background: rgba(190, 64, 64, 0.32);
   border-color: rgba(190, 64, 64, 0.5);
-  color: #f0e6d2;
+  color: rgb(var(--sona-text-rgb));
 }
 
 .sona-glass-settings {
@@ -308,9 +308,9 @@
   padding: 12px 18px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 0%, rgba(200, 170, 110, 0.09), transparent 62%),
-    rgba(1, 10, 19, 0.42);
-  border: 1px solid rgba(200, 170, 110, 0.22);
+    radial-gradient(circle at 50% 0%, rgb(var(--sona-accent-rgb) / 0.09), transparent 62%),
+    rgb(var(--sona-base-rgb) / 0.42);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.22);
   border-radius: 5px;
 }
 
@@ -353,10 +353,10 @@
   gap: 5px 10px;
   min-width: 0;
   padding: 9px 10px;
-  background: rgba(1, 10, 19, 0.3);
-  border: 1px solid rgba(120, 90, 40, 0.2);
+  background: rgb(var(--sona-base-rgb) / 0.3);
+  border: 1px solid rgb(var(--sona-highlight-rgb) / 0.2);
   border-radius: 4px;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 13px;
 }
 
@@ -369,15 +369,15 @@
   width: 34px;
   height: 28px;
   padding: 1px;
-  border: 1px solid rgba(200, 170, 110, 0.35);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.35);
   border-radius: 3px;
-  background: rgba(1, 10, 19, 0.72);
+  background: rgb(var(--sona-base-rgb) / 0.72);
   cursor: pointer;
 }
 
 .sona-name-effect-color code {
   grid-column: 1 / -1;
-  color: #c8aa6e;
+  color: rgb(var(--sona-accent-rgb));
   font-size: 12px;
   font-weight: 600;
 }
@@ -397,28 +397,28 @@
   min-height: 180px;
   padding: 14px;
   background:
-    linear-gradient(135deg, rgba(200, 170, 110, 0.06), transparent 32%),
-    rgba(1, 10, 19, 0.35);
-  border: 1px dashed rgba(200, 170, 110, 0.3);
+    linear-gradient(135deg, rgb(var(--sona-accent-rgb) / 0.06), transparent 32%),
+    rgb(var(--sona-base-rgb) / 0.35);
+  border: 1px dashed rgb(var(--sona-accent-rgb) / 0.3);
   border-radius: 4px;
   transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 
 .sona-wallpaper-dropzone:hover {
-  border-color: rgba(200, 170, 110, 0.5);
+  border-color: rgb(var(--sona-accent-rgb) / 0.5);
   background:
-    linear-gradient(135deg, rgba(200, 170, 110, 0.09), transparent 36%),
-    rgba(9, 20, 40, 0.45);
+    linear-gradient(135deg, rgb(var(--sona-accent-rgb) / 0.09), transparent 36%),
+    rgb(var(--sona-hover-rgb) / 0.45);
 }
 
 .sona-wallpaper-dropzone--active {
-  border-color: rgba(200, 170, 110, 0.82);
+  border-color: rgb(var(--sona-accent-rgb) / 0.82);
   background:
-    linear-gradient(135deg, rgba(200, 170, 110, 0.18), transparent 42%),
-    rgba(9, 20, 40, 0.72);
+    linear-gradient(135deg, rgb(var(--sona-accent-rgb) / 0.18), transparent 42%),
+    rgb(var(--sona-hover-rgb) / 0.72);
   box-shadow:
-    inset 0 0 0 1px rgba(200, 170, 110, 0.24),
-    0 0 18px rgba(200, 170, 110, 0.18);
+    inset 0 0 0 1px rgb(var(--sona-accent-rgb) / 0.24),
+    0 0 18px rgb(var(--sona-accent-rgb) / 0.18);
 }
 
 .sona-wallpaper-dropzone--empty {
@@ -437,8 +437,8 @@
   position: relative;
   min-width: 0;
   padding: 8px;
-  background: rgba(30, 35, 40, 0.44);
-  border: 1px solid rgba(200, 170, 110, 0.16);
+  background: rgb(var(--sona-raised-rgb) / 0.44);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.16);
   border-radius: 4px;
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
@@ -446,18 +446,18 @@
 
 .sona-wallpaper-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(200, 170, 110, 0.34);
-  background: rgba(30, 35, 40, 0.62);
+  border-color: rgb(var(--sona-accent-rgb) / 0.34);
+  background: rgb(var(--sona-raised-rgb) / 0.62);
 }
 
 .sona-wallpaper-card:focus-visible {
-  outline: 1px solid rgba(200, 170, 110, 0.8);
+  outline: 1px solid rgb(var(--sona-accent-rgb) / 0.8);
   outline-offset: 2px;
 }
 
 .sona-wallpaper-card--applied {
-  border-color: rgba(200, 170, 110, 0.55);
-  box-shadow: 0 0 12px rgba(200, 170, 110, 0.12);
+  border-color: rgb(var(--sona-accent-rgb) / 0.55);
+  box-shadow: 0 0 12px rgb(var(--sona-accent-rgb) / 0.12);
 }
 
 .sona-wallpaper-card:hover .sona-asset-card-remove {
@@ -470,10 +470,10 @@
   left: 4px;
   height: 22px;
   padding: 0 8px;
-  border: 1px solid rgba(200, 170, 110, 0.12);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.12);
   border-radius: 3px;
-  background: rgba(1, 10, 19, 0.78);
-  color: #a09b8c;
+  background: rgb(var(--sona-base-rgb) / 0.78);
+  color: rgb(var(--sona-muted-rgb));
   font-size: 11px;
   line-height: 20px;
   cursor: pointer;
@@ -486,9 +486,9 @@
 }
 
 .sona-wallpaper-card-edit:hover {
-  background: rgba(200, 170, 110, 0.18);
-  border-color: rgba(200, 170, 110, 0.45);
-  color: #f0e6d2;
+  background: rgb(var(--sona-accent-rgb) / 0.18);
+  border-color: rgb(var(--sona-accent-rgb) / 0.45);
+  color: rgb(var(--sona-text-rgb));
 }
 
 .sona-wallpaper-card img,
@@ -499,14 +499,14 @@
   object-fit: cover;
   pointer-events: none;
   background: rgba(0, 0, 0, 0.24);
-  border: 1px solid rgba(120, 90, 40, 0.36);
+  border: 1px solid rgb(var(--sona-highlight-rgb) / 0.36);
   border-radius: 4px;
 }
 
 .sona-wallpaper-card-name,
 .sona-wallpaper-card-action {
   display: block;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 11px;
   line-height: 1.4;
   margin-top: 8px;
@@ -518,7 +518,7 @@
 
 .sona-wallpaper-card-action {
   display: none;
-  color: #c8aa6e;
+  color: rgb(var(--sona-accent-rgb));
   font-weight: 600;
 }
 
@@ -547,7 +547,7 @@
 
 .sona-wallpaper-adjust-header h3 {
   margin: 0;
-  color: #f0e6d2;
+  color: rgb(var(--sona-text-rgb));
   font-size: 16px;
   letter-spacing: 0.08em;
 }
@@ -556,7 +556,7 @@
   display: block;
   flex: 1;
   min-width: 0;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 12px;
   line-height: 1.4;
   overflow: hidden;
@@ -577,9 +577,9 @@
   max-height: 390px;
   margin: 0 auto;
   background:
-    linear-gradient(135deg, rgba(200, 170, 110, 0.04), transparent 34%),
-    rgba(1, 10, 19, 0.62);
-  border: 1px dashed rgba(200, 170, 110, 0.48);
+    linear-gradient(135deg, rgb(var(--sona-accent-rgb) / 0.04), transparent 34%),
+    rgb(var(--sona-base-rgb) / 0.62);
+  border: 1px dashed rgb(var(--sona-accent-rgb) / 0.48);
   cursor: move;
   user-select: none;
 }
@@ -587,9 +587,9 @@
 .sona-wallpaper-adjust-frame-guide {
   position: absolute;
   inset: 14px;
-  border: 1px dashed rgba(240, 230, 210, 0.5);
+  border: 1px dashed rgb(var(--sona-text-rgb) / 0.5);
   pointer-events: none;
-  box-shadow: 0 0 0 999px rgba(1, 10, 19, 0.12);
+  box-shadow: 0 0 0 999px rgb(var(--sona-base-rgb) / 0.12);
 }
 
 .sona-wallpaper-adjust-frame video {
@@ -607,7 +607,7 @@
 }
 
 .sona-wallpaper-adjust-hint {
-  color: #785a28;
+  color: rgb(var(--sona-highlight-rgb));
   font-size: 11px;
   line-height: 1.5;
   text-align: center;
@@ -624,34 +624,34 @@
   min-height: 150px;
   padding: 14px;
   background:
-    linear-gradient(135deg, rgba(200, 170, 110, 0.06), transparent 32%),
-    rgba(1, 10, 19, 0.35);
-  border: 1px dashed rgba(200, 170, 110, 0.3);
+    linear-gradient(135deg, rgb(var(--sona-accent-rgb) / 0.06), transparent 32%),
+    rgb(var(--sona-base-rgb) / 0.35);
+  border: 1px dashed rgb(var(--sona-accent-rgb) / 0.3);
   border-radius: 4px;
   transition: border-color 0.18s ease, background 0.18s ease;
 }
 
 .sona-avatar-dropzone:hover {
-  border-color: rgba(200, 170, 110, 0.5);
+  border-color: rgb(var(--sona-accent-rgb) / 0.5);
   background:
-    linear-gradient(135deg, rgba(200, 170, 110, 0.09), transparent 36%),
-    rgba(9, 20, 40, 0.45);
+    linear-gradient(135deg, rgb(var(--sona-accent-rgb) / 0.09), transparent 36%),
+    rgb(var(--sona-hover-rgb) / 0.45);
 }
 
 .sona-avatar-dropzone--active {
-  border-color: rgba(200, 170, 110, 0.82);
+  border-color: rgb(var(--sona-accent-rgb) / 0.82);
   background:
-    linear-gradient(135deg, rgba(200, 170, 110, 0.18), transparent 42%),
-    rgba(9, 20, 40, 0.72);
+    linear-gradient(135deg, rgb(var(--sona-accent-rgb) / 0.18), transparent 42%),
+    rgb(var(--sona-hover-rgb) / 0.72);
   box-shadow:
-    inset 0 0 0 1px rgba(200, 170, 110, 0.24),
-    0 0 18px rgba(200, 170, 110, 0.18);
+    inset 0 0 0 1px rgb(var(--sona-accent-rgb) / 0.24),
+    0 0 18px rgb(var(--sona-accent-rgb) / 0.18);
 }
 
 .sona-avatar-dropzone--active .sona-avatar-dropzone-plus {
-  border-color: rgba(200, 170, 110, 0.72);
-  background: rgba(200, 170, 110, 0.16);
-  box-shadow: 0 0 14px rgba(200, 170, 110, 0.16);
+  border-color: rgb(var(--sona-accent-rgb) / 0.72);
+  background: rgb(var(--sona-accent-rgb) / 0.16);
+  box-shadow: 0 0 14px rgb(var(--sona-accent-rgb) / 0.16);
 }
 
 .sona-avatar-dropzone--empty {
@@ -665,7 +665,7 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 12px;
   line-height: 1.6;
   text-align: center;
@@ -674,13 +674,13 @@
 .sona-avatar-dropzone-plus {
   width: 54px;
   height: 54px;
-  border: 1px solid rgba(200, 170, 110, 0.38);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.38);
   border-radius: 4px;
-  color: #c8aa6e;
+  color: rgb(var(--sona-accent-rgb));
   font-size: 50px;
   line-height: 38px;
   text-align: center;
-  background: rgba(30, 35, 40, 0.45);
+  background: rgb(var(--sona-raised-rgb) / 0.45);
 }
 
 .sona-avatar-grid {
@@ -693,8 +693,8 @@
   position: relative;
   min-width: 0;
   padding: 8px;
-  background: rgba(30, 35, 40, 0.44);
-  border: 1px solid rgba(200, 170, 110, 0.16);
+  background: rgb(var(--sona-raised-rgb) / 0.44);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.16);
   border-radius: 4px;
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
@@ -702,18 +702,18 @@
 
 .sona-avatar-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(200, 170, 110, 0.34);
-  background: rgba(30, 35, 40, 0.62);
+  border-color: rgb(var(--sona-accent-rgb) / 0.34);
+  background: rgb(var(--sona-raised-rgb) / 0.62);
 }
 
 .sona-avatar-card:focus-visible {
-  outline: 1px solid rgba(200, 170, 110, 0.8);
+  outline: 1px solid rgb(var(--sona-accent-rgb) / 0.8);
   outline-offset: 2px;
 }
 
 .sona-avatar-card--applied {
-  border-color: rgba(200, 170, 110, 0.55);
-  box-shadow: 0 0 12px rgba(200, 170, 110, 0.12);
+  border-color: rgb(var(--sona-accent-rgb) / 0.55);
+  box-shadow: 0 0 12px rgb(var(--sona-accent-rgb) / 0.12);
 }
 
 .sona-avatar-card:hover .sona-asset-card-remove {
@@ -725,7 +725,7 @@
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
-  border: 1px solid rgba(120, 90, 40, 0.36);
+  border: 1px solid rgb(var(--sona-highlight-rgb) / 0.36);
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.24);
 }
@@ -734,7 +734,7 @@
 .sona-avatar-card-action {
   display: block;
   margin-top: 8px;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 11px;
   line-height: 1.4;
   overflow: hidden;
@@ -745,7 +745,7 @@
 
 .sona-avatar-card-action {
   display: none;
-  color: #c8aa6e;
+  color: rgb(var(--sona-accent-rgb));
   font-weight: 600;
 }
 
@@ -765,14 +765,14 @@
   right: 0;
   max-height: 240px;
   overflow-y: auto;
-  background: #1e2328;
-  border: 1px solid rgba(200, 170, 110, 0.25);
+  background: rgb(var(--sona-raised-rgb));
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.25);
   z-index: 100;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 .sona-champ-suggest::-webkit-scrollbar { width: 4px; }
-.sona-champ-suggest::-webkit-scrollbar-thumb { background: #3c2e16; border-radius: 2px; }
+.sona-champ-suggest::-webkit-scrollbar-thumb { background: rgb(var(--sona-border-rgb)); border-radius: 2px; }
 
 .sona-champ-suggest-item {
   display: flex;
@@ -782,7 +782,7 @@
   padding: 8px 12px;
   background: none;
   border: none;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   font-size: 13px;
   text-align: left;
   cursor: pointer;
@@ -790,25 +790,25 @@
 }
 
 .sona-champ-suggest-item:hover {
-  background: rgba(200, 170, 110, 0.1);
+  background: rgb(var(--sona-accent-rgb) / 0.1);
 }
 
 .sona-champ-suggest-icon {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid rgba(200, 170, 110, 0.3);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.3);
   object-fit: cover;
   flex-shrink: 0;
 }
 
 .sona-champ-suggest-title {
-  color: #c8aa6e;
+  color: rgb(var(--sona-accent-rgb));
   font-weight: 600;
 }
 
 .sona-champ-suggest-name {
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
 }
 
 /* ---- 英雄优先级队列 ---- */
@@ -824,25 +824,25 @@
   gap: 8px;
   max-width: 240px;
   padding: 8px 10px;
-  background: rgba(30, 35, 40, 0.4);
-  border: 1px solid rgba(200, 170, 110, 0.1);
+  background: rgb(var(--sona-raised-rgb) / 0.4);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.1);
   border-radius: 4px;
-  color: #f0e6d2;
+  color: rgb(var(--sona-text-rgb));
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
 .sona-champ-priority-card:hover {
   transform: translateX(4px);
-  border-color: rgba(200, 170, 110, 0.28);
-  background: rgba(30, 35, 40, 0.58);
+  border-color: rgb(var(--sona-accent-rgb) / 0.28);
+  background: rgb(var(--sona-raised-rgb) / 0.58);
 }
 
 .sona-champ-priority-index {
   min-width: 18px;
   height: 18px;
   border-radius: 3px;
-  background: rgba(200, 170, 110, 0.18);
-  color: #c8aa6e;
+  background: rgb(var(--sona-accent-rgb) / 0.18);
+  color: rgb(var(--sona-accent-rgb));
   font-size: 11px;
   line-height: 18px;
   text-align: center;
@@ -854,7 +854,7 @@
   height: 30px;
   border-radius: 3px;
   object-fit: cover;
-  border: 1px solid rgba(200, 170, 110, 0.3);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.3);
 }
 
 .sona-champ-priority-name {
@@ -869,10 +869,10 @@
   width: 22px;
   height: 22px;
   padding: 0;
-  border: 1px solid rgba(200, 170, 110, 0.08);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.08);
   border-radius: 3px;
-  background: rgba(120, 90, 40, 0.2);
-  color: #a09b8c;
+  background: rgb(var(--sona-highlight-rgb) / 0.2);
+  color: rgb(var(--sona-muted-rgb));
   line-height: 20px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
@@ -881,7 +881,7 @@
 .sona-champ-priority-remove:hover {
   background: rgba(190, 64, 64, 0.28);
   border-color: rgba(190, 64, 64, 0.45);
-  color: #f0e6d2;
+  color: rgb(var(--sona-text-rgb));
 }
 
 /* ---- 设置备份列表 ---- */
@@ -890,14 +890,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: rgba(30, 35, 40, 0.4);
-  border: 1px solid rgba(200, 170, 110, 0.1);
+  background: rgb(var(--sona-raised-rgb) / 0.4);
+  border: 1px solid rgb(var(--sona-accent-rgb) / 0.1);
   border-radius: 4px;
   transition: border-color 0.2s;
 }
 
 .sona-backup-item:hover {
-  border-color: rgba(200, 170, 110, 0.25);
+  border-color: rgb(var(--sona-accent-rgb) / 0.25);
 }
 
 .sona-backup-info {
@@ -909,12 +909,12 @@
 .sona-backup-name {
   font-size: 13px;
   font-weight: 600;
-  color: #f0e6d2;
+  color: rgb(var(--sona-text-rgb));
 }
 
 .sona-backup-time {
   font-size: 11px;
-  color: #785a28;
+  color: rgb(var(--sona-highlight-rgb));
 }
 
 .sona-backup-actions {

@@ -4,12 +4,12 @@
 @keyframes sona-glow-pulse {
   0%, 100% {
     box-shadow:
-      0 0 6px rgba(200, 170, 110, 0.15),
+      0 0 6px rgb(var(--sona-accent-rgb) / 0.15),
       0 0 12px rgba(100, 180, 255, 0.05);
   }
   50% {
     box-shadow:
-      0 0 10px rgba(200, 170, 110, 0.35),
+      0 0 10px rgb(var(--sona-accent-rgb) / 0.35),
       0 0 22px rgba(100, 180, 255, 0.15);
   }
 }
@@ -49,9 +49,9 @@
   width: 45px;
   height: 45px;
   border-radius: 50%;
-  border: 2px solid rgba(200, 170, 110, 0.5);
-  background: rgba(1, 10, 19, 0.85);
-  color: #a09b8c;
+  border: 2px solid rgb(var(--sona-accent-rgb) / 0.5);
+  background: rgb(var(--sona-base-rgb) / 0.85);
+  color: rgb(var(--sona-muted-rgb));
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   pointer-events: auto;
@@ -71,7 +71,7 @@
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  border: 2px solid rgba(200, 170, 110, 0.35);
+  border: 2px solid rgb(var(--sona-accent-rgb) / 0.35);
   animation: sona-ripple 2.5s ease-out infinite;
   pointer-events: none;
 }
@@ -83,7 +83,7 @@
   inset: -5px;
   border-radius: 50%;
   border: 2px solid transparent;
-  border-top-color: rgba(200, 170, 110, 0.5);
+  border-top-color: rgb(var(--sona-accent-rgb) / 0.5);
   border-right-color: rgba(100, 180, 255, 0.3);
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -91,13 +91,13 @@
 }
 
 .sona-entry-btn:hover {
-  color: #c8aa6e;
-  border-color: rgba(200, 170, 110, 0.9);
-  background: rgba(200, 170, 110, 0.12);
+  color: rgb(var(--sona-accent-rgb));
+  border-color: rgb(var(--sona-accent-rgb) / 0.9);
+  background: rgb(var(--sona-accent-rgb) / 0.12);
   box-shadow:
-    0 0 12px rgba(200, 170, 110, 0.4),
+    0 0 12px rgb(var(--sona-accent-rgb) / 0.4),
     0 0 24px rgba(100, 180, 255, 0.15),
-    inset 0 0 8px rgba(200, 170, 110, 0.1);
+    inset 0 0 8px rgb(var(--sona-accent-rgb) / 0.1);
   /* ⚠️ 避坑重点：要把原始 transform 带上，再加上缩放 scale(1.08) */
   transform: translateX(-100%) translateY(-50%) scale(1.08);
   /* 悬停时暂停呼吸，改用更亮的静态光 */
@@ -113,21 +113,21 @@
 /* ✨ hover 时涟漪加速 */
 .sona-entry-btn:hover::before {
   animation: sona-ripple 1.5s ease-out infinite;
-  border-color: rgba(200, 170, 110, 0.5);
+  border-color: rgb(var(--sona-accent-rgb) / 0.5);
 }
 
 .sona-entry-btn--active {
-  color: #c8aa6e;
-  border-color: rgba(200, 170, 110, 0.85);
-  background: rgba(200, 170, 110, 0.15);
+  color: rgb(var(--sona-accent-rgb));
+  border-color: rgb(var(--sona-accent-rgb) / 0.85);
+  background: rgb(var(--sona-accent-rgb) / 0.15);
   box-shadow:
-    0 0 14px rgba(200, 170, 110, 0.45),
+    0 0 14px rgb(var(--sona-accent-rgb) / 0.45),
     0 0 28px rgba(100, 180, 255, 0.12);
 }
 
 /* ✨ active 状态涟漪更明显 */
 .sona-entry-btn--active::before {
-  border-color: rgba(200, 170, 110, 0.5);
+  border-color: rgb(var(--sona-accent-rgb) / 0.5);
   animation: sona-ripple 2s ease-out infinite;
 }
 
@@ -138,7 +138,7 @@
 }
 
 .sona-entry-btn--active:hover {
-  background: rgba(200, 170, 110, 0.2);
+  background: rgb(var(--sona-accent-rgb) / 0.2);
 }
 
 .sona-entry-icon {
@@ -149,13 +149,13 @@
   pointer-events: none;
   border-radius: 50%;
   /* ✨ 给头像加一点柔和的金色内发光 */
-  filter: drop-shadow(0 0 2px rgba(200, 170, 110, 0.3));
+  filter: drop-shadow(0 0 2px rgb(var(--sona-accent-rgb) / 0.3));
   transition: filter 0.3s ease;
 }
 
 .sona-entry-btn:hover .sona-entry-icon {
   /* ✨ hover 时头像光芒更强 */
-  filter: drop-shadow(0 0 4px rgba(200, 170, 110, 0.6));
+  filter: drop-shadow(0 0 4px rgb(var(--sona-accent-rgb) / 0.6));
 }
 
 .sona-entry-update-badge {
@@ -168,16 +168,16 @@
   justify-content: center;
   width: 16px;
   height: 16px;
-  border: 1px solid rgba(240, 230, 210, 0.9);
+  border: 1px solid rgb(var(--sona-text-rgb) / 0.9);
   border-radius: 50%;
-  background: #c8aa6e;
-  color: #010a13;
+  background: rgb(var(--sona-accent-rgb));
+  color: rgb(var(--sona-base-rgb));
   font-size: 12px;
   font-weight: 900;
   line-height: 1;
   box-shadow:
-    0 0 8px rgba(200, 170, 110, 0.65),
-    0 0 14px rgba(200, 170, 110, 0.25);
+    0 0 8px rgb(var(--sona-accent-rgb) / 0.65),
+    0 0 14px rgb(var(--sona-accent-rgb) / 0.25);
   pointer-events: none;
 }
 

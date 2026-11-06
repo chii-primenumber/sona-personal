@@ -16,6 +16,7 @@ import { registerChromaRules } from '@/lib/features/chroma-unlock'
 import { enableNativeProfileHistory, registerNativeHistoryHooks } from '@/lib/features/native-history-entry'
 import { registerEnemyOpggMatchups } from '@/lib/features/enemy-opgg-matchups'
 import { installAdBlockXhrRules, installProfilePrivacyXhrRules } from '@/lib/xhr'
+import { initSonaTheme } from '@/lib/theme'
 import '@/styles/index.css'
 import '@/styles/inject.css'
 import '@/styles/availabilityMenu.css'
@@ -97,6 +98,7 @@ export function init(context: PenguContext) {
  */
 export function load() {
   logger.info('Plugin loading...')
+  initSonaTheme()
   registerAllInjections()  //  注册所有 DOM 注入点并启动守护
   initFeatures()           //  初始化功能监听（自动接受、解锁签名等）
   enableNativeProfileHistory()

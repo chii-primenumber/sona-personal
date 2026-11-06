@@ -60,7 +60,7 @@ export async function setupNativeHistoryFixture(socket: PenguContext['socket']) 
       <button type="button" id="qa-close-profile">关闭他人生涯</button>
       <div class="rcp-fe-lol-profiles-modal" style="position:relative;min-height:60px">
         <div class="style-profile-sub-nav">生涯导航</div>
-        <lol-regalia-profile-v2-element puuid="preview-player-2">召唤师生涯</lol-regalia-profile-v2-element>
+        <lol-regalia-profile-v2-element puuid="deadbeef-cafe-5eed-babe-f00df00df00d">召唤师生涯</lol-regalia-profile-v2-element>
       </div>
       <button type="button" id="qa-open-summary">切换至对局记录</button>
       <div class="player-history-object" style="padding:8px">历史战报玩家</div>

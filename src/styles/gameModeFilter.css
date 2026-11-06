@@ -33,8 +33,8 @@
   gap: 6px;
   height: 26px;
   padding: 0 10px 0 6px;
-  background: rgba(1, 10, 19, 0.55);
-  border: 1px solid rgba(120, 90, 40, 0.6);
+  background: rgb(var(--sona-base-rgb) / 0.55);
+  border: 1px solid rgb(var(--sona-highlight-rgb) / 0.6);
   border-radius: 0;
   cursor: pointer;
   user-select: none;
@@ -46,8 +46,8 @@
 }
 
 .sona-mode-chip:hover {
-  background: rgba(30, 35, 40, 0.8);
-  border-color: #c8aa6e;
+  background: rgb(var(--sona-raised-rgb) / 0.8);
+  border-color: rgb(var(--sona-accent-rgb));
 }
 
 .sona-mode-chip:active {
@@ -56,9 +56,9 @@
 
 /* 勾选态：显示该模式 */
 .sona-mode-chip--on {
-  background: rgba(200, 170, 110, 0.15);
-  border-color: #c8aa6e;
-  box-shadow: 0 0 6px rgba(200, 170, 110, 0.18);
+  background: rgb(var(--sona-accent-rgb) / 0.15);
+  border-color: rgb(var(--sona-accent-rgb));
+  box-shadow: 0 0 6px rgb(var(--sona-accent-rgb) / 0.18);
 }
 
 /* 未勾选态：隐藏该模式 */
@@ -83,12 +83,12 @@
   font-size: 11px;
   line-height: 1;
   font-family: inherit;
-  color: #a09b8c;
+  color: rgb(var(--sona-muted-rgb));
   white-space: nowrap;
 }
 
 .sona-mode-chip--on .sona-mode-chip__name {
-  color: #f0e6d2;
+  color: rgb(var(--sona-text-rgb));
 }
 
 .game-type-card[data-sona-mode-filter="true"] {

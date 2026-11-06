@@ -19,10 +19,18 @@
  * ```
  */
 
+import type { HistoryHiddenFields } from '@/lib/history-display'
+import type { HistoryPlayer } from '@/lib/history-search'
+import type { SonaTheme } from '@/lib/theme'
+
 // ==================== 配置项定义 ====================
 
 /** 所有配置项及其类型 */
 export interface SonaConfig {
+  /** 战绩界面各区隐藏的字段。新增字段默认显示。 */
+  historyHiddenFields: HistoryHiddenFields
+  historyRecentPlayers: HistoryPlayer[]
+  theme: SonaTheme
   /** 自动接受对局 */
   autoAcceptMatch: boolean
   /** 允许接受对局后再拒绝（解禁 ReadyCheck 的接受/拒绝按钮，使其始终可点） */
@@ -228,6 +236,9 @@ export interface SonaConfig {
 
 /** 配置项默认值 */
 const DEFAULT_CONFIG: SonaConfig = {
+  historyHiddenFields: {},
+  historyRecentPlayers: [],
+  theme: 'client',
   autoAcceptMatch: false,
   allowDeclineAfterAccept: true,
   autoAcceptDelayMin: 0,

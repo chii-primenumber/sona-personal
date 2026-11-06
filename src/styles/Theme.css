@@ -15,10 +15,10 @@
   --sona-history-header: #101d27;
   --sona-history-line: #3c3528;
   --sona-history-focus: #243039;
-  --sona-history-win: #0c2637;
-  --sona-history-loss: #301c26;
-  --sona-history-blue: #84c6e8;
-  --sona-history-red: #ef9aab;
+  --sona-history-win: #0d1a21;
+  --sona-history-loss: #1d181a;
+  --sona-history-blue: #81a6af;
+  --sona-history-red: #c5958b;
 }
 
 :root[data-sona-theme="slate"] {

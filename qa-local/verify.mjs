@@ -16,6 +16,7 @@ const ids = names.map((_, i) => `preview-player-${i}`)
 ids[2] = 'deadbeef-cafe-5eed-babe-f00df00df00d'
 const queues = [[440,'排位赛 灵活排位'],[420,'排位赛 单双排'],[450,'极地大乱斗'],[2400,'海克斯大乱斗'],[430,'匹配模式']].map(([id,name]) => ({ id,name,description:name, gameMode:id >= 450 ? 'ARAM' : 'CLASSIC', queueAvailability:'Available', isEnabled:true, category:'PvP', isRanked:id===440||id===420, mapId:id>=450?12:11 }))
 const ranks = { queueMap: { RANKED_SOLO_5x5: {tier:'EMERALD',division:'I',leaguePoints:55,wins:10,losses:7,highestTier:'DIAMOND',highestDivision:'I'}, RANKED_FLEX_SR: {tier:'DIAMOND',division:'II',leaguePoints:40,wins:126,losses:91,highestTier:'MASTER',highestDivision:'NA'} } }
+Object.assign(ranks.queueMap.RANKED_SOLO_5x5, {previousSeasonHighestTier:'DIAMOND',previousSeasonHighestDivision:'II',previousSeasonEndTier:'PLATINUM',previousSeasonEndDivision:'I'})
 const profile = (i) => ({ puuid: ids[i], gameName: names[i], tagLine:'DEMO', displayName:names[i], summonerId:i+100, profileIconId:i+1, summonerLevel:241-i*13, privacy:'PUBLIC' })
 const makeGame = (n) => {
   const queueId = n === 0 ? 440 : n % 4 === 1 ? 2400 : n % 4 === 2 ? 420 : n % 4 === 3 ? 450 : 440
@@ -59,6 +60,7 @@ let browser
 const errors = [], writes = [], external = [], counts = []
 const matchupRequests = []
 const crossRegionRequests = []
+const replayActions = []
 let augmentRequests = 0
 let slowQueue = 0, failSgp = false, failMastery = false
 
@@ -72,6 +74,7 @@ function image(url) {
 try {
   browser = await chromium.launch({ executablePath:String.raw`C:\Program Files\Google\Chrome\Application\chrome.exe`,headless:true,args:['--disable-gpu','--disable-background-networking'] })
   const context = await browser.newContext({ viewport:{width:1450,height:940}, reducedMotion:'reduce' })
+  await context.grantPermissions(['clipboard-read','clipboard-write'])
   const page = await context.newPage()
   page.on('pageerror',(error)=>errors.push(error.message))
   await page.route('**/*', async (route) => {
@@ -83,6 +86,13 @@ try {
       assert.deepEqual(route.request().postDataJSON(), [ids[8]])
       crossRegionRequests.push('profile')
       return json([profile(8)])
+    }
+    if (url.origin === origin && p === '/lol-replays/v1/metadata/99000000' && method === 'GET') {
+      return json({state:replayActions.includes('download')?'watch':'download'})
+    }
+    if (url.origin === origin && method === 'POST' && p.startsWith('/lol-replays/v1/rofls/99000000/')) {
+      replayActions.push(p.split('/').at(-1))
+      return json({})
     }
     if (method !== 'GET') { writes.push(`${method} ${p}`); return json({},405) }
     if (url.hostname === 'aramgg.com' && p === '/data/aram-mayhem-augments.zh_cn.json') {
@@ -128,6 +138,7 @@ try {
     if (p.endsWith('/maps.json')) return json([{id:11,name:'召唤师峡谷',gameModeName:'经典'},{id:12,name:'嚎哭深渊',gameModeName:'大乱斗'}])
     if (p==='/lol-game-queues/v1/queues') return json(queues)
     if (p==='/lol-chat/v1/me') return json({platformId:'HN1',puuid:ids[0],gameName:names[0],tagLine:'DEMO'})
+    if (p==='/lol-lobby/v2/lobby') return json({gameConfig:{isCustom:false},members:[{puuid:ids[0]},{puuid:ids[1]}]})
     if (p==='/lol-chat/v1/friends') return json([2,3].map((index) => ({
       puuid:ids[index], gameName:names[index], gameTag:'DEMO', icon:index+1,
       availability:index === 2 ? 'chat' : 'offline', platformId:'HN1',
@@ -208,6 +219,21 @@ try {
   await profileView.getByText('流光翡翠 I',{exact:true}).waitFor()
   await profileView.getByText('璀璨钻石 II',{exact:true}).waitFor()
   const rankCards = profileView.locator('.rh-rank-card')
+  assert.equal(await profileView.locator('.rh-profile-tag').textContent(),'#DEMO')
+  assert.equal(await profileView.locator('.rh-profile .rh-eyebrow').count(),0)
+  await profileView.getByRole('button',{name:'复制玩家 ID',exact:true}).click()
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()),'练习星轨#DEMO')
+  assert.ok((await rankCards.first().evaluate((node) => getComputedStyle(node).backgroundColor)).startsWith('rgba('))
+  await rankCards.first().click()
+  const rankHistory = page.getByRole('region',{name:'历史段位详情'})
+  await rankHistory.getByText('上赛季最高',{exact:true}).waitFor()
+  await rankHistory.getByText('璀璨钻石 II',{exact:true}).waitFor()
+  await rankHistory.getByText('华贵铂金 I',{exact:true}).waitFor()
+  await page.keyboard.press('Escape')
+  await rankHistory.waitFor({state:'hidden'})
+  const miniName = profileView.locator('.rh-mini-roster button').first()
+  assert.equal(await miniName.textContent(),'练习星轨')
+  assert.equal(await miniName.getAttribute('title'),'练习星轨#DEMO')
   assert.deepEqual(await rankCards.locator('.rh-rank-peak').allTextContents(), ['赛季最高璀璨钻石 I','赛季最高超凡大师'])
   assert.deepEqual(await rankCards.locator('.rh-rank-crest').evaluateAll((icons) => icons.map((icon) => icon.getAttribute('src'))), [
     '/fe/lol-static-assets/images/ranked-mini-crests/emerald.svg',
@@ -273,6 +299,7 @@ try {
   assert.equal(await searchPanel.getByLabel('搜索大区').inputValue(),'TENCENT_NJ100')
   await page.keyboard.press('Escape')
   await searchPanel.waitFor({state:'hidden'})
+  await page.locator('.sona-modal-overlay.sona-modal-closing').waitFor({state:'hidden'})
   await searchPlayer.fill('薄荷汽水')
   await searchPlayer.press('Enter')
   await searchResult.getByRole('button',{name:'查看 薄荷汽水#DEMO 的战绩'}).waitFor()
@@ -307,7 +334,17 @@ try {
   assert.equal(encounterIcons.length, 9)
   assert.ok(encounterIcons.every((src) => src.includes('/profile-icons/')))
   await profileView.screenshot({path:path.join(out,'个人战绩_模拟数据.png')})
-  await profileView.locator('.rh-expand').first().click()
+  const firstMatch = profileView.locator('.rh-match').first()
+  await firstMatch.getByRole('button',{name:'下载回放',exact:true}).click()
+  const playReplay = firstMatch.getByRole('button',{name:'播放回放',exact:true})
+  await playReplay.waitFor()
+  assert.deepEqual(replayActions,['download'])
+  await playReplay.click()
+  await playReplay.waitFor()
+  assert.deepEqual(replayActions,['download','watch'])
+  const expandReport = firstMatch.getByRole('button',{name:'展开详细战报',exact:true})
+  assert.equal(await expandReport.textContent(),'')
+  await expandReport.click()
   await profileView.getByText('10 人详细战报',{exact:true}).waitFor()
   const report = profileView.locator('.rh-report')
   assert.equal(await report.locator('tbody tr:not(.rh-team-divider)').count(),10)
@@ -319,7 +356,9 @@ try {
   assert.equal(await firstDamageBar.locator('span').first().evaluate((element) => element.style.width),'50%')
   assert.ok(await firstDamageBar.locator('.rh-report-bar-fill').evaluate((element) => parseFloat(element.style.width) < 20))
   await report.screenshot({path:path.join(out,'伤害条_模拟数据.png')})
-  await report.getByRole('button',{name:'显示设置',exact:true}).click()
+  assert.equal(await report.getByRole('button',{name:'显示设置',exact:true}).count(),0)
+  await profileView.getByRole('button',{name:'显示设置',exact:true}).click()
+  await settings.getByRole('button',{name:'单场详细战报',exact:true}).click()
   await settings.getByRole('checkbox',{name:'承伤与占比',exact:true}).uncheck()
   assert.equal(await report.getByRole('columnheader',{name:'承伤 / 占比'}).count(),0)
   assert.equal(await report.locator('.rh-team-divider td').first().getAttribute('colspan'),'7')
@@ -327,7 +366,8 @@ try {
   await page.keyboard.press('Escape')
   await settings.waitFor({state:'hidden'})
   assert.ok(await report.isVisible())
-  await report.getByRole('button',{name:'显示设置',exact:true}).click()
+  await profileView.getByRole('button',{name:'显示设置',exact:true}).click()
+  await settings.getByRole('button',{name:'单场详细战报',exact:true}).click()
   assert.equal(await settings.getByRole('checkbox',{name:'承伤与占比',exact:true}).isChecked(),false)
   await settings.getByRole('checkbox',{name:'伤害、承伤与经济条'}).uncheck()
   assert.equal(await report.locator('.rh-report-bar').count(),0)
@@ -354,7 +394,7 @@ try {
   await profileView.getByLabel('游戏模式').selectOption('420')
   await profileView.getByLabel('游戏模式').selectOption('2400')
   await profileView.locator('.rh-match').first().waitFor()
-  assert.ok((await profileView.locator('.rh-match-meta > span').allTextContents()).every((line)=>line.includes('海克斯大乱斗')))
+  assert.ok((await profileView.locator('.rh-match-meta > span:first-child').allTextContents()).every((line)=>line.includes('海克斯大乱斗')))
   await profileView.locator('.rh-augments').first().waitFor()
   assert.equal(augmentRequests,0)
   const firstAugment = profileView.locator('.rh-augment-slot').first()
@@ -423,11 +463,15 @@ try {
   await matchupPanel.getByText('选择该英雄的分路以查询韩服对位。',{exact:true}).waitFor()
   await page.keyboard.press('Escape')
   await matchupPanel.waitFor({state:'hidden'})
-  await page.getByRole('button',{name:'己方五人战绩',exact:true}).click()
+  await page.getByRole('button',{name:'对局信息',exact:true}).click()
   const bpView = page.getByTestId('bp-history')
   await bpView.locator('.rh-team-card').nth(4).waitFor()
   assert.equal(await bpView.locator('.rh-team-card').count(),5)
   await bpView.getByText('练习星轨#DEMO',{exact:true}).waitFor()
+  await bpView.getByRole('heading',{name:'对局信息',exact:true}).waitFor()
+  const firstTwoNames = bpView.locator('.rh-team-identity > strong').and(bpView.locator('.rh-team-card:nth-child(-n+2) strong'))
+  assert.deepEqual(await firstTwoNames.locator('span:first-child').evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).color)), ['rgb(214, 181, 120)','rgb(214, 181, 120)'])
+  assert.ok(await firstTwoNames.locator('.rh-id-tag').first().evaluate((node) => getComputedStyle(node).color !== getComputedStyle(node.previousElementSibling).color))
   assert.equal(await bpView.getByText('白昼拾荒#DEMO',{exact:true}).count(),0)
   await bpView.locator('.rh-team-card-stats').nth(4).waitFor()
   const rankRows = bpView.locator('.rh-team-card').first().locator('.rh-team-rank-row')
@@ -488,7 +532,7 @@ try {
   await page.keyboard.press('Escape')
   await profileView.waitFor({state:'hidden'})
   await page.getByRole('button',{name:'模拟进游戏'}).click()
-  assert.equal(await page.getByRole('button',{name:'己方五人战绩',exact:true}).count(),0)
+  assert.equal(await page.getByRole('button',{name:'对局信息',exact:true}).count(),0)
   await page.getByRole('button',{name:'十人战绩总览',exact:true}).click()
   const gameView = page.getByTestId('game-history')
   await gameView.locator('.rh-team-card').nth(9).waitFor()
@@ -549,7 +593,7 @@ try {
   await assertProfile('白昼拾荒#DEMO')
   assert.equal(errors.length,0,errors.join('\n'))
   assert.equal(writes.length,0,writes.join('\n'))
-  console.log(JSON.stringify({result:'passed', checks:['current and peak rank crests', 'segmented bars and missing breakdown', 'equipment and Mayhem tooltips', 'display settings for team, personal and report', 'shared and persisted plugin theme', 'name, Riot ID and PUUID search', 'friends, visits and region reference', 'cross-region profile, ranks and matches', 'native locked enemy row with nonstandard portrait path', 'ranked and custom draft gating', 'Korean lane/tier queries and no-data state', 'champion filter toggle and damage badge', 'personal history', 'player search and return', 'encounter profile icons', 'filters and pagination', 'native fallback', 'BP five and game ten', 'recent match detail', 'transparent nested scrollbars', 'nested Escape', 'phase exit', '1000px layout', 'native search clearance and exclusive profile entry', 'history and postgame context menus', 'no writes / no page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
+  console.log(JSON.stringify({result:'passed', checks:['current, peak and previous ranks', 'split, copyable and hover-only Riot IDs', 'single-button replay download and playback', 'icon-only report expansion', 'segmented bars and missing breakdown', 'equipment and Mayhem tooltips', 'display settings for team, personal and report', 'shared and persisted plugin theme', 'name, Riot ID and PUUID search', 'friends, visits and region reference', 'cross-region profile, ranks and matches', 'native locked enemy row with nonstandard portrait path', 'ranked and custom draft gating', 'Korean lane/tier queries and no-data state', 'champion filter toggle and damage badge', 'personal history', 'player search and return', 'encounter profile icons', 'filters and pagination', 'native fallback', 'BP party colors and game ten', 'recent match detail', 'transparent nested scrollbars', 'nested Escape', 'phase exit', '1000px layout', 'native search clearance and exclusive profile entry', 'history and postgame context menus', 'no unexpected writes or page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
 } finally {
   await browser?.close()
   await server.close()

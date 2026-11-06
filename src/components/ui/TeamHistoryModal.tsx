@@ -9,7 +9,7 @@ import { deobfuscateChampSelectPuuid } from '@/lib/champ-select-puuid'
 import { getChampIcon, getPlayableQueues, getQueueName } from '@/lib/assets'
 import { getRankedMiniCrest } from '@/lib/ranked-assets'
 import { deadline, fetchHistoryRanks, fetchHistorySummoner, rankText, type HistoryRank } from '@/lib/history-api'
-import { mean, numberText, percentText, POSITION_NAMES, profileIconUrl, summarize, toHistoryMatches, validMatches, type HistoryMatch } from '@/lib/history-model'
+import { mean, numberText, percentText, POSITION_NAMES, profileIconUrl, splitRiotId, summarize, toHistoryMatches, validMatches, type HistoryMatch } from '@/lib/history-model'
 import { calculateSonaPlayerStrengthScore } from '@/lib/player-strength-score'
 import { useHistoryPages } from '@/lib/use-history-pages'
 import { useHistoryHiddenFields } from '@/lib/use-history-display'
@@ -23,13 +23,15 @@ interface Team { id: string; label: string; members: Member[] }
 interface Snapshot { queueId: number; queueName: string; teams: Team[] }
 type PlayerSummary = ReturnType<typeof summarize>
 const recentMatchDate = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+const premadeColors = ['#d6b578', '#91b6d1', '#91bf9e', '#dca0a0', '#bca9d8']
+const emptyParty = new Set<string>()
 
 const positionName = (position: string) => POSITION_NAMES[({ MID: 'MIDDLE', BOT: 'BOTTOM', SUPPORT: 'UTILITY' } as Record<string, string>)[position.toUpperCase()] || position.toUpperCase()] || ''
 
-function bpSnapshot(session: ChampSelectSession): Snapshot {
+function bpSnapshot(session: ChampSelectSession, party: ReadonlySet<string>): Snapshot {
   return { queueId: session.queueId || 0, queueName: getQueueName(session.queueId), teams: [{ id: 'ally', label: '己方队伍', members: (session.myTeam || []).slice(0, 5).map((p, index) => {
     const puuid = p.puuid || (p.nameVisibilityType === 'HIDDEN' && p.obfuscatedPuuid ? deobfuscateChampSelectPuuid(p.obfuscatedPuuid) : '')
-    return { key: puuid || `slot-${p.cellId ?? index}`, puuid, name: p.gameName ? `${p.gameName}${p.tagLine ? `#${p.tagLine}` : ''}` : p.playerAlias || `${index + 1} 楼`, championId: p.championId || p.championPickIntent || 0, position: positionName(p.assignedPosition || ''), self: p.cellId === session.localPlayerCellId }
+    return { key: puuid || `slot-${p.cellId ?? index}`, puuid, name: p.gameName ? `${p.gameName}${p.tagLine ? `#${p.tagLine}` : ''}` : p.playerAlias || `${index + 1} 楼`, championId: p.championId || p.championPickIntent || 0, position: positionName(p.assignedPosition || ''), self: p.cellId === session.localPlayerCellId, premade: party.has(puuid) ? 1 : undefined }
   }) }] }
 }
 
@@ -58,7 +60,9 @@ function gameSnapshot(session: GameflowSession): Snapshot {
   return { queueId: data.queue?.id || 0, queueName: data.queue?.name || getQueueName(data.queue?.id || 0), teams }
 }
 
-export function TeamHistoryModal({ open, onClose, mode }: { open: boolean; onClose: () => void; mode: TeamHistoryMode }) {
+export function TeamHistoryModal({ open, onClose, mode, party = emptyParty }: {
+  open: boolean; onClose: () => void; mode: TeamHistoryMode; party?: ReadonlySet<string>
+}) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
@@ -85,21 +89,21 @@ export function TeamHistoryModal({ open, onClose, mode }: { open: boolean; onClo
     let receivedEvent = false
     const unsubscribe = mode === 'bp' ? lcu.observe(LcuEventUri.CHAMP_SELECT, (event) => {
       const data = event.data as ChampSelectSession | null
-      if (Array.isArray(data?.myTeam)) { receivedEvent = true; update(bpSnapshot(data)) }
+      if (Array.isArray(data?.myTeam)) { receivedEvent = true; update(bpSnapshot(data, party)) }
     }) : undefined
     const query = mode === 'bp'
-      ? deadline(() => lcu.getChampSelectSession(), controller.signal, 10000).then(bpSnapshot)
+      ? deadline(() => lcu.getChampSelectSession(), controller.signal, 10000).then((session) => bpSnapshot(session, party))
       : deadline(() => lcu.getGameflowSession(), controller.signal, 10000).then(gameSnapshot)
     void query.then((value) => { if (!receivedEvent) update(value) }).catch(() => { if (!controller.signal.aborted && !receivedEvent) setError('暂时读不到当前对局，请确认处于对应阶段后重试。') })
     return () => { controller.abort(); unsubscribe?.() }
-  }, [open, mode, revision])
+  }, [open, mode, revision, party])
   const queueId = selectedQueue < 0 ? snapshot?.queueId || 0 : selectedQueue
   const queues = getPlayableQueues().filter((queue) => queue.id > 0)
   const playerCount = snapshot?.teams.reduce((total, team) => total + team.members.length, 0) ?? 0
   return <>
     <Modal open={open} onClose={onClose} width="min(1550px, 95vw)" height={mode === 'bp' ? 'min(560px, 92vh)' : 'min(900px, 92vh)'}>
       <div className="rh-shell rh-team-shell" data-testid={mode === 'bp' ? 'bp-history' : 'game-history'}>
-        <header className="rh-header rh-team-heading"><div><span className="rh-eyebrow">SONA · {mode === 'bp' ? '英雄选择阶段' : '进入游戏后'}</span><h2>{mode === 'bp' ? '己方五人战绩总览' : '双方对局战绩总览'}</h2><span className="rh-muted">{snapshot?.queueName || '当前对局'}{playerCount > 0 ? ` · ${playerCount} 位玩家` : ''} · 点击玩家查看完整战绩</span></div>
+        <header className="rh-header rh-team-heading"><div><span className="rh-eyebrow">SONA · {mode === 'bp' ? '英雄选择阶段' : '进入游戏后'}</span><h2>{mode === 'bp' ? '对局信息' : '双方对局战绩总览'}</h2><span className="rh-muted">{snapshot?.queueName || '当前对局'}{playerCount > 0 ? ` · ${playerCount} 位玩家` : ''} · 点击玩家查看完整战绩</span></div>
           <div className="rh-team-controls">
             <select aria-label="队伍战绩范围" value={selectedQueue} onChange={(e) => setSelectedQueue(Number(e.target.value))}>
               <option value={-1}>本局模式</option><option value={0}>全部模式</option>
@@ -214,6 +218,8 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
     }
   }, [valid, member.puuid])
   const name = profile?.gameName ? `${profile.gameName}${profile.tagLine ? `#${profile.tagLine}` : ''}` : member.name
+  const identity = splitRiotId(name)
+  const partyColor = premade ? premadeColors[premade.charCodeAt(0) - 65] : undefined
   const show = (field: HistoryDisplayField<'team'>) => isHistoryFieldVisible(hidden, 'team', field)
   const tags = ([
     { field: 'streak', text: stats.streak.replace(' ', ''), tone: stats.streak.includes('连胜') ? 'green' : 'red' },
@@ -231,7 +237,7 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
           {profile?.summonerLevel && <small>{profile.summonerLevel}</small>}
         </span>
         <span className="rh-team-identity">
-          <strong>{name}</strong>
+          <strong><span style={{ color: partyColor }}>{identity.name}</span>{identity.tag && <span className="rh-id-tag">{identity.tag}</span>}</strong>
           {show('ranks') && <span className="rh-team-ranks">
             {ranks?.map((rank) => {
               const queueName = rank.key === 'RANKED_SOLO_5x5' ? '单双排' : '灵活组排'

@@ -7,7 +7,7 @@ import { getChampIcon, getPlayableQueues, getQueueName } from '@/lib/assets'
 import { deadline, fetchHistoryMastery, fetchHistoryRanks, fetchHistorySummoner, type HistoryMastery, type HistoryRank } from '@/lib/history-api'
 import { lcu } from '@/lib/lcu'
 import { historyPlayerFromSummoner, historyServerName, rememberHistoryPlayer, type HistoryPlayer } from '@/lib/history-search'
-import { championStats, encounters, numberText, percentText, POSITION_NAMES, profileIconUrl, summarize, toHistoryMatches } from '@/lib/history-model'
+import { championStats, encounters, numberText, percentText, POSITION_NAMES, profileIconUrl, splitRiotId, summarize, toHistoryMatches } from '@/lib/history-model'
 import { calculateSonaPlayerStrengthScore } from '@/lib/player-strength-score'
 import { useHistoryPages } from '@/lib/use-history-pages'
 import { useHistoryHiddenFields } from '@/lib/use-history-display'
@@ -51,6 +51,7 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
   const [searchText, setSearchText] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [copyStatus, setCopyStatus] = useState('')
   const pages = useHistoryPages(target.puuid, queueId, batchSize, open, target.serverId)
   const hidden = useHistoryHiddenFields()
   const show = (field: HistoryDisplayField<'history'>) => isHistoryFieldVisible(hidden, 'history', field)
@@ -105,7 +106,9 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
     return [...map].map(([id, name]) => ({ id, name }))
   }, [pages.games, defaultQueueId])
   const name = profile?.name || target.name || '玩家战绩'
+  const identity = splitRiotId(name)
   const level = profile?.level ?? target.level
+  useEffect(() => setCopyStatus(''), [name])
   const resetLocalFilters = () => { setChampionId(0); setPosition(''); setResult(''); setHideAborted(true) }
   const refresh = () => { pages.refresh(); setProfileRevision((n) => n + 1) }
 
@@ -113,7 +116,20 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
     <header className={`rh-header${show('ranks') ? '' : ' rh-header-no-ranks'}`}>
       <div className="rh-profile">{onBack && <button className="rh-back" type="button" onClick={onBack} title="返回上一位玩家">‹ 返回</button>}
         <HistoryImage src={profileIconUrl(profile?.iconId ?? target.iconId)} label={name} className="rh-profile-icon" />
-        <div><span className="rh-eyebrow">SONA · 个人战绩增强</span><h2>{name}</h2>
+        <div>
+          <div className="rh-profile-name">
+            <h2 aria-label={name}>{identity.name}</h2>
+            {name !== '玩家战绩' && name !== '未知玩家' && <button type="button" className="rh-copy-id" aria-label="复制玩家 ID"
+              title={copyStatus || '复制玩家 ID'} onClick={async () => {
+                try { await navigator.clipboard.writeText(name); setCopyStatus('已复制') }
+                catch { setCopyStatus('复制失败') }
+              }}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true">
+                {copyStatus === '已复制' ? <path d="m3 8 3 3 7-7" /> : <><rect x="5" y="2" width="8" height="10" rx="1" /><path d="M3 5v8a1 1 0 0 0 1 1h6" /></>}
+              </svg>
+            </button>}
+          </div>
+          {identity.tag && <span className="rh-profile-tag">{identity.tag}</span>}
           <span className="rh-muted">{target.serverId && `${historyServerName(target.serverId)} · `}{level != null && `等级 ${level} · `}已加载 {allMatches.length} 场</span></div>
       </div>
       {show('ranks') && <RankCards ranks={ranks} status={rankStatus} />}
@@ -141,14 +157,17 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
           <section className="rh-panel" key={title}>
             <h3>{title}</h3>
             <div className="rh-encounters">
-              {people.slice(0, 8).map((person) => (
+              {people.slice(0, 8).map((person) => {
+                const identity = splitRiotId(person.name)
+                return (
                 <button type="button" key={person.puuid} onClick={() => onInspect(person.puuid, person.name)}
-                  title="查看该玩家。胜负来自当前玩家与其同场的记录。">
+                  title={person.name}>
                   <HistoryImage src={profileIconUrl(person.profileIcon)} label={person.name} />
-                  <span>{person.name}</span>
+                  <span>{identity.name}{identity.tag && <span className="rh-id-tag">{identity.tag}</span>}</span>
                   <small>{person.count} 场 · {person.wins} 胜 {person.losses} 负</small>
                 </button>
-              ))}
+                )
+              })}
             </div>
             {!people.length && <p className="rh-muted">暂无可用记录</p>}
             <p className="rh-footnote">统计范围为当前筛选的战绩。</p>

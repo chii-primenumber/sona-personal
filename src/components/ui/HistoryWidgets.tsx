@@ -1,8 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
-import { HistoryDisplaySettings } from './HistoryDisplaySettings'
+import { HistoryReplayButton } from './HistoryReplayButton'
+import { Modal } from './Modal'
 import { getChampIcon, getChampionById, getItemInfo, getSpellInfo, getPerkInfo, getPerkStyleIcon, getAugmentInfo, getQueueName, getMapName } from '@/lib/assets'
-import { championStats, durationText, finite, getOutcome, getPosition, matchBadges, metric, numberText, percentText, POSITION_NAMES, riotName, share, summarize, teamKey, type HistoryMatch } from '@/lib/history-model'
+import { championStats, durationText, finite, getOutcome, getPosition, matchBadges, metric, numberText, percentText, POSITION_NAMES, riotName, share, splitRiotId, summarize, teamKey, type HistoryMatch } from '@/lib/history-model'
 import { rankText, type HistoryRank } from '@/lib/history-api'
 import { getRankedMiniCrest } from '@/lib/ranked-assets'
 import { fetchHistoryAugmentDetail, historyAugmentRarity, type HistoryAugmentDetail, type HistoryAugmentMode } from '@/lib/history-augment-details'
@@ -26,35 +27,54 @@ export function championName(id: number): string {
 }
 
 export function RankCards({ ranks, status }: { ranks: HistoryRank[] | null; status: string }) {
+  const [selectedQueue, setSelectedQueue] = useState('')
+  const selected = ranks?.find((rank) => rank.key === selectedQueue)
   const cards: HistoryRank[] = ranks ?? ['单双排位', '灵活排位'].map((label) => ({
     key: label, label, tier: 'UNRANKED', division: '', lp: null, wins: null, losses: null,
   }))
-  return <div className="rh-ranks">{cards.map((rank) => {
+  return <><div className="rh-ranks">{cards.map((rank) => {
     const name = ranks ? rankText(rank) : status
     const total = rank.wins != null && rank.losses != null ? rank.wins + rank.losses : 0
     return (
-      <div className="rh-rank-card" key={rank.key}>
-        <div className="rh-rank-card-heading">
+      <button type="button" className="rh-rank-card" key={rank.key} disabled={!ranks}
+        title={ranks ? '查看历史段位' : undefined} onClick={() => setSelectedQueue(rank.key)}>
+        <span className="rh-rank-card-heading">
           <span>{rank.label}</span>
           {total > 0 && <small>胜率 {((rank.wins ?? 0) / total * 100).toFixed(1)}%</small>}
-        </div>
-        <div className="rh-rank-card-main">
+        </span>
+        <span className="rh-rank-card-main">
           <HistoryImage src={getRankedMiniCrest(rank.tier)} label={name} className="rh-rank-crest" />
-          <div className="rh-rank-card-data">
+          <span className="rh-rank-card-data">
             <strong className={`rh-rank-${rank.tier.toLowerCase()}`}>{name}</strong>
             {ranks && rank.tier !== 'UNRANKED' && <small>{numberText(rank.wins)} 胜 {numberText(rank.losses)} 负 · {numberText(rank.lp)} LP</small>}
-            {ranks && <div className="rh-rank-peak">
+            {ranks && <span className="rh-rank-peak">
               <span>赛季最高</span>
               {rank.peak ? <>
                 <HistoryImage src={getRankedMiniCrest(rank.peak.tier)} label={rankText(rank.peak)} className="rh-rank-peak-crest" />
                 <b>{rankText(rank.peak)}</b>
               </> : <span>—</span>}
-            </div>}
-          </div>
-        </div>
-      </div>
+            </span>}
+          </span>
+        </span>
+      </button>
     )
   })}</div>
+  <Modal open={!!selected} onClose={() => setSelectedQueue('')} width="min(440px, 94vw)" height="min(300px, 90vh)">
+    {selected && <section className="rh-shell rh-rank-history" aria-label="历史段位详情">
+      <header><h2>历史段位</h2><span className="rh-muted">{selected.label}</span></header>
+      <dl>{([
+        ['当前段位', selected],
+        ['本赛季最高', selected.peak],
+        ['上赛季最高', selected.previousPeak],
+        ['上赛季结算', selected.previousEnd],
+      ] as const).map(([label, rank]) => <div key={label}><dt>{label}</dt><dd>{rank ? <>
+        <HistoryImage src={getRankedMiniCrest(rank.tier)} label={rankText(rank)} />
+        <strong>{rankText(rank)}</strong>
+        {label === '当前段位' && selected.tier !== 'UNRANKED' && selected.lp != null && <small>{selected.lp} LP</small>}
+      </> : '—'}</dd></div>)}</dl>
+      {!selected.previousEnd && !selected.previousPeak && <p className="rh-footnote">客户端暂未返回上赛季段位。</p>}
+    </section>}
+  </Modal></>
 }
 
 export function SummaryStats({ matches, compact = false }: { matches: HistoryMatch[]; compact?: boolean }) {
@@ -155,7 +175,7 @@ function MiniRoster({ game, onInspect }: { game: SgpGameSummaryLol; onInspect?: 
   const groups = new Map<number, SgpParticipantLol[]>()
   game.json.participants.forEach((p) => { const key = teamKey(p, game); const group = groups.get(key) || []; group.push(p); groups.set(key, group) })
   return <div className="rh-mini-roster">{[...groups].map(([key, players]) => <div key={key}>{players.map((p, index) => <button type="button" key={p.puuid || index} title={riotName(p)} disabled={!p.puuid || !onInspect} onClick={() => onInspect?.(p.puuid, riotName(p))}>
-    <HistoryImage src={getChampIcon(p.championId)} label={championName(p.championId)} /><span>{riotName(p)}</span>
+    <HistoryImage src={getChampIcon(p.championId)} label={championName(p.championId)} /><span>{splitRiotId(riotName(p)).name}</span>
   </button>)}</div>)}</div>
 }
 
@@ -263,7 +283,6 @@ function reportColumns(game: SgpGameSummaryLol, view: ReportView, show: (field: 
 
 export function MatchReport({ game, focusPuuid, onInspect }: { game: SgpGameSummaryLol; focusPuuid: string; onInspect?: (puuid: string, name: string) => void }) {
   const [view, setView] = useState<ReportView>('combat')
-  const [showSettings, setShowSettings] = useState(false)
   const hidden = useHistoryHiddenFields()
   const show = (field: ReportField) => isHistoryFieldVisible(hidden, 'report', field)
   const columns = reportColumns(game, view, show)
@@ -285,7 +304,6 @@ export function MatchReport({ game, focusPuuid, onInspect }: { game: SgpGameSumm
         <button type="button" className={view === 'combat' ? 'is-active' : ''} onClick={() => setView('combat')}>战斗与经济</button>
         <button type="button" className={view === 'support' ? 'is-active' : ''} onClick={() => setView('support')}>治疗、控制与视野</button>
       </div>
-      <button type="button" className="rh-button rh-report-settings" onClick={() => setShowSettings(true)}>显示设置</button>
     </div>
     <div className="rh-table-scroll"><table className="rh-report-table"><thead><tr><th>玩家 / 英雄</th>
       {columns.map(({ key, label }) => <th key={key}>{label}</th>)}
@@ -308,7 +326,6 @@ export function MatchReport({ game, focusPuuid, onInspect }: { game: SgpGameSumm
       <span>条长相对本场同项最高值，百分比为队内占比。</span>
     </div>}
     <p className="rh-footnote">占比以本场本队总量计算。— 表示接口未提供或分母不足。</p>
-    <HistoryDisplaySettings open={showSettings} onClose={() => setShowSettings(false)} initialSection="report" />
   </div>
 }
 
@@ -355,10 +372,17 @@ export function HistoryMatchCard({ match, hidden, onInspect }: {
           {show('augments') && <Augments player={player} game={game} />}
           {badges.length > 0 && <div className="rh-badges">{badges.slice(0, 4).map((b) => <span key={b.text} className={`rh-badge rh-badge-${b.tone}`} title={b.detail}>{b.text}</span>)}{badges.length > 4 && <span className="rh-badge" title={badges.slice(4).map((b) => b.detail).join('\n')}>+{badges.length - 4}</span>}</div>}
         </div>
-        <div className="rh-match-meta"><span>{getQueueName(game.json.queueId)} · {durationText(match.duration)} · {date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} · {getMapName(game.json.mapId)}</span><button type="button" title="复制对局 ID" onClick={() => { void navigator.clipboard.writeText(String(game.json.gameId)).then(() => setCopied(true)).catch(() => setCopied(false)) }}>{copied ? '已复制' : `ID ${game.json.gameId}`}</button></div>
+        <div className="rh-match-meta"><span>{getQueueName(game.json.queueId)} · {durationText(match.duration)} · {date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} · {getMapName(game.json.mapId)}</span>
+          <span className="rh-match-meta-actions">
+            <HistoryReplayButton game={game.json} />
+            <button type="button" title="复制对局 ID" onClick={() => { void navigator.clipboard.writeText(String(game.json.gameId)).then(() => setCopied(true)).catch(() => setCopied(false)) }}>{copied ? '已复制' : `ID ${game.json.gameId}`}</button>
+          </span>
+        </div>
       </div>
       {show('roster') && <MiniRoster game={game} onInspect={onInspect} />}
-      <button type="button" className="rh-expand" aria-expanded={expanded} onClick={() => setExpanded(!expanded)} title={expanded ? '收起详细战报' : '展开详细战报'}>{expanded ? '⌃' : '⌄'}<small>{expanded ? '收起' : '战报'}</small></button>
+      <button type="button" className="rh-expand" aria-expanded={expanded} aria-label={expanded ? '收起详细战报' : '展开详细战报'} onClick={() => setExpanded(!expanded)}>
+        <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 6 5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
     </div>
     {expanded && <MatchReport game={game} focusPuuid={player.puuid} onInspect={onInspect} />}
   </article>

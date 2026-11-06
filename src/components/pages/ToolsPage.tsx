@@ -5,6 +5,7 @@ import { SonaInput } from '@/components/ui/SonaInput'
 import { SonaSwitch } from '@/components/ui/SonaSwitch'
 import { SonaSelect } from '@/components/ui/SonaSelect'
 import { MatchHistoryModal } from '@/components/ui/MatchHistoryModal'
+import { requestReplay } from '@/lib/replay'
 import { searchChampions, getChampionById, getPlayableQueues, type ChampionInfo } from '@/lib/assets'
 import { lcu } from '@/lib/lcu'
 import { logger } from '@/index'
@@ -1040,11 +1041,7 @@ export function ToolsPage() {
                 // 2. 已就绪 → 直接观看
                 if (meta.state === 'watch') {
                   setReplayState('launching')
-                  const res = await fetch(`/lol-replays/v1/rofls/${id}/watch`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ componentType: 'replay', contextData: 'match-history' }),
-                  })
+                  const res = await requestReplay(id, 'watch')
                   setReplayState(res.ok ? 'ready' : 'error')
                   if (res.ok) logger.info('[Replay] 开始播放 #%d ✓', id)
                   else logger.error('[Replay] 播放失败:', await res.text())
@@ -1053,11 +1050,7 @@ export function ToolsPage() {
 
                 // 3. 未下载 → 触发下载
                 if (meta.state !== 'downloading') {
-                  await fetch(`/lol-replays/v1/rofls/${id}/download`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ componentType: 'replay', contextData: 'match-history' }),
-                  })
+                  await requestReplay(id, 'download')
                 }
 
                 // 4. 轮询 metadata 等待下载完成
@@ -1070,11 +1063,7 @@ export function ToolsPage() {
 
                   if (checkMeta.state === 'watch') {
                     setReplayState('launching')
-                    const res = await fetch(`/lol-replays/v1/rofls/${id}/watch`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ componentType: 'replay', contextData: 'match-history' }),
-                    })
+                    const res = await requestReplay(id, 'watch')
                     setReplayState(res.ok ? 'ready' : 'error')
                     if (res.ok) logger.info('[Replay] 下载完成，开始播放 #%d ✓', id)
                     else logger.error('[Replay] 播放失败:', await res.text())

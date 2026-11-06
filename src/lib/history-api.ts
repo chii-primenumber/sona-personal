@@ -2,9 +2,13 @@ import { lcu, queueIdToTag } from '@/lib/lcu'
 import type { SummonerInfo } from '@/types/lcu'
 import type { SgpMatchHistoryLol } from '@/types/sgp'
 
+interface RankStanding { tier: string; division: string }
+
 export interface HistoryRank {
   key: string; label: string; tier: string; division: string; lp: number | null; wins: number | null; losses: number | null
-  peak?: { tier: string; division: string }
+  peak?: RankStanding
+  previousPeak?: RankStanding
+  previousEnd?: RankStanding
 }
 export interface HistoryMastery { championId: number; championLevel: number; championPoints: number; lastPlayTime?: number }
 
@@ -65,14 +69,13 @@ export async function fetchHistoryRanks(puuid: string, signal?: AbortSignal, ser
   return [['RANKED_SOLO_5x5', '单双排位'], ['RANKED_FLEX_SR', '灵活排位']].map(([key, label]) => {
     const rank = response.queueMap?.[key] ?? (Array.isArray(response.queues) ? response.queues.find((entry) => entry?.queueType === key) : null) ?? {}
     const num = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null
-    const highestTier = String(rank.highestTier ?? '').toUpperCase()
-    const peak = highestTier !== 'UNRANKED' && Object.prototype.hasOwnProperty.call(RANK_NAMES, highestTier)
-      ? { tier: highestTier, division: String(rank.highestDivision ?? '') }
-      : undefined
     const tier = String(rank.tier || 'UNRANKED').toUpperCase()
     return {
       key, label, tier: ['NA', 'NONE'].includes(tier) ? 'UNRANKED' : tier, division: String(rank.division || ''),
-      lp: num(rank.leaguePoints), wins: num(rank.wins), losses: num(rank.losses), peak,
+      lp: num(rank.leaguePoints), wins: num(rank.wins), losses: num(rank.losses),
+      peak: rankStanding(rank.highestTier, rank.highestDivision),
+      previousPeak: rankStanding(rank.previousSeasonHighestTier, rank.previousSeasonHighestDivision),
+      previousEnd: rankStanding(rank.previousSeasonEndTier, rank.previousSeasonEndDivision),
     }
   })
 }
@@ -85,6 +88,12 @@ export async function fetchHistoryMastery(puuid: string, signal?: AbortSignal): 
 }
 
 export const RANK_NAMES: Record<string, string> = { IRON: '坚韧黑铁', BRONZE: '英勇黄铜', SILVER: '不屈白银', GOLD: '荣耀黄金', PLATINUM: '华贵铂金', EMERALD: '流光翡翠', DIAMOND: '璀璨钻石', MASTER: '超凡大师', GRANDMASTER: '傲世宗师', CHALLENGER: '最强王者', UNRANKED: '未定级' }
+function rankStanding(tier: unknown, division: unknown): RankStanding | undefined {
+  const name = typeof tier === 'string' ? tier.toUpperCase() : ''
+  if (name === 'UNRANKED' || !Object.prototype.hasOwnProperty.call(RANK_NAMES, name)) return
+  return { tier: name, division: typeof division === 'string' ? division.toUpperCase() : '' }
+}
+
 export function rankText(rank: Pick<HistoryRank, 'tier' | 'division'>): string {
   return `${RANK_NAMES[rank.tier] || rank.tier}${rank.tier !== 'UNRANKED' && rank.division && !['NA', 'NONE'].includes(rank.division) ? ` ${rank.division}` : ''}`
 }

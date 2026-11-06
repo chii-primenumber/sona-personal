@@ -53,6 +53,13 @@ export function riotName(player: SgpParticipantLol): string {
   return name ? `${name}${player.riotIdTagline ? `#${player.riotIdTagline}` : ''}` : '未知玩家'
 }
 
+export function splitRiotId(riotId: string): { name: string; tag: string } {
+  const index = riotId.lastIndexOf('#')
+  return index > 0 && index < riotId.length - 1
+    ? { name: riotId.slice(0, index), tag: riotId.slice(index) }
+    : { name: riotId, tag: '' }
+}
+
 export function teamKey(player: SgpParticipantLol, game: SgpGameSummaryLol): number {
   return game.json.gameMode === 'CHERRY' && player.playerSubteamId > 0 ? player.playerSubteamId : player.teamId
 }

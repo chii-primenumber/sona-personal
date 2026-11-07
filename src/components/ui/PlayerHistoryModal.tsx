@@ -117,14 +117,14 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
   const refresh = () => { pages.refresh(); setProfileRevision((n) => n + 1) }
 
   return <div className="rh-shell" data-testid="player-history">
-    <header className={`rh-header${show('ranks') ? '' : ' rh-header-no-ranks'}`}>
+    <header className={`rh-header rh-profile-header${show('ranks') ? '' : ' rh-header-no-ranks'}`}>
       <div className="rh-profile">{onBack && <button className="rh-back" type="button" onClick={onBack}>‹ 返回</button>}
         <span className="rh-profile-portrait"><HistoryImage src={profileIconUrl(profile?.iconId ?? target.iconId)} label={name} className="rh-profile-icon" />
           {level != null && <small className="rh-profile-level">{level}</small>}
         </span>
-        <div>
+        <div className="rh-profile-details">
           <div className="rh-profile-name">
-            <h2 aria-label={name}>{identity.name}</h2>
+            <HistoryAssetTooltip title={name} compact focusable={false} asChild><h2 aria-label={name}>{identity.name}</h2></HistoryAssetTooltip>
             {name !== '玩家战绩' && name !== '未知玩家' && <button type="button" className="rh-copy-id" aria-label="复制玩家 ID"
               aria-description={copyStatus || undefined} onClick={async () => {
                 try { await navigator.clipboard.writeText(name); setCopyStatus('已复制') }

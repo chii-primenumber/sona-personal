@@ -297,6 +297,30 @@ try {
   await profileView.getByText('璀璨钻石 II',{exact:true}).waitFor()
   const rankCards = profileView.locator('.rh-rank-card')
   assert.equal(await profileView.locator('.rh-profile-level').textContent(),'241')
+  const profileTitle = profileView.locator('.rh-profile-name h2')
+  const originalTitle = await profileTitle.textContent()
+  for (const width of [1450,1000]) {
+    await page.setViewportSize({width,height:940})
+    for (const sample of ['芙莉莲','一二三四五六七八九十一二三四五六']) {
+      await profileTitle.evaluate((node,text)=>{node.textContent=text},sample)
+      const titleLayout = await profileTitle.evaluate((node)=>{
+        const range=document.createRange();range.selectNodeContents(node)
+        return {lines:range.getClientRects().length,whiteSpace:getComputedStyle(node).whiteSpace,text:node.textContent}
+      })
+      assert.equal(titleLayout.lines,1)
+      assert.equal(titleLayout.whiteSpace,'nowrap')
+      assert.equal(titleLayout.text,sample)
+      const titleBox=await profileTitle.boundingBox(), copyBox=await profileView.locator('.rh-copy-id').boundingBox()
+      assert.ok(copyBox.x >= titleBox.x+titleBox.width-1)
+      const headerBox=await profileView.locator('.rh-profile-header').boundingBox()
+      assert.ok(copyBox.x+copyBox.width <= headerBox.x+headerBox.width)
+    }
+  }
+  await profileTitle.evaluate((node,text)=>{node.textContent=text},'芙莉莲')
+  await page.mouse.move(4,4)
+  await profileView.locator('.rh-profile-header').screenshot({path:path.join(out,'中文名字完整单行_模拟数据.png')})
+  await profileTitle.evaluate((node,text)=>{node.textContent=text},originalTitle)
+  await page.setViewportSize({width:1450,height:940})
   assert.equal(await profileView.locator('.rh-profile').getByText(/已加载/).count(),0)
   for (const name of ['刷新','显示设置','搜索玩家']) assert.equal(await profileView.getByRole('button',{name,exact:true}).textContent(),'')
   assert.equal(await profileView.locator('.rh-profile-tag').textContent(),'#DEMO')

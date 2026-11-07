@@ -20,15 +20,18 @@
 .rh-shell em { font-style: normal; color: var(--sona-history-red); }
 .rh-header { flex: 0 0 auto; display: grid; grid-template-columns: minmax(215px, 1fr) minmax(330px, 1fr) auto; align-items: center; gap: 15px; padding: 15px 48px 15px 19px; border-bottom: 1px solid var(--rh-line); background: var(--sona-history-header); }
 .rh-header-no-ranks { grid-template-columns: minmax(0,1fr) auto; }
+.rh-profile-header { grid-template-columns: minmax(max-content,1fr) minmax(330px,1fr) auto; }
+.rh-profile-header.rh-header-no-ranks { grid-template-columns: minmax(max-content,1fr) auto; }
 .rh-header-actions { display: flex; align-items: center; gap: 6px; }
 .rh-profile { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .rh-profile > div { min-width: 0; }
-.rh-profile h2 { font-size: 23px; line-height: 1.3; margin: 1px 0 4px; overflow-wrap: anywhere; }
+.rh-profile h2 { font-size: 23px; line-height: 1.3; margin: 1px 0 4px; }
+.rh-profile .rh-profile-details { flex: 0 0 auto; min-width: max-content; }
 .rh-profile-icon { width: 58px; height: 58px; border: 1px solid rgb(var(--sona-accent-rgb)); border-radius: 7px; flex: 0 0 auto; }
 .rh-profile-portrait { position: relative; display: inline-flex; flex: 0 0 58px; width: 58px; height: 58px; }
 .rh-profile-level { position: absolute; bottom: -2px; right: -2px; padding: 0 3px; background: rgb(var(--sona-base-rgb)); border-radius: 3px; color: #fff1cf; font-size: 10px !important; line-height: 14px; }
 .rh-profile-name { display: flex; gap: 4px; align-items: center; }
-.rh-profile-name h2 { min-width: 0; margin-bottom: 0; }
+.rh-profile-name h2 { flex: 0 0 auto; min-width: max-content; max-width: none; width: auto; margin-bottom: 0; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
 .rh-profile-tag { display: block; font-size: 12px; color: var(--rh-muted); margin: 0 0 2px; }
 .rh-copy-id { display: inline-grid; place-items: center; flex: 0 0 23px; height: 23px; padding: 0; border: 0; border-radius: 4px; background: transparent; }
 .rh-copy-id:hover { color: var(--rh-gold); background: var(--sona-history-hover); }
@@ -409,5 +412,10 @@
   .rh-rank-card .rh-rank-crest { width: 34px; height: 34px; }
   .rh-rank-card-data strong { font-size: 13px; }
   .rh-display-options { grid-template-columns: 1fr; }
+}
+@media (max-width: 1180px) {
+  .rh-profile-header { grid-template-columns: minmax(max-content,1fr) auto; }
+  .rh-profile-header .rh-ranks { grid-column: 1/-1; grid-row: 2; }
+  .rh-profile-header .rh-header-actions { grid-column: 2; grid-row: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .rh-spinner { animation: none; } }

@@ -45,6 +45,11 @@ function showOverview() {
 function injectButton() {
   if (!mode) return false
   const container = document.querySelector(mode === 'bp' ? '.bottom-right-buttons' : '.game-in-progress-container')
+  if (!container) {
+    button?.remove()
+    button = null
+    return false
+  }
   // The existing auto-popup feature has its own in-game button. It opens the same enhanced view.
   if (mode === 'game' && container?.querySelector('[data-sona-game-analysis]')) {
     button?.remove(); button = null; return true
@@ -58,13 +63,13 @@ function injectButton() {
     button.title = mode === 'bp' ? '查看英雄选择阶段的己方队伍' : '查看本局双方队伍的近期战绩'
     button.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); showOverview() })
   }
-  const destination = container || document.body
-  if (button.parentElement !== destination) destination.appendChild(button)
-  button.classList.toggle('rh-team-entry-floating', !container)
+  if (button.parentElement !== container) container.appendChild(button)
   return true
 }
 
 function changePhase(nextPhase: GameflowPhase) {
+  const next = nextPhase === 'ChampSelect' ? 'bp' : nextPhase === 'InProgress' || nextPhase === 'Reconnect' ? 'game' : null
+  if (nextPhase === phase && next === mode) return
   phase = nextPhase
   if (phase === 'None' || phase === 'Lobby') party = new Set()
   if (phase === 'Lobby' || phase === 'Matchmaking' || phase === 'ReadyCheck') {
@@ -74,7 +79,6 @@ function changePhase(nextPhase: GameflowPhase) {
       if (version === phaseEvents && lobbyVersion === lobbyEvents) trackLobby(lobby)
     }).catch(() => {})
   }
-  const next = phase === 'ChampSelect' ? 'bp' : phase === 'InProgress' || phase === 'Reconnect' ? 'game' : null
   if (next === mode) return
   injector.unregister(injectButton)
   button?.remove(); button = null
@@ -87,11 +91,18 @@ export function updateTeamHistoryOverview(enabled: boolean) {
   if (enabled && !unsub) {
     const id = ++subscriptionId, seen = phaseEvents
     const stopPhase = lcu.observe(LcuEventUri.GAMEFLOW_PHASE_CHANGE, (event) => { phaseEvents++; changePhase(event.data as GameflowPhase) })
+    const stopSession = lcu.observe(LcuEventUri.GAMEFLOW_PHASE, (event) => {
+      const current = event.data as { phase?: unknown } | null
+      if (typeof current?.phase === 'string') {
+        phaseEvents++
+        changePhase(current.phase as GameflowPhase)
+      }
+    })
     const stopLobby = lcu.observe(LcuEventUri.LOBBY, (event) => {
       lobbyEvents++
       trackLobby(event.eventType === 'Delete' ? null : event.data as Lobby)
     })
-    unsub = () => { stopPhase(); stopLobby() }
+    unsub = () => { stopPhase(); stopSession(); stopLobby() }
     void lcu.getGameflowPhase().then((phase) => { if (id === subscriptionId && seen === phaseEvents) changePhase(phase) }).catch(() => {})
   } else if (!enabled && unsub) {
     subscriptionId++

@@ -344,7 +344,6 @@
 .rh-card-state { color: rgb(var(--sona-muted-rgb)); font-size: 11px; padding: 4px 0; display: flex; align-items: center; gap: 5px; }
 .rh-team-entry { color: rgb(var(--sona-accent-rgb)); background: var(--sona-history-panel); border: 1px solid rgb(var(--sona-highlight-rgb)); border-radius: 3px; padding: 6px 10px; margin: 3px 7px; min-height: 26px; font: 600 12px 'Microsoft YaHei UI', sans-serif; cursor: pointer; white-space: nowrap; }
 .rh-team-entry:hover { background: var(--sona-history-hover); color: rgb(var(--sona-accent-rgb)); }
-.rh-team-entry-floating { position: fixed; right: 22px; bottom: 68px; z-index: 820; }
 .sona-profile-history-entry { position: absolute; top: 136px; right: 70px; z-index: 4; padding: 3px 11px; color: rgb(var(--sona-accent-rgb)); background: var(--sona-history-panel); border: 1px solid rgb(var(--sona-highlight-rgb)); border-radius: 2px; font-size: 12px; cursor: pointer; }
 .rcp-fe-lol-profiles-modal .sona-profile-history-entry { top: 9px; }
 .sona-profile-history-entry.sona-profile-history-entry-inline { position: static; display: inline-block; margin-inline-start: 10px; vertical-align: middle; z-index: auto; }

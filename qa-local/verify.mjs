@@ -552,7 +552,21 @@ try {
   await matchupPanel.getByText('32.0%',{exact:true}).waitFor()
   await page.keyboard.press('Escape')
   await matchupPanel.waitFor({state:'hidden'})
-  await page.getByRole('button',{name:'对局信息',exact:true}).click()
+  const bpEntry = page.getByRole('button',{name:'对局信息',exact:true})
+  await bpEntry.waitFor()
+  await page.evaluate(() => {
+    const container = document.querySelector('.bottom-right-buttons')
+    window.qaRemovedEntryHost = {container, parent:container.parentNode, next:container.nextSibling}
+    container.remove()
+  })
+  await page.locator('[data-sona-team-history]').waitFor({state:'detached'})
+  await page.evaluate(() => {
+    const {container,parent,next} = window.qaRemovedEntryHost
+    parent.insertBefore(container,next)
+  })
+  await bpEntry.waitFor()
+  assert.equal(await bpEntry.evaluate((node) => node.parentElement.classList.contains('bottom-right-buttons')),true)
+  await bpEntry.click()
   const bpView = page.getByTestId('bp-history')
   await bpView.locator('.rh-team-card').nth(4).waitFor()
   assert.equal(await bpView.locator('.rh-team-card').count(),5)
@@ -643,6 +657,10 @@ try {
   assert.equal(await profileView.getByLabel('游戏模式').inputValue(),'440')
   await page.keyboard.press('Escape')
   await profileView.waitFor({state:'hidden'})
+  await page.evaluate((session) => window.qaEmit('/lol-gameflow/v1/session',session),{...game,phase:'Lobby'})
+  await bpEntry.waitFor({state:'detached'})
+  await page.evaluate((session) => window.qaEmit('/lol-gameflow/v1/session',session),{...game,phase:'ChampSelect'})
+  await bpEntry.waitFor()
   await page.getByRole('button',{name:'模拟进游戏'}).click()
   assert.equal(await page.getByRole('button',{name:'对局信息',exact:true}).count(),0)
   await page.getByRole('button',{name:'十人战绩总览',exact:true}).click()

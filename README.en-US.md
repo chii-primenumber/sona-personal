@@ -1,6 +1,8 @@
-## A League of Legends Client Enhancement Plugin for Pengu Loader
+# Sona Personal Match-History Edition
 
-This personal match-history edition is based on WJZ-P's Sona v1.10.0. The customized release was prepared on 2026-11-07. See the [personal edition installation guide](README_个人版.md) before installing. The rest of this README documents upstream Sona.
+Based on **Sona v1.10.0 by the original author WJZ-P**, this Pengu Loader edition retains the **AGPL-3.0** license. It adds richer player profiles and match reports, player search with friends and recent visits, champion-select and in-game team overviews, Korean OP.GG matchups, rank details, replay controls, display settings, and shared themes. Team-card layouts take inspiration from League Akari. [Original project](https://github.com/WJZ-P/sona/tree/v1.10.0)
+
+The customized release was prepared on 2026-11-07. See the [personal edition installation guide](README_个人版.md) and [changelog](CHANGELOG.md). The rest of this README documents upstream Sona.
 
 <div align="center">
 

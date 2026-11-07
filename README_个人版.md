@@ -1,6 +1,6 @@
 # Sona 个人战绩增强版
 
-版本为 `1.10.0-personal.11`，基于 WJZ-P 的 Sona v1.10.0，沿用原项目的 AGPL-3.0 许可。队伍卡片参考 Akari 的布局。[上游项目](https://github.com/WJZ-P/sona/tree/v1.10.0)
+版本为 `1.10.0-personal.11`，基于 **原作者 WJZ-P** 的 **Sona v1.10.0** 定制，沿用原项目的 **AGPL-3.0** 许可。主要增强个人战绩、玩家搜索、队伍总览、对位与回放，并提供全局主题和显示设置。队伍卡片参考 League Akari 的布局。[上游项目](https://github.com/WJZ-P/sona/tree/v1.10.0)
 
 ## 安装与回退
 

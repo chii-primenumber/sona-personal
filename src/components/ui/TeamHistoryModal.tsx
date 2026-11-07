@@ -5,6 +5,7 @@ import { ChampionStrip, HistoryImage, MatchReport, championName } from './Histor
 import { HistoryDisplaySettings } from './HistoryDisplaySettings'
 import { HistoryPlayerName } from './HistoryPlayerName'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
+import { RefreshIcon, SettingsIcon } from './icons'
 import { lcu, LcuEventUri } from '@/lib/lcu'
 import { store } from '@/lib/store'
 import { deobfuscateChampSelectPuuid } from '@/lib/champ-select-puuid'
@@ -30,10 +31,14 @@ const emptyParty = new Set<string>()
 
 const positionName = (position: string) => POSITION_NAMES[({ MID: 'MIDDLE', BOT: 'BOTTOM', SUPPORT: 'UTILITY' } as Record<string, string>)[position.toUpperCase()] || position.toUpperCase()] || ''
 
-function bpSnapshot(session: ChampSelectSession, party: ReadonlySet<string>): Snapshot {
-  return { queueId: session.queueId || 0, queueName: getQueueName(session.queueId), teams: [{ id: 'ally', label: '己方队伍', members: (session.myTeam || []).slice(0, 5).map((p, index) => {
+function bpSnapshot(session: ChampSelectSession, party: ReadonlySet<string>, fallbackQueueId = 0): Snapshot {
+  const queueId = session.queueId || fallbackQueueId
+  const picks = (session.actions || []).flat(2).filter((action) => action.type === 'pick')
+  return { queueId, queueName: getQueueName(queueId), teams: [{ id: 'ally', label: '己方队伍', members: (session.myTeam || []).slice(0, 5).map((p, index) => {
     const puuid = p.puuid || (p.nameVisibilityType === 'HIDDEN' && p.obfuscatedPuuid ? deobfuscateChampSelectPuuid(p.obfuscatedPuuid) : '')
-    return { key: puuid || `slot-${p.cellId ?? index}`, puuid, name: p.gameName ? `${p.gameName}${p.tagLine ? `#${p.tagLine}` : ''}` : p.playerAlias || `${index + 1} 楼`, championId: p.championId || p.championPickIntent || 0, position: positionName(p.assignedPosition || ''), self: p.cellId === session.localPlayerCellId, premade: party.has(puuid) ? 1 : undefined }
+    const playerPicks = picks.filter((action) => action.actorCellId === p.cellId)
+    const locked = p.championId > 0 && (!playerPicks.length || playerPicks.some((action) => action.completed))
+    return { key: puuid || `slot-${p.cellId ?? index}`, puuid, name: p.gameName ? `${p.gameName}${p.tagLine ? `#${p.tagLine}` : ''}` : p.playerAlias || `${index + 1} 楼`, championId: locked ? p.championId : 0, position: positionName(p.assignedPosition || ''), self: p.cellId === session.localPlayerCellId, premade: party.has(puuid) ? 1 : undefined }
   }) }] }
 }
 
@@ -72,13 +77,13 @@ export function TeamHistoryModal({ open, onClose, mode, party = emptyParty }: {
     const saved = store.get(mode === 'bp' ? 'champSelectAssistFetchCount' : 'gameAnalysisFetchCount')
     return [20, 50, 100].includes(saved) ? saved : 50
   })
-  const [selectedQueue, setSelectedQueue] = useState(-1)
+  const [selectedQueue, setSelectedQueue] = useState<number | null>(null)
   const [target, setTarget] = useState<{ puuid: string; name: string } | null>(null)
   const [selectedMatch, setSelectedMatch] = useState<HistoryMatch | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const hidden = useHistoryHiddenFields()
   useEffect(() => {
-    if (!open) { setTarget(null); setSelectedMatch(null); setShowSettings(false); return }
+    if (!open) { setTarget(null); setSelectedMatch(null); setShowSettings(false); setSelectedQueue(null); return }
     const controller = new AbortController()
     let previous = ''
     const update = (next: Snapshot) => {
@@ -89,33 +94,54 @@ export function TeamHistoryModal({ open, onClose, mode, party = emptyParty }: {
     }
     setSnapshot(null); setError('')
     let receivedEvent = false
+    let latestChampSelect: ChampSelectSession | null = null
+    let fallbackQueueId = 0
+    let queueLoaded = false
+    const updateChampSelect = (session: ChampSelectSession) => {
+      latestChampSelect = session
+      if (session.queueId > 0 || queueLoaded) update(bpSnapshot(session, party, fallbackQueueId))
+    }
     const unsubscribe = mode === 'bp' ? lcu.observe(LcuEventUri.CHAMP_SELECT, (event) => {
       const data = event.data as ChampSelectSession | null
-      if (Array.isArray(data?.myTeam)) { receivedEvent = true; update(bpSnapshot(data, party)) }
+      if (Array.isArray(data?.myTeam)) { receivedEvent = true; updateChampSelect(data) }
     }) : undefined
+    if (mode === 'bp') void deadline(() => lcu.getGameflowSession(), controller.signal, 10000).then((session) => {
+      fallbackQueueId = session.gameData?.queue?.id || 0
+    }).catch(() => {}).finally(() => {
+      queueLoaded = true
+      if (latestChampSelect) updateChampSelect(latestChampSelect)
+    })
     const query = mode === 'bp'
-      ? deadline(() => lcu.getChampSelectSession(), controller.signal, 10000).then((session) => bpSnapshot(session, party))
-      : deadline(() => lcu.getGameflowSession(), controller.signal, 10000).then(gameSnapshot)
-    void query.then((value) => { if (!receivedEvent) update(value) }).catch(() => { if (!controller.signal.aborted && !receivedEvent) setError('暂时读不到当前对局，请确认处于对应阶段后重试。') })
+      ? deadline(() => lcu.getChampSelectSession(), controller.signal, 10000).then((session) => { if (!receivedEvent) updateChampSelect(session) })
+      : deadline(() => lcu.getGameflowSession(), controller.signal, 10000).then((session) => update(gameSnapshot(session)))
+    void query.catch(() => { if (!controller.signal.aborted && !receivedEvent) setError('暂时读不到当前对局，请确认处于对应阶段后重试。') })
     return () => { controller.abort(); unsubscribe?.() }
   }, [open, mode, revision, party])
-  const queueId = selectedQueue < 0 ? snapshot?.queueId || 0 : selectedQueue
-  const queues = getPlayableQueues().filter((queue) => queue.id > 0)
+  const queueId = selectedQueue ?? snapshot?.queueId ?? 0
+  const queues = getPlayableQueues().filter((queue) => queue.id > 0).map(({ id, name }) => ({ id, name }))
+  if (snapshot && snapshot.queueId > 0 && !queues.some((queue) => queue.id === snapshot.queueId)) {
+    queues.push({ id: snapshot.queueId, name: snapshot.queueName || getQueueName(snapshot.queueId) })
+  }
   const playerCount = snapshot?.teams.reduce((total, team) => total + team.members.length, 0) ?? 0
   return <>
     <Modal open={open} onClose={onClose} width="min(1550px, 95vw)" height={mode === 'bp' ? 'min(560px, 92vh)' : 'min(900px, 92vh)'}>
       <div className="rh-shell rh-team-shell" data-testid={mode === 'bp' ? 'bp-history' : 'game-history'}>
-        <header className="rh-header rh-team-heading"><div><span className="rh-eyebrow">SONA · {mode === 'bp' ? '英雄选择阶段' : '进入游戏后'}</span><h2>{mode === 'bp' ? '对局信息' : '双方对局战绩总览'}</h2><span className="rh-muted">{snapshot?.queueName || '当前对局'}{playerCount > 0 ? ` · ${playerCount} 位玩家` : ''} · 点击玩家查看完整战绩</span></div>
+        <header className="rh-header rh-team-heading">
+          <h2>对局详情</h2>
           <div className="rh-team-controls">
-            <select aria-label="队伍战绩范围" value={selectedQueue} onChange={(e) => setSelectedQueue(Number(e.target.value))}>
-              <option value={-1}>本局模式</option><option value={0}>全部模式</option>
+            <select className="rh-team-mode" aria-label="队伍战绩范围" title={queues.find((queue) => queue.id === queueId)?.name || '全部模式'} value={queueId} onChange={(e) => setSelectedQueue(Number(e.target.value))}>
+              <option value={0}>全部模式</option>
               {queues.map((queue) => <option key={queue.id} value={queue.id}>{queue.name}</option>)}
             </select>
-            <select aria-label="队伍查询场次" value={count} onChange={(e) => setCount(Number(e.target.value))}>
+            <select className="rh-team-count" aria-label="队伍查询场次" value={count} onChange={(e) => setCount(Number(e.target.value))}>
               {[20, 50, 100].map((n) => <option key={n} value={n}>每人 {n} 场</option>)}
             </select>
-            <button type="button" className="rh-button" onClick={() => setRevision((n) => n + 1)}>刷新</button>
-            <button type="button" className="rh-button" onClick={() => setShowSettings(true)}>显示设置</button>
+            <HistoryAssetTooltip title="刷新" compact asChild>
+              <button type="button" className="rh-button rh-team-icon-button" aria-label="刷新" onClick={() => setRevision((n) => n + 1)}><span aria-hidden="true"><RefreshIcon /></span></button>
+            </HistoryAssetTooltip>
+            <HistoryAssetTooltip title="显示设置" compact asChild>
+              <button type="button" className="rh-button rh-team-icon-button" aria-label="显示设置" onClick={() => setShowSettings(true)}><span aria-hidden="true"><SettingsIcon /></span></button>
+            </HistoryAssetTooltip>
           </div>
         </header>
         <div className="rh-team-body">
@@ -222,6 +248,7 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
   const name = profile?.gameName ? `${profile.gameName}${profile.tagLine ? `#${profile.tagLine}` : ''}` : member.name
   const partyColor = premade ? premadeColors[premade.charCodeAt(0) - 65] : undefined
   const show = (field: HistoryDisplayField<'team'>) => isHistoryFieldVisible(hidden, 'team', field)
+  const portraitChampion = show('selection') && member.championId > 0 ? member.championId : 0
   const tags = ([
     { field: 'streak', text: stats.streak.replace(' ', ''), tone: stats.streak.includes('连胜') ? 'green' : 'red' },
     { field: 'participation', text: stats.participation == null ? '' : `参团 ${percentText(stats.participation)}`, tone: 'blue' },
@@ -234,7 +261,7 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
     <article className={`rh-team-card${member.self ? ' is-self' : ''}`}>
       <button type="button" className="rh-team-card-head" aria-label={`查看 ${name} 的战绩`} disabled={!member.puuid} onClick={() => onInspect(name)}>
         <span className="rh-team-portrait">
-          <HistoryImage src={profileIconUrl(profile?.profileIconId ?? valid[0]?.player.profileIcon)} label={name} nativeTooltip={false} />
+          <HistoryImage src={portraitChampion ? getChampIcon(portraitChampion) : profileIconUrl(profile?.profileIconId ?? valid[0]?.player.profileIcon)} label={portraitChampion ? championName(portraitChampion) : name} nativeTooltip={Boolean(portraitChampion)} />
           {profile?.summonerLevel && <small>{profile.summonerLevel}</small>}
         </span>
         <span className="rh-team-identity">
@@ -246,21 +273,19 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
               const description = [queueName, rankText(rank), lp !== '—' && lp].filter(Boolean).join(' · ')
               return (
                 <HistoryAssetTooltip key={rank.key} title={description} compact focusable={false} asChild><span className="rh-team-rank-row" aria-label={description}>
-                  <span>{queueName}</span>
                   <HistoryImage src={getRankedMiniCrest(rank.tier)} label={description} className="rh-team-rank-icon" nativeTooltip={false} />
                   <span className="rh-team-rank-lp">{lp}</span>
                 </span></HistoryAssetTooltip>
               )
             }) ?? (rankLoading && member.puuid ? '段位查询中…' : '段位暂不可用')}
           </span>}
+          {show('selection') && (member.position || member.self || premade) && <span className="rh-team-selection">
+            {member.position && <span>{member.position}</span>}
+            {member.self && <b>自己</b>}
+            {premade && <b>组队 {premade}</b>}
+          </span>}
         </span>
       </button>
-      {show('selection') && <div className="rh-team-selection">
-        {member.championId > 0 && <HistoryImage src={getChampIcon(member.championId)} label={championName(member.championId)} />}
-        {member.position && <span>{member.position}</span>}
-        {member.self && <b>自己</b>}
-        {premade && <b>组队 {premade}</b>}
-      </div>}
       {!member.puuid ? <div className="rh-card-state">玩家身份暂不可查询</div>
         : pages.loading ? <div className="rh-card-state"><span className="rh-spinner" />查询中…</div>
         : pages.error ? <div className="rh-card-state">战绩查询失败<button type="button" className="rh-text-button" onClick={pages.refresh}>重试</button></div>

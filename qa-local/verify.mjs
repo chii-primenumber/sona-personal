@@ -566,12 +566,16 @@ try {
   })
   await bpEntry.waitFor()
   assert.equal(await bpEntry.evaluate((node) => node.parentElement.classList.contains('bottom-right-buttons')),true)
+  bp.queueId = 0
   await bpEntry.click()
   const bpView = page.getByTestId('bp-history')
   await bpView.locator('.rh-team-card').nth(4).waitFor()
   assert.equal(await bpView.locator('.rh-team-card').count(),5)
   await bpView.getByText('练习星轨#DEMO',{exact:true}).waitFor()
-  await bpView.getByRole('heading',{name:'对局信息',exact:true}).waitFor()
+  await bpView.getByRole('heading',{name:'对局详情',exact:true}).waitFor()
+  assert.equal(await bpView.getByLabel('队伍战绩范围').inputValue(),'440')
+  assert.equal(await bpView.getByRole('option',{name:'本局模式',exact:true}).count(),0)
+  bp.queueId = 440
   const firstTwoNames = bpView.locator('.rh-team-identity > strong').and(bpView.locator('.rh-team-card:nth-child(-n+2) strong'))
   assert.deepEqual(await firstTwoNames.locator('.rh-player-name-text').evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).color)), ['rgb(214, 181, 120)','rgb(214, 181, 120)'])
   assert.ok(await firstTwoNames.locator('.rh-id-tag').first().evaluate((node) => getComputedStyle(node).color !== getComputedStyle(node.previousElementSibling).color))
@@ -579,13 +583,20 @@ try {
   await bpView.locator('.rh-team-card-stats').nth(4).waitFor()
   const rankRows = bpView.locator('.rh-team-card').first().locator('.rh-team-rank-row')
   await rankRows.nth(1).waitFor()
-  assert.deepEqual(await rankRows.allTextContents(), ['单双排55 LP','灵活组排40 LP'])
+  assert.deepEqual(await rankRows.allTextContents(), ['55 LP','40 LP'])
   assert.deepEqual(await rankRows.locator('img').evaluateAll((icons) => icons.map((icon) => icon.getAttribute('src'))), [
     '/fe/lol-static-assets/images/ranked-mini-crests/emerald.svg',
     '/fe/lol-static-assets/images/ranked-mini-crests/diamond.svg',
   ])
   assert.equal(await rankRows.first().getAttribute('aria-label'), '单双排 · 流光翡翠 I · 55 LP')
-  assert.ok((await rankRows.nth(1).boundingBox()).y > (await rankRows.first().boundingBox()).y)
+  assert.equal((await rankRows.nth(1).boundingBox()).y, (await rankRows.first().boundingBox()).y)
+  const portrait = bpView.locator('.rh-team-card').first().locator('.rh-team-portrait img')
+  assert.ok((await portrait.getAttribute('src')).includes('/profile-icons/'))
+  const lockedBp = { ...bp, myTeam:bp.myTeam.map((member,index) => index === 0 ? {...member,championId:157} : member), actions:[[{...bp.actions[0][0],completed:true}]] }
+  await page.evaluate((session) => window.qaEmit('/lol-champ-select/v1/session',session),lockedBp)
+  await bpView.locator('.rh-team-portrait img[src$="/champion-icons/157.png"]').waitFor()
+  assert.equal(await bpView.locator('.rh-team-selection img').count(),0)
+  assert.ok(await bpView.locator('.rh-champion-strip button > span:last-child').first().isHidden())
   await bpView.getByRole('button',{name:'显示设置',exact:true}).click()
   await settings.getByRole('checkbox',{name:'最近对局',exact:true}).uncheck()
   assert.equal(await bpView.locator('.rh-team-recent-list').count(),0)
@@ -595,7 +606,7 @@ try {
   assert.equal(await bpView.locator('.rh-team-recent-list').count(),5)
   await bpView.getByLabel('队伍战绩范围').selectOption('2400')
   await bpView.locator('.rh-team-match').first().getByText('海克斯大乱斗', {exact:true}).waitFor()
-  await bpView.getByLabel('队伍战绩范围').selectOption('-1')
+  await bpView.getByLabel('队伍战绩范围').selectOption('440')
   await bpView.locator('.rh-team-match').first().getByText('排位赛 灵活排位', {exact:true}).waitFor()
   await page.setViewportSize({width:1000,height:650})
   for (const selector of ['.rh-team-body', '.rh-team-recent-list']) {

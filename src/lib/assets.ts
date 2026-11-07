@@ -58,6 +58,7 @@ const spellDescriptionMap = new Map<number, string>()
 const perkMap = new Map<number, string>()
 const perkNameMap = new Map<number, string>()
 const perkDescriptionMap = new Map<number, string>()
+const perkStatDescriptions = new Map<number, string[]>()
 const perkStyleMap = new Map<number, string>()
 const perkStyleNameMap = new Map<number, string>()
 const augmentMap = new Map<number, { name: string; iconPath: string; rarity: string; description: string }>()
@@ -233,13 +234,16 @@ async function tryInit(attempt: number) {
     if (perk.id > 0 && perk.name) perkNameMap.set(perk.id, perk.name)
     if (perk.id > 0) {
       const description = pickDescription(perk as Record<string, unknown>, [
-        'shortDesc',
         'longDesc',
+        'shortDesc',
         'description',
         'tooltip',
         'tooltipText',
       ])
       if (description) perkDescriptionMap.set(perk.id, description)
+      if (Array.isArray(perk.endOfGameStatDescs)) {
+        perkStatDescriptions.set(perk.id, perk.endOfGameStatDescs.map(normalizeDescription).filter(Boolean))
+      }
     }
   }
   for (const style of perkStyles.styles) {
@@ -357,11 +361,12 @@ export function getPerkName(id: number): string {
 }
 
 /** 获取单个符文完整信息（名称、图标、描述） */
-export function getPerkInfo(id: number): { name: string; iconPath: string; description: string } {
+export function getPerkInfo(id: number): { name: string; iconPath: string; description: string; stats: string[] } {
   return {
     name: perkNameMap.get(id) ?? String(id),
     iconPath: perkMap.get(id) ?? '',
     description: perkDescriptionMap.get(id) ?? '',
+    stats: perkStatDescriptions.get(id) ?? [],
   }
 }
 

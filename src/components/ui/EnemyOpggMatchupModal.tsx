@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Modal } from './Modal'
 import { OpggBuildRecommendationPanel } from './OpggBuildRecommendationPanel'
+import { resolveMostCommonPosition } from '@/lib/features/opgg-build-recommendation'
 import { mapOpggMatchups, opggApi, type OpggMatchup, type OpggPosition, type OpggTier } from '@/lib/opgg-api'
 
 interface MatchupQuery {
@@ -21,6 +22,16 @@ export function EnemyOpggMatchupModal({ championId, queueId, initialPosition, on
   const [query, setQuery] = useState<MatchupQuery | null>(null)
   const key = `${championId}:${position}:${tier}`
   const current = query?.key === key ? query : null
+
+  useEffect(() => setPosition(initialPosition), [championId, initialPosition])
+  useEffect(() => {
+    if (position !== 'none') return
+    let active = true
+    void resolveMostCommonPosition(championId, tier, 'kr').then((popular) => {
+      if (active && popular) setPosition((current) => current === 'none' ? popular : current)
+    })
+    return () => { active = false }
+  }, [championId, tier, position])
 
   useEffect(() => {
     if (position === 'none') return

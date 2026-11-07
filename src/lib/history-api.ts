@@ -72,7 +72,9 @@ export async function fetchHistoryRanks(puuid: string, signal?: AbortSignal, ser
     const tier = String(rank.tier || 'UNRANKED').toUpperCase()
     return {
       key, label, tier: ['NA', 'NONE'].includes(tier) ? 'UNRANKED' : tier, division: String(rank.division || ''),
-      lp: num(rank.leaguePoints), wins: num(rank.wins), losses: num(rank.losses),
+      lp: num(rank.leaguePoints), wins: num(rank.wins),
+      // A zero loss count can also mean that the client omitted the data.
+      losses: typeof rank.losses === 'number' && rank.losses > 0 ? num(rank.losses) : null,
       peak: rankStanding(rank.highestTier, rank.highestDivision),
       previousPeak: rankStanding(rank.previousSeasonHighestTier, rank.previousSeasonHighestDivision),
       previousEnd: rankStanding(rank.previousSeasonEndTier, rank.previousSeasonEndDivision),

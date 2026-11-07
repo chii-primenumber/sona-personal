@@ -83,7 +83,7 @@ export function HistoryReplayButton({ game }: { game: SgpGameSummaryJsonLol }) {
   }
 
   return <span className="rh-replay">
-    <button ref={button} type="button" className="rh-replay-button" title={error || (ready ? '播放回放' : '下载或查看回放')}
+    <button ref={button} type="button" className="rh-replay-button" aria-description={error || undefined}
       disabled={!!progress} onClick={() => void activate()}>{progress || (error ? '重试回放' : ready ? '播放回放' : '下载回放')}</button>
     {error && <span className="rh-replay-error" role="status">{error}</span>}
   </span>

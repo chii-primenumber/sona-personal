@@ -64,6 +64,12 @@ export interface SgpSummonerLite {
   profileIconId?: number
   profileIcon?: number
   summonerLevel?: number
+  level?: number
+}
+
+export interface RiotAccountAlias {
+  puuid: string
+  alias: { game_name: string; tag_line: string }
 }
 
 type GameSettingsBackup = {
@@ -604,11 +610,28 @@ class LCUManager {
   }
 
   async getHistorySgpSummoner(regionKey: string, puuid: string, signal?: AbortSignal) {
+    const profiles = await this.getHistorySgpSummoners(regionKey, [puuid], signal)
+    return profiles.find((profile) => profile?.puuid === puuid) ?? null
+  }
+
+  async getHistorySgpSummoners(regionKey: string, puuids: string[], signal?: AbortSignal) {
     const regionCode = encodeURIComponent(regionKey.replace(/^TENCENT_/, ''))
     const profiles = await this.readHistorySgp<SgpSummonerLite[]>(regionKey,
       `/summoner-ledge/v1/regions/${regionCode}/summoners/puuids`,
-      { method: 'POST', body: JSON.stringify([puuid]), signal })
-    return Array.isArray(profiles) ? profiles.find((profile) => profile?.puuid === puuid) ?? null : null
+      { method: 'POST', body: JSON.stringify(puuids), signal })
+    return Array.isArray(profiles) ? profiles : []
+  }
+
+  async getRiotAccountAliases(gameName: string, tagLine?: string, signal?: AbortSignal): Promise<RiotAccountAlias[]> {
+    const params = new URLSearchParams({ gameName })
+    if (tagLine) params.set('tagLine', tagLine)
+    const response = await fetch(`https://riotclient/player-account/aliases/v1/lookup?${params}`, { signal })
+    if (response.status === 404 || response.status === 204) return []
+    if (!response.ok) throw new Error(`账号搜索失败 (${response.status})`)
+    const aliases: unknown = await response.json()
+    if (!Array.isArray(aliases)) throw new Error('账号搜索返回格式错误')
+    return aliases.filter((row): row is RiotAccountAlias =>
+      typeof row?.puuid === 'string' && typeof row?.alias?.game_name === 'string' && typeof row?.alias?.tag_line === 'string')
   }
 
   getHistorySgpRanks<T>(regionKey: string, puuid: string, signal?: AbortSignal) {
@@ -1481,27 +1504,27 @@ class LCUManager {
     const timePlayed = gameDuration || 0
     const perks: SgpPerks = {
       statPerks: {
-        defense: 0,
-        flex: 0,
-        offense: 0,
+        defense: stats.statPerk2 ?? 0,
+        flex: stats.statPerk1 ?? 0,
+        offense: stats.statPerk0 ?? 0,
       },
       styles: [
         {
           description: 'primaryStyle',
           style: stats.perkPrimaryStyle || 0,
           selections: [
-            { perk: stats.perk0 || 0, var1: stats.perk0Var1 || 0, var2: stats.perk0Var2 || 0, var3: stats.perk0Var3 || 0 },
-            { perk: stats.perk1 || 0, var1: stats.perk1Var1 || 0, var2: stats.perk1Var2 || 0, var3: stats.perk1Var3 || 0 },
-            { perk: stats.perk2 || 0, var1: stats.perk2Var1 || 0, var2: stats.perk2Var2 || 0, var3: stats.perk2Var3 || 0 },
-            { perk: stats.perk3 || 0, var1: stats.perk3Var1 || 0, var2: stats.perk3Var2 || 0, var3: stats.perk3Var3 || 0 },
+            { perk: stats.perk0 || 0, var1: stats.perk0Var1, var2: stats.perk0Var2, var3: stats.perk0Var3 },
+            { perk: stats.perk1 || 0, var1: stats.perk1Var1, var2: stats.perk1Var2, var3: stats.perk1Var3 },
+            { perk: stats.perk2 || 0, var1: stats.perk2Var1, var2: stats.perk2Var2, var3: stats.perk2Var3 },
+            { perk: stats.perk3 || 0, var1: stats.perk3Var1, var2: stats.perk3Var2, var3: stats.perk3Var3 },
           ],
         },
         {
           description: 'subStyle',
           style: stats.perkSubStyle || 0,
           selections: [
-            { perk: stats.perk4 || 0, var1: stats.perk4Var1 || 0, var2: stats.perk4Var2 || 0, var3: stats.perk4Var3 || 0 },
-            { perk: stats.perk5 || 0, var1: stats.perk5Var1 || 0, var2: stats.perk5Var2 || 0, var3: stats.perk5Var3 || 0 },
+            { perk: stats.perk4 || 0, var1: stats.perk4Var1, var2: stats.perk4Var2, var3: stats.perk4Var3 },
+            { perk: stats.perk5 || 0, var1: stats.perk5Var1, var2: stats.perk5Var2, var3: stats.perk5Var3 },
           ],
         },
       ],
@@ -1698,7 +1721,7 @@ class LCUManager {
   }
 
   /** 获取所有符文数据（含 iconPath / description，对应单个符文 ID） */
-  getPerks(): Promise<Array<{ id: number; iconPath: string; name: string; shortDesc?: string; longDesc?: string; description?: string }>> {
+  getPerks(): Promise<Array<{ id: number; iconPath: string; name: string; shortDesc?: string; longDesc?: string; description?: string; endOfGameStatDescs?: string[] }>> {
     return get('/lol-game-data/assets/v1/perks.json')
   }
 

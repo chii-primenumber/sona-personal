@@ -76,6 +76,7 @@ export async function setupNativeHistoryFixture(socket: PenguContext['socket']) 
         <input aria-label="原生搜索框" style="position:absolute;right:70px;top:93px;width:240px;height:32px">
       </div>
       <button type="button" id="qa-open-profile">查看他人生涯</button>
+      <button type="button" id="qa-customize-profile">编辑身份</button>
       <button type="button" id="qa-close-profile">关闭他人生涯</button>
       <div class="rcp-fe-lol-profiles-modal" style="position:relative;min-height:60px">
         <div class="style-profile-sub-nav">生涯导航</div>
@@ -91,12 +92,23 @@ export async function setupNativeHistoryFixture(socket: PenguContext['socket']) 
     const profile = fixture.querySelector('.rcp-fe-lol-profiles-modal')!
     profile.remove()
     fixture.querySelector('#qa-open-profile')!.addEventListener('click', () => fixture.prepend(profile))
+    fixture.querySelector('#qa-customize-profile')!.addEventListener('click', () => {
+      const overlay = document.createElement('div')
+      overlay.className = 'qa-identity-overlay'
+      overlay.style.cssText = 'position:fixed;inset:0;background:#101a24;z-index:15000'
+      const close = document.createElement('button')
+      close.textContent = '关闭身份'
+      close.addEventListener('click', () => overlay.remove())
+      overlay.append(close)
+      document.body.append(overlay)
+    })
     fixture.querySelector('#qa-close-profile')!.addEventListener('click', () => profile.remove())
     fixture.querySelector('#qa-open-summary')!.addEventListener('click', () => {
       profile.querySelector('lol-regalia-profile-v2-element')?.remove()
       const summary = document.createElement('div')
       summary.className = 'match-summary-profile-overlay'
-      summary.textContent = '对局记录'
+      summary.style.cssText = 'position:relative;min-height:60px'
+      summary.innerHTML = '<div class="match-details-layer-header"><div class="match-layer-header-info-list" style="display:flex;gap:6px;width:300px">对局记录</div><button data-testid="qa-native-replay" style="position:absolute;right:0;top:0">下载回放</button></div>'
       profile.append(summary)
       matchApi.displayMatchSummary({ rootElement: summary, summonerId: 103 })
     })

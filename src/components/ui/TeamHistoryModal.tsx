@@ -4,6 +4,7 @@ import { PlayerHistoryModal } from './PlayerHistoryModal'
 import { ChampionStrip, HistoryImage, MatchReport, championName } from './HistoryWidgets'
 import { HistoryDisplaySettings } from './HistoryDisplaySettings'
 import { HistoryPlayerName } from './HistoryPlayerName'
+import { HistoryAssetTooltip } from './HistoryAssetTooltip'
 import { lcu, LcuEventUri } from '@/lib/lcu'
 import { store } from '@/lib/store'
 import { deobfuscateChampSelectPuuid } from '@/lib/champ-select-puuid'
@@ -169,8 +170,8 @@ function TeamSection({ team, queueId, count, open, hidden, onInspect, onMatch }:
     <section className={`rh-team-group rh-team-${team.id}`}>
       <h3>
         <span className="rh-team-dot" aria-hidden="true" />{team.label}
-        {showSummary && winRate != null && <strong title="有有效战绩的队员近期胜率的平均值">{percentText(winRate)}</strong>}
-        {showSummary && kda != null && <small title="有有效战绩的队员近期 KDA 的平均值">{numberText(kda, 2)} KDA</small>}
+        {showSummary && winRate != null && <HistoryAssetTooltip title="队伍平均胜率" compact focusable={false} asChild><strong>{percentText(winRate)}</strong></HistoryAssetTooltip>}
+        {showSummary && kda != null && <HistoryAssetTooltip title="队伍平均 KDA" compact focusable={false} asChild><small>{numberText(kda, 2)} KDA</small></HistoryAssetTooltip>}
         <small className="rh-team-sample">{available.length}/{team.members.length} 人有数据</small>
       </h3>
       <div className="rh-team-cards">
@@ -244,11 +245,11 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
               const lp = rank.lp != null && rank.tier !== 'UNRANKED' ? `${rank.lp} LP` : '—'
               const description = [queueName, rankText(rank), lp !== '—' && lp].filter(Boolean).join(' · ')
               return (
-                <span key={rank.key} className="rh-team-rank-row" title={description}>
+                <HistoryAssetTooltip key={rank.key} title={description} compact focusable={false} asChild><span className="rh-team-rank-row" aria-label={description}>
                   <span>{queueName}</span>
-                  <HistoryImage src={getRankedMiniCrest(rank.tier)} label={description} className="rh-team-rank-icon" />
+                  <HistoryImage src={getRankedMiniCrest(rank.tier)} label={description} className="rh-team-rank-icon" nativeTooltip={false} />
                   <span className="rh-team-rank-lp">{lp}</span>
-                </span>
+                </span></HistoryAssetTooltip>
               )
             }) ?? (rankLoading && member.puuid ? '段位查询中…' : '段位暂不可用')}
           </span>}
@@ -258,7 +259,7 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
         {member.championId > 0 && <HistoryImage src={getChampIcon(member.championId)} label={championName(member.championId)} />}
         {member.position && <span>{member.position}</span>}
         {member.self && <b>自己</b>}
-        {premade && <b title="客户端提供的预组队标识">组队 {premade}</b>}
+        {premade && <b>组队 {premade}</b>}
       </div>}
       {!member.puuid ? <div className="rh-card-state">玩家身份暂不可查询</div>
         : pages.loading ? <div className="rh-card-state"><span className="rh-spinner" />查询中…</div>
@@ -267,20 +268,20 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
         : <>
           {(show('winRate') || show('kda')) && <div className="rh-team-card-stats">
             {show('winRate') && <strong className={(stats.winRate ?? 0) >= 0.5 ? 'rh-team-positive' : 'rh-team-negative'}>
-              {percentText(stats.winRate)} <small title="有效对局数">({stats.total})</small>
+              {percentText(stats.winRate)} <small>({stats.total})</small>
             </strong>}
             {show('kda') && <strong>{numberText(stats.kda, 2)} <small>KDA</small></strong>}
           </div>}
           {tags.length > 0 && <div className="rh-team-tags">
             {tags.map(({ text, tone }) => (
-              <span key={text} className={`rh-team-tag rh-team-tag-${tone}`} title={text.startsWith('Sona') ? '近期对局综合评分 · 3–16 分' : text}>{text}</span>
+              <HistoryAssetTooltip key={text} title={text.startsWith('Sona') ? '近期对局综合评分 · 3–16 分' : text} compact focusable={false} asChild><span className={`rh-team-tag rh-team-tag-${tone}`}>{text}</span></HistoryAssetTooltip>
             ))}
           </div>}
           {show('champions') && <ChampionStrip matches={valid} limit={9} />}
           {show('recent') && <div className="rh-team-recent-list" aria-label="最近对局">
             {valid.slice(0, 8).map((match) => (
               <button type="button" className={`rh-team-match rh-team-match-${match.outcome}`} key={match.id}
-                title="打开这场对局的详细战报" onClick={() => onMatch(match)}>
+                aria-label="打开这场对局的详细战报" onClick={() => onMatch(match)}>
                 <HistoryImage src={getChampIcon(match.player.championId)} label={championName(match.player.championId)} />
                 <span>
                   <strong>{getQueueName(match.game.json.queueId)}</strong>

@@ -18,6 +18,7 @@ type MenuManager = { setMenuItems(items: MenuItem[]): void; openAtEvent(event: M
 
 let historyRoot: Root | undefined
 let profileEntry: HTMLButtonElement | undefined
+let summaryEntryHost: HTMLElement | undefined
 let latestRequest = 0
 let friendContextMenu: MenuManager | undefined
 const summaryIdentities = new WeakMap<Element, Identity>()
@@ -91,9 +92,18 @@ function activeProfileScreen() {
 function injectProfileButton() {
   const screen = activeProfileScreen()
   const navigation = screen?.querySelector('.style-profile-sub-nav')
-  const host = navigation?.parentElement
-  if (!screen || !navigation || !host || !visible(navigation) || !profileIdentity(screen)) {
+  const metadata = screen?.querySelector('.match-details-layer-header .match-layer-header-info-list')
+  const summaryVisible = !!metadata && visible(metadata)
+  const host = summaryVisible ? metadata : navigation?.parentElement
+  let navigationUncovered = false
+  if (navigation && visible(navigation)) {
+    const rect = navigation.getBoundingClientRect()
+    const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+    navigationUncovered = !!top && navigation.contains(top)
+  }
+  if (!screen || !host || (!summaryVisible && !navigationUncovered) || !profileIdentity(screen)) {
     profileEntry?.remove()
+    summaryEntryHost?.remove()
     return true
   }
 
@@ -108,7 +118,20 @@ function injectProfileButton() {
       if (current) void openHistory(current)
     })
   }
-  if (profileEntry.parentElement !== host) host.append(profileEntry)
+  profileEntry.classList.toggle('sona-profile-history-entry-inline', summaryVisible)
+  if (summaryVisible) {
+    if (!summaryEntryHost || summaryEntryHost.parentElement !== host) {
+      summaryEntryHost?.remove()
+      summaryEntryHost = document.createElement(host.matches('ul,ol') ? 'li' : 'span')
+      summaryEntryHost.className = 'match-layer-header-info-item'
+      host.append(summaryEntryHost)
+    }
+    if (profileEntry.parentElement !== summaryEntryHost) summaryEntryHost.append(profileEntry)
+  } else {
+    summaryEntryHost?.remove()
+    summaryEntryHost = undefined
+    if (profileEntry.parentElement !== host) host.append(profileEntry)
+  }
   return true
 }
 

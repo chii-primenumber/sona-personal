@@ -2,8 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
 import { HistoryReplayButton } from './HistoryReplayButton'
 import { HistoryPlayerName } from './HistoryPlayerName'
+import { HistoryRuneDetails } from './HistoryRuneDetails'
 import { Modal } from './Modal'
-import { getChampIcon, getChampionById, getItemInfo, getSpellInfo, getPerkInfo, getPerkStyleIcon, getAugmentInfo, getQueueName, getMapName } from '@/lib/assets'
+import { getChampIcon, getChampionById, getItemInfo, getSpellInfo, getPerkInfo, getPerkStyleIcon, getPerkStyleName, getAugmentInfo, getQueueName, getMapName } from '@/lib/assets'
 import { championStats, durationText, finite, getOutcome, getPosition, matchBadges, metric, numberText, percentText, POSITION_NAMES, riotName, share, summarize, teamKey, type HistoryMatch } from '@/lib/history-model'
 import { rankText, type HistoryRank } from '@/lib/history-api'
 import { getRankedEmblem, getRankedMiniCrest } from '@/lib/ranked-assets'
@@ -16,10 +17,14 @@ export function HistoryImage({ src, label, className = '', nativeTooltip = true 
   src?: string; label: string; className?: string; nativeTooltip?: boolean
 }) {
   const [failed, setFailed] = useState('')
-  const title = nativeTooltip ? label : undefined
-  return src && failed !== src
-    ? <img src={src} alt={label} title={title} className={className} loading="lazy" onError={() => setFailed(src)} />
-    : <span className={`rh-image-fallback ${className}`} title={title}>{label.slice(0, 1) || '?'}</span>
+  const element = src && failed !== src
+    ? <img src={src} alt={label} className={className} loading="lazy" onError={() => setFailed(src)} />
+    : <span className={`rh-image-fallback ${className}`}>{label.slice(0, 1) || '?'}</span>
+  if (!nativeTooltip || !label) return element
+  const [title, ...description] = label.split('\n')
+  return <HistoryAssetTooltip title={title} description={description.join('\n')} compact={!description.length} focusable={false} asChild>
+    {element}
+  </HistoryAssetTooltip>
 }
 
 export function championName(id: number): string {
@@ -38,7 +43,7 @@ export function RankCards({ ranks, status }: { ranks: HistoryRank[] | null; stat
     const total = rank.wins != null && rank.losses != null ? rank.wins + rank.losses : 0
     return (
       <button type="button" className="rh-rank-card" key={rank.key} disabled={!ranks}
-        title={ranks ? '查看历史段位' : undefined} onClick={() => setSelectedQueue(rank.key)}>
+        aria-label={`${rank.label} ${name}，查看历史段位`} onClick={() => setSelectedQueue(rank.key)}>
         <span className="rh-rank-card-heading">
           <span>{rank.label}</span>
           {total > 0 && <small>胜率 {((rank.wins ?? 0) / total * 100).toFixed(1)}%</small>}
@@ -47,7 +52,7 @@ export function RankCards({ ranks, status }: { ranks: HistoryRank[] | null; stat
           <HistoryImage src={getRankedEmblem(rank.tier)} label={name} className="rh-rank-crest" />
           <span className="rh-rank-card-data">
             <strong className={`rh-rank-${rank.tier.toLowerCase()}`}>{name}</strong>
-            {ranks && rank.tier !== 'UNRANKED' && <small>{numberText(rank.wins)} 胜 {numberText(rank.losses)} 负 · {numberText(rank.lp)} LP</small>}
+            {ranks && rank.tier !== 'UNRANKED' && <small>{numberText(rank.wins)} 胜{rank.losses != null && ` ${numberText(rank.losses)} 负`} · {numberText(rank.lp)} LP</small>}
             {ranks && <span className="rh-rank-peak">
               <span>赛季最高</span>
               {rank.peak ? <>
@@ -93,7 +98,8 @@ export function SummaryStats({ matches, compact = false }: { matches: HistoryMat
       ['场均视野', numberText(s.vision, 1)], ['场均友方治疗', numberText(s.healing)], ['场均友方护盾', numberText(s.shielding)],
     ] as Array<[string, string]> : []),
   ]
-  return <dl className={`rh-stats ${compact ? 'rh-stats-compact' : ''}`}>{metrics.map(([label, value, hint]) => <div key={label} title={hint}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+  return <dl className={`rh-stats ${compact ? 'rh-stats-compact' : ''}`}>{metrics.map(([label, value, hint]) =>
+    <HistoryAssetTooltip key={label} title={hint || label} compact focusable={false} asChild><div><dt>{label}</dt><dd>{value}</dd></div></HistoryAssetTooltip>)}</dl>
 }
 
 export function ChampionStrip({ matches, onSelect, selectedId, limit = 5 }: {
@@ -104,8 +110,8 @@ export function ChampionStrip({ matches, onSelect, selectedId, limit = 5 }: {
 }) {
   return <div className="rh-champion-strip">{championStats(matches).slice(0, limit).map((item) => <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}
     aria-pressed={onSelect && selectedId !== undefined ? selectedId === item.id : undefined}
-    title={`${championName(item.id)} · ${item.total} 场 · 胜率 ${percentText(item.winRate)}`} disabled={!onSelect}>
-    <HistoryImage src={getChampIcon(item.id)} label={championName(item.id)} /><span>{item.total}</span>
+    aria-label={`${championName(item.id)} · ${item.total} 场 · 胜率 ${percentText(item.winRate)}`} disabled={!onSelect}>
+    <HistoryImage src={getChampIcon(item.id)} label={`${championName(item.id)}\n${item.total} 场 · 胜率 ${percentText(item.winRate)}`} /><span>{item.total}</span>
   </button>)}</div>
 }
 
@@ -130,13 +136,16 @@ export function Equipment({ player, dense = false }: { player: SgpParticipantLol
 }
 
 export function RunesAndSpells({ player }: { player: SgpParticipantLol }) {
+  const [showDetails, setShowDetails] = useState(false)
   const keystone = player.perks?.styles?.[0]?.selections?.[0]?.perk
   const secondary = player.perks?.styles?.[1]?.style
   const spells = [player.spell1Id, player.spell2Id].filter((id) => id > 0)
-  return <div className="rh-runes-spells">{spells.map((id, index) => { const info = getSpellInfo(id); return <HistoryImage key={`spell-${index}`} src={info.iconPath} label={`${info.name || `技能 ${id}`}\n${info.description}`} /> })}
-    {keystone ? <HistoryImage src={getPerkInfo(keystone).iconPath} label={getPerkInfo(keystone).name || `符文 ${keystone}`} /> : null}
-    {secondary ? <HistoryImage src={getPerkStyleIcon(secondary)} label="副系符文" /> : null}
-  </div>
+  return <><div className="rh-runes-spells">{spells.map((id, index) => { const info = getSpellInfo(id); return <HistoryImage key={`spell-${index}`} src={info.iconPath} label={`${info.name || `技能 ${id}`}\n${info.description}`} /> })}
+    {(keystone || secondary) && <button type="button" className="rh-runes-detail-button" aria-label="查看本局符文详情" onClick={() => setShowDetails(true)}>
+      {keystone ? <HistoryImage src={getPerkInfo(keystone).iconPath} label={`${getPerkInfo(keystone).name}\n${getPerkInfo(keystone).description}`} /> : null}
+      {secondary ? <HistoryImage src={getPerkStyleIcon(secondary)} label={getPerkStyleName(secondary)} /> : null}
+    </button>}
+  </div><HistoryRuneDetails open={showDetails} player={player} onClose={() => setShowDetails(false)} /></>
 }
 
 const AUGMENT_RARITY_CLASSES: Record<string, string> = { 白银: 'silver', 黄金: 'gold', 棱彩: 'prismatic' }
@@ -220,13 +229,14 @@ function ReportShare({ player, game, field, max }: {
       segments = DAMAGE_LEGEND.map(([color, label], index) => ({ color, label, value: parts[index] ?? remainder }))
     }
     const sum = segments.reduce((value, segment) => value + segment.value, 0)
-    bar = <div className="rh-report-bar" title={segments.filter(({ value }) => value > 0)
-      .map(({ label, value }) => `${label} ${numberText(value)}`).join(' · ') || numberText(total)}>
+    const description = segments.filter(({ value }) => value > 0)
+      .map(({ label, value }) => `${label} ${numberText(value)}`).join(' · ') || numberText(total)
+    bar = <HistoryAssetTooltip title={description} compact focusable={false} asChild><div className="rh-report-bar" aria-label={description}>
       <div className="rh-report-bar-fill" style={{ width: `${total / max * 100}%` }}>
         {segments.filter(({ value }) => value > 0).map(({ color, value }) =>
           <span key={color} className={`rh-report-bar-${color}`} style={{ width: `${value / sum * 100}%` }} />)}
       </div>
-    </div>
+    </div></HistoryAssetTooltip>
   }
   return <>{numberText(total)}{bar}<small>{percentText(ratio)}</small></>
 }
@@ -361,7 +371,7 @@ export function HistoryMatchCard({ match, hidden, onInspect }: {
   const placement = finite(player.subteamPlacement) || finite(player.placement)
   return <article className={`rh-match rh-match-${outcome}`}>
     <div className={`rh-match-main${show('roster') ? '' : ' rh-match-main-no-roster'}`}>
-      <div className="rh-match-hero"><button type="button" title={`${championName(player.championId)} · 展开战报`} onClick={() => setExpanded(!expanded)}><HistoryImage src={getChampIcon(player.championId)} label={championName(player.championId)} /><small>{finite(player.champLevel) ?? '?'}</small></button><strong>{outcomeLabel}</strong>{game.json.gameMode === 'CHERRY' && placement && placement > 0 ? <small>第 {placement} 名</small> : null}</div>
+      <div className="rh-match-hero"><button type="button" aria-label={`${championName(player.championId)} · 展开战报`} onClick={() => setExpanded(!expanded)}><HistoryImage src={getChampIcon(player.championId)} label={championName(player.championId)} /><small>{finite(player.champLevel) ?? '?'}</small></button><strong>{outcomeLabel}</strong>{game.json.gameMode === 'CHERRY' && placement && placement > 0 ? <small>第 {placement} 名</small> : null}</div>
       <div className="rh-match-info">
         <div className="rh-match-stats">
           {show('spells') && <RunesAndSpells player={player} />}
@@ -373,12 +383,14 @@ export function HistoryMatchCard({ match, hidden, onInspect }: {
         <div className="rh-match-build">
           {show('items') && <Equipment player={player} />}
           {show('augments') && <Augments player={player} game={game} />}
-          {badges.length > 0 && <div className="rh-badges">{badges.slice(0, 4).map((b) => <span key={b.text} className={`rh-badge rh-badge-${b.tone}`} title={b.detail}>{b.text}</span>)}{badges.length > 4 && <span className="rh-badge" title={badges.slice(4).map((b) => b.detail).join('\n')}>+{badges.length - 4}</span>}</div>}
+          {badges.length > 0 && <div className="rh-badges">{badges.slice(0, 4).map((b) =>
+            <HistoryAssetTooltip key={b.text} title={b.detail} compact focusable={false} asChild><span className={`rh-badge rh-badge-${b.tone}`}>{b.text}</span></HistoryAssetTooltip>)}
+            {badges.length > 4 && <HistoryAssetTooltip title="更多表现" description={badges.slice(4).map((b) => b.detail).join('\n')} focusable={false} asChild><span className="rh-badge">+{badges.length - 4}</span></HistoryAssetTooltip>}</div>}
         </div>
         <div className="rh-match-meta"><span>{getQueueName(game.json.queueId)} · {durationText(match.duration)} · {date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} · {getMapName(game.json.mapId)}</span>
           <span className="rh-match-meta-actions">
             <HistoryReplayButton game={game.json} />
-            <button type="button" title="复制对局 ID" onClick={() => { void navigator.clipboard.writeText(String(game.json.gameId)).then(() => setCopied(true)).catch(() => setCopied(false)) }}>{copied ? '已复制' : `ID ${game.json.gameId}`}</button>
+            <button type="button" aria-label="复制对局 ID" onClick={() => { void navigator.clipboard.writeText(String(game.json.gameId)).then(() => setCopied(true)).catch(() => setCopied(false)) }}>{copied ? '已复制' : `ID ${game.json.gameId}`}</button>
           </span>
         </div>
       </div>

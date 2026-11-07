@@ -52,6 +52,7 @@ import {
 } from '@/lib/player-strength-score'
 import { deobfuscateChampSelectPuuid } from '@/lib/champ-select-puuid'
 import { translate } from '@/i18n'
+import { initSonaTooltips } from '@/lib/tooltips'
 
 // ==================== 共享：查询队友胜率 ====================
 
@@ -1103,6 +1104,7 @@ function pickRandomHomepageBackgroundOnStartup() {
 }
 
 export function initFeatures() {
+  initSonaTooltips()
   preloadChampSelectTierBadgeData()
   updateTeamHistoryOverview(store.get('teamHistoryOverview'))
   store.onChange('teamHistoryOverview', updateTeamHistoryOverview)

@@ -258,9 +258,9 @@ export interface SgpPerkStyle {
 
 export interface SgpPerkSelection {
   perk: number
-  var1: number
-  var2: number
-  var3: number
+  var1?: number
+  var2?: number
+  var3?: number
 }
 
 export interface SgpStatPerks {

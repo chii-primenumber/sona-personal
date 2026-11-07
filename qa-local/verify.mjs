@@ -39,7 +39,10 @@ const makeGame = (n) => {
       totalHeal:1500+i*712,totalHealsOnTeammates:i===0?8450:0,totalDamageShieldedOnTeammates:i===0?4190:250*i,
       damageDealtToObjectives:1365+i*630,damageDealtToTurrets:360+i*233,timeCCingOthers:18+i*3, damageSelfMitigated:6300,
       item0:3158,item1:6617,item2:3504,item3:6621,item4:n%2?3089:0,item5:n%3?3020:0,item6:3364,
-      spell1Id:4,spell2Id:aram?32:7,perks:{styles:[{style:8200,selections:[{perk:8214}]},{style:8400,selections:[{perk:8453}]}]},
+      spell1Id:4,spell2Id:aram?32:7,perks:{statPerks:{offense:5008,flex:5008,defense:5002},styles:[
+        {style:8200,selections:[{perk:8214,var1:1234,var2:567,var3:0},{perk:8234},{perk:8210},{perk:8237}]},
+        {style:8400,selections:[{perk:8453,var1:0},{perk:8444}]},
+      ]},
       playerAugment1:queueId===2400?101:0,playerAugment2:queueId===2400?102:0,playerAugment3:queueId===2400?103:0,playerAugment4:0,playerAugment5:0,playerAugment6:0,
       playerSubteamId:0, placement:0, subteamPlacement:0, win:i<5?blueWin:!blueWin,timePlayed:duration,gameEndedInEarlySurrender:n===11,gameEndedInSurrender:n%5===2,
       challenges:{soloKills:(n+i)%3},doubleKills:n%5===2?2:0,quadraKills:n%13===8?1:0,
@@ -63,6 +66,8 @@ let browser
 const errors = [], writes = [], external = [], counts = []
 const matchupRequests = []
 const crossRegionRequests = []
+const accountSearchBatches = []
+const fuzzyAccounts = Array.from({length:33},(_,index) => ({ puuid:`region-search-${index}`,alias:{game_name:`全区玩家${index}`,tag_line:`S${index}`} }))
 const replayActions = []
 let augmentRequests = 0
 let slowQueue = 0, failSgp = false, failMastery = false
@@ -85,7 +90,13 @@ try {
     const json = (body,status=200)=>route.fulfill({status,json:body,headers:{'access-control-allow-origin':'*'}}).catch(()=>{})
     if (method === 'OPTIONS') return route.fulfill({status:204,headers:{'access-control-allow-origin':'*','access-control-allow-methods':'GET, POST, OPTIONS','access-control-allow-headers':'authorization,user-agent,content-type'}}).catch(()=>{})
     const isOtherRegion = url.hostname === 'hn10-k8s-sgp.lol.qq.com'
-    if (isOtherRegion && method === 'POST' && p === '/summoner-ledge/v1/regions/HN10/summoners/puuids') {
+    if ((isOtherRegion || url.hostname === 'hn1-k8s-sgp.lol.qq.com') && method === 'POST' && /\/summoner-ledge\/v1\/regions\/HN(?:1|10)\/summoners\/puuids$/.test(p)) {
+      const requested = route.request().postDataJSON()
+      if (requested.some((id) => id.startsWith('region-search-'))) {
+        accountSearchBatches.push(requested.length)
+        return json(requested.map((id) => ({puuid:id,profileIconId:1,level:80})))
+      }
+      if (!isOtherRegion) return json(requested.flatMap((id) => ids.includes(id) ? [profile(ids.indexOf(id))] : []))
       assert.deepEqual(route.request().postDataJSON(), [ids[8]])
       crossRegionRequests.push('profile')
       return json([profile(8)])
@@ -98,6 +109,18 @@ try {
       return json({})
     }
     if (method !== 'GET') { writes.push(`${method} ${p}`); return json({},405) }
+    if (url.hostname === 'riotclient' && p === '/player-account/aliases/v1/lookup') {
+      const name = url.searchParams.get('gameName')
+      if (name === '全区') return json(fuzzyAccounts)
+      const index = names.indexOf(name)
+      if (index === 8) crossRegionRequests.push('name')
+      return index < 0 ? json([]) : json([{puuid:ids[index],alias:{game_name:names[index],tag_line:'DEMO'}}])
+    }
+    if (url.hostname === 'lol-api-champion.op.gg' && p === '/api/kr/champions/ranked') {
+      return json({meta:{version:'16.22'},data:[{id:154,positions:[
+        {name:'JUNGLE',stats:{role_rate:.8}},{name:'TOP',stats:{role_rate:.2}},
+      ]}]})
+    }
     if (url.hostname === 'aramgg.com' && p === '/data/aram-mayhem-augments.zh_cn.json') {
       augmentRequests++
       return json(Object.fromEntries([101,102,103].map((id) => [id, {
@@ -132,10 +155,12 @@ try {
     }
     if (url.origin !== origin) { external.push(url.hostname); return route.abort().catch(()=>{}) }
     if (p.startsWith('/qa-art/')||p.includes('/champion-icons/')||p.includes('/profile-icons/')||p.includes('/ranked-mini-crests/')||p.startsWith('/fe/lol-shared-components/')) return route.fulfill({contentType:'image/svg+xml',body:image(p)}).catch(()=>{})
-    if (p.endsWith('/champion-summary.json')) return json([...champions,[154,'扎克'],[83,'约里克']].map(([id,name])=>({id,name,title:'英雄',alias:`Preview${id}`,squarePortraitPath:`/qa-art/champion-${id}.svg`})))
+    if (p.endsWith('/champion-summary.json')) return json([...champions,[154,'扎克'],[83,'约里克']].map(([id,name])=>({id,name:'英雄',description:name,alias:`Preview${id}`,squarePortraitPath:`/qa-art/champion-${id}.svg`})))
     if (p.endsWith('/items.json')) return json(mockIcons(items,'item'))
     if (p.endsWith('/summoner-spells.json')) return json(mockIcons([[4,'闪现'],[7,'治疗'],[32,'雪球']],'spell'))
-    if (p.endsWith('/perks.json')) return json(mockIcons([[8214,'召唤艾黎'],[8453,'复苏']],'perk'))
+    if (p.endsWith('/perks.json')) return json(mockIcons([[8214,'召唤艾黎'],[8453,'复苏'],[8234,'迅捷'],[8210,'超然'],[8237,'焦灼'],[8444,'复苏之风'],[5008,'适应之力'],[5002,'护甲']],'perk').map((perk) => ({
+      ...perk,endOfGameStatDescs:perk.id===8214 ? ['造成伤害：@eogvar1@','提供护盾：@eogvar2@'] : [8453,8444].includes(perk.id)?['触发次数：@eogvar1@']:[],
+    })))
     if (p.endsWith('/perkstyles.json')) return json({styles:mockIcons([[8200,'巫术'],[8400,'坚决']],'perkstyle')})
     if (p.endsWith('/cherry-augments.json')) return json([101,102,103].map((id,index)=>({id,nameTRA:`演示强化 ${id}`,simpleNameTRA:`演示强化 ${id}`,augmentSmallIconPath:`/qa-art/augment-${id}.svg`,rarity:['kGold','kSilver','kPrismatic'][index]})))
     if (p.endsWith('/maps.json')) return json([{id:11,name:'召唤师峡谷',gameModeName:'经典'},{id:12,name:'嚎哭深渊',gameModeName:'大乱斗'}])
@@ -166,7 +191,8 @@ try {
     }
     if (/^\/lol-summoner\/v1\/summoners\/\d+$/.test(p)) return json(profile(Number(p.split('/').at(-1)) - 100))
     if (p.includes('/lol-summoner/v2/summoners/puuid/')) return json(profile(Math.max(0,ids.indexOf(p.split('/').at(-1)))))
-    if (p.startsWith('/lol-ranked/')) return json(ranks)
+    if (p.startsWith('/lol-ranked/')) return p.endsWith(ids[1])
+      ? json({queueMap:Object.fromEntries(Object.entries(ranks.queueMap).map(([key,rank])=>[key,{...rank,losses:0}]))}) : json(ranks)
     if (p.endsWith('/champion-mastery')) return failMastery?json({},403):json(champions.map(([championId],i)=>({championId,championLevel:30-i,championPoints:350000-i*24700})))
     if (p.endsWith('/gameflow-phase')) return json('Lobby')
     if (p.endsWith('/lol-gameflow/v1/session')) return json(game)
@@ -223,6 +249,39 @@ try {
   const settings = page.getByTestId('history-display-settings')
   const tooltip = page.getByRole('tooltip')
   await profileView.locator('.rh-match').first().waitFor()
+  const firstHero = profileView.locator('.rh-match-hero img').first()
+  await firstHero.hover()
+  await tooltip.getByText('英雄 · 索拉卡',{exact:true}).waitFor()
+  assert.equal(await firstHero.getAttribute('title'),null)
+  await page.mouse.move(4,4)
+  await tooltip.waitFor({state:'hidden'})
+  await page.evaluate(() => {
+    const button = document.createElement('button')
+    button.textContent = '提示验证'
+    button.title = '统一提示样式'
+    button.id = 'qa-legacy-tooltip'
+    document.querySelector('[data-testid="player-history"] .rh-header-actions').append(button)
+  })
+  const legacyTooltip = page.locator('#qa-legacy-tooltip')
+  await legacyTooltip.hover()
+  await tooltip.getByText('统一提示样式',{exact:true}).waitFor()
+  assert.equal(await legacyTooltip.getAttribute('title'),null)
+  assert.equal(await tooltip.evaluate((node) => getComputedStyle(node).backgroundColor),'rgb(28, 44, 64)')
+  await page.evaluate(() => document.querySelector('#qa-legacy-tooltip').remove())
+  await page.mouse.move(4,4)
+  await tooltip.waitFor({state:'hidden'})
+  const runeButton = profileView.getByRole('button',{name:'查看本局符文详情',exact:true}).first()
+  await runeButton.locator('img').first().hover()
+  await tooltip.getByText('召唤艾黎',{exact:true}).waitFor()
+  await page.mouse.move(4,4)
+  await runeButton.click()
+  const runeDetails = page.getByRole('region',{name:'本局符文详情',exact:true})
+  await runeDetails.getByText('造成伤害：1,234',{exact:true}).waitFor()
+  await runeDetails.getByText('提供护盾：567',{exact:true}).waitFor()
+  await runeDetails.getByText('触发次数：0',{exact:true}).waitFor()
+  await runeDetails.getByText('触发次数：—',{exact:true}).waitFor()
+  await page.keyboard.press('Escape')
+  await runeDetails.waitFor({state:'hidden'})
   await profileView.getByText('流光翡翠 I',{exact:true}).waitFor()
   await profileView.getByText('璀璨钻石 II',{exact:true}).waitFor()
   const rankCards = profileView.locator('.rh-rank-card')
@@ -299,13 +358,13 @@ try {
     [6,'离开','rgb(232, 64, 87)'], [7,'游戏中','rgb(0, 200, 223)'],
   ]) {
     const dot = friends.getByRole('button',{name:`查看 ${names[index]}#DEMO 的战绩`}).locator('.rh-search-status')
-    assert.equal(await dot.getAttribute('title'),label)
+    assert.equal(await dot.getAttribute('aria-label'),label)
     assert.equal(await dot.evaluate((node) => getComputedStyle(node).backgroundColor),color)
   }
   await recent.getByRole('button',{name:'查看 练习星轨#DEMO 的战绩'}).waitFor()
   await friends.getByRole('searchbox').fill('雨后')
   assert.equal(await friends.locator('.rh-search-player').count(),1)
-  assert.equal(await friends.locator('.rh-search-status').getAttribute('title'),'在线')
+  assert.equal(await friends.locator('.rh-search-status').getAttribute('aria-label'),'在线')
   await friends.getByRole('button',{name:'查看 雨后回声#DEMO 的战绩'}).click()
   await profileView.getByRole('heading', {name:'雨后回声#DEMO',exact:true}).waitFor()
   await profileView.getByRole('button', {name:'‹ 返回'}).click()
@@ -325,10 +384,18 @@ try {
   await searchPlayer.fill('薄荷汽水')
   await searchPlayer.press('Enter')
   await searchResult.getByRole('button',{name:'查看 薄荷汽水#DEMO 的战绩'}).waitFor()
+  await searchInput.fill('全区')
+  await searchInput.press('Enter')
+  await searchResult.getByText('33 位玩家',{exact:true}).waitFor()
+  assert.equal(await searchResult.locator('.rh-search-player').count(),33)
+  assert.deepEqual(accountSearchBatches,[16,16,1])
   await searchInput.fill('薄荷汽水＃DEMO')
   await searchInput.press('Enter')
   await searchResult.getByRole('button',{name:'查看 薄荷汽水#DEMO 的战绩'}).click()
   await profileView.getByRole('heading', {name:'薄荷汽水#DEMO',exact:true}).waitFor()
+  await profileView.getByText('流光翡翠 I',{exact:true}).waitFor()
+  assert.equal(await profileView.locator('.rh-rank-card-heading small').count(),0)
+  assert.equal(await profileView.locator('.rh-rank-card').getByText(/0 负/).count(),0)
   await profileView.getByRole('button', {name:'‹ 返回'}).click()
   await profileView.getByRole('heading', {name:'练习星轨#DEMO',exact:true}).waitFor()
   await profileView.getByRole('button',{name:'搜索玩家',exact:true}).click()
@@ -374,7 +441,7 @@ try {
   assert.equal(await report.locator('.rh-report-bar-fill > .rh-report-bar-physical').count(),19)
   assert.equal(await report.locator('.rh-report-bar-fill > .rh-report-bar-unknown').count(),1)
   const firstDamageBar = report.locator('.rh-report-bar').first()
-  assert.equal(await firstDamageBar.getAttribute('title'),'物理 2,300 · 魔法 1,840 · 真实 460')
+  assert.equal(await firstDamageBar.getAttribute('aria-label'),'物理 2,300 · 魔法 1,840 · 真实 460')
   assert.equal(await firstDamageBar.locator('span').first().evaluate((element) => element.style.width),'50%')
   assert.ok(await firstDamageBar.locator('.rh-report-bar-fill').evaluate((element) => parseFloat(element.style.width) < 20))
   await report.screenshot({path:path.join(out,'伤害条_模拟数据.png')})
@@ -419,9 +486,9 @@ try {
   assert.ok((await profileView.locator('.rh-match-meta > span:first-child').allTextContents()).every((line)=>line.includes('海克斯大乱斗')))
   await profileView.locator('.rh-augments').first().waitFor()
   const rarityIcons = profileView.locator('.rh-augments').first()
-  assert.equal(await rarityIcons.locator('.rh-augment-gold').evaluate((node) => getComputedStyle(node).backgroundColor),'rgb(106, 75, 18)')
-  assert.equal(await rarityIcons.locator('.rh-augment-silver').evaluate((node) => getComputedStyle(node).backgroundColor),'rgb(75, 88, 109)')
-  assert.notEqual(await rarityIcons.locator('.rh-augment-prismatic').evaluate((node) => getComputedStyle(node).backgroundImage),'none')
+  assert.equal(await rarityIcons.locator('.rh-augment-gold').evaluate((node) => getComputedStyle(node).borderTopColor),'rgb(180, 164, 113)')
+  assert.equal(await rarityIcons.locator('.rh-augment-silver').evaluate((node) => getComputedStyle(node).borderTopColor),'rgb(97, 115, 122)')
+  assert.equal(await rarityIcons.locator('.rh-augment-prismatic').evaluate((node) => getComputedStyle(node).borderTopColor),'rgb(189, 140, 219)')
   assert.equal(augmentRequests,0)
   const firstAugment = profileView.locator('.rh-augment-slot').first()
   await firstAugment.hover()
@@ -458,10 +525,6 @@ try {
   assert.equal(await matchupPanel.count(),0)
   await page.evaluate(() => window.qaEnemyQueue(440))
   await locked.click()
-  await matchupPanel.getByText('选择该英雄的分路以查询韩服对位。',{exact:true}).waitFor()
-  assert.equal(matchupRequests.length,0)
-  await matchupPanel.getByRole('button',{name:'选择分路',exact:true}).click()
-  await matchupPanel.getByRole('button',{name:'打野',exact:true}).click()
   await matchupPanel.getByText('32.0%',{exact:true}).waitFor()
   await matchupPanel.getByRole('button',{name:'流光翡翠+',exact:true}).click()
   await matchupPanel.getByRole('button',{name:'璀璨钻石+',exact:true}).click()
@@ -486,7 +549,7 @@ try {
   assert.equal(await matchupPanel.count(),0)
   await page.evaluate(() => window.qaEnemyQueue(0, true, 'TournamentPickStrategy'))
   await locked.click()
-  await matchupPanel.getByText('选择该英雄的分路以查询韩服对位。',{exact:true}).waitFor()
+  await matchupPanel.getByText('32.0%',{exact:true}).waitFor()
   await page.keyboard.press('Escape')
   await matchupPanel.waitFor({state:'hidden'})
   await page.getByRole('button',{name:'对局信息',exact:true}).click()
@@ -507,7 +570,7 @@ try {
     '/fe/lol-static-assets/images/ranked-mini-crests/emerald.svg',
     '/fe/lol-static-assets/images/ranked-mini-crests/diamond.svg',
   ])
-  assert.equal(await rankRows.first().getAttribute('title'), '单双排 · 流光翡翠 I · 55 LP')
+  assert.equal(await rankRows.first().getAttribute('aria-label'), '单双排 · 流光翡翠 I · 55 LP')
   assert.ok((await rankRows.nth(1).boundingBox()).y > (await rankRows.first().boundingBox()).y)
   await bpView.getByRole('button',{name:'显示设置',exact:true}).click()
   await settings.getByRole('checkbox',{name:'最近对局',exact:true}).uncheck()
@@ -605,6 +668,7 @@ try {
   await page.keyboard.press('Escape')
   await profileView.waitFor({state:'hidden'})
   await page.evaluate(() => window.qaNativeHistory())
+  await page.evaluate(() => window.scrollTo(0,0))
   async function assertProfile(name) {
     await profileView.getByRole('heading', { name, exact: true }).waitFor()
     await profileView.locator('.rh-match').first().waitFor()
@@ -613,6 +677,10 @@ try {
   }
   const nativeEntry = page.locator('.sona-profile-history-entry')
   const ownEntry = page.locator('.rcp-fe-lol-profiles-main').locator(nativeEntry)
+  await ownEntry.waitFor()
+  await page.getByRole('button',{name:'编辑身份',exact:true}).click()
+  await nativeEntry.waitFor({state:'hidden'})
+  await page.getByRole('button',{name:'关闭身份',exact:true}).click()
   await ownEntry.waitFor()
   const searchBox = await page.getByRole('textbox', {name:'原生搜索框'}).boundingBox()
   const ownButton = await ownEntry.boundingBox()
@@ -625,6 +693,11 @@ try {
   await otherEntry.click()
   await assertProfile('雨后回声#DEMO')
   await page.getByRole('button', {name:'切换至对局记录'}).click()
+  await page.locator('.sona-profile-history-entry-inline').waitFor()
+  const entryRect = await page.locator('.sona-profile-history-entry-inline').boundingBox()
+  const replayRect = await page.getByTestId('qa-native-replay').boundingBox()
+  assert.ok(entryRect.x + entryRect.width <= replayRect.x || replayRect.x + replayRect.width <= entryRect.x ||
+    entryRect.y + entryRect.height <= replayRect.y || replayRect.y + replayRect.height <= entryRect.y)
   await page.locator('.sona-profile-history-entry').click()
   await assertProfile('微光纸船#DEMO')
   await page.getByRole('button', {name:'关闭他人生涯'}).click()

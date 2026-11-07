@@ -49,7 +49,7 @@ export function historyPlayerFromSummoner(data: SgpSummonerLite, serverId?: stri
   const baseName = data.gameName || data.displayName || data.name
   const name = baseName && data.tagLine && !baseName.includes('#') ? `${baseName}#${data.tagLine}` : baseName || fallbackName
   if (!data.puuid || !name) return null
-  return { puuid: data.puuid, name, serverId, iconId: data.profileIconId ?? data.profileIcon, level: data.summonerLevel }
+  return { puuid: data.puuid, name, serverId, iconId: data.profileIconId ?? data.profileIcon, level: data.summonerLevel ?? data.level }
 }
 
 export function historyPlayerFromFriend(friend: ChatFriend, currentServer: string): HistoryPlayer | null {
@@ -91,6 +91,9 @@ async function localLookup(endpoint: string, signal: AbortSignal) {
 
 export function searchHistoryPlayers(query: PlayerQuery, serverId: string, parent?: AbortSignal) {
   return deadline(async (signal) => {
+    if (query.kind === 'name' || (query.kind === 'riotId' && serverId)) {
+      return searchAccountPlayers(query, serverId, signal)
+    }
     const encoded = encodeURIComponent(query.value)
     let response: SgpSummonerLite | SgpSummonerLite[] | null
     if (serverId) {
@@ -104,9 +107,6 @@ export function searchHistoryPlayers(query: PlayerQuery, serverId: string, paren
           ? `/lol-summoner/v1/alias/lookup?gameName=${encoded}&tagLine=${encodeURIComponent(query.tag)}`
           : `/lol-summoner/v1/summoners?name=${encoded}`
       response = await localLookup(endpoint, signal)
-      if (query.kind === 'name' && !(Array.isArray(response) ? response.length : response?.puuid)) {
-        response = await localLookup(`/lol-summoner/v1/alias/lookup?gameName=${encoded}`, signal)
-      }
     }
 
     const rows = Array.isArray(response) ? response : response ? [response] : []
@@ -123,6 +123,37 @@ export function searchHistoryPlayers(query: PlayerQuery, serverId: string, paren
       if (query.kind === 'puuid' && row.puuid.toLowerCase() !== query.value.toLowerCase()) return []
       const player = historyPlayerFromSummoner(row, serverId || undefined, query.kind === 'name' ? query.value : '召唤师')
       return player ? [player] : []
-    }).slice(0, 30)
-  }, parent, 10000)
+    })
+  }, parent, 30000)
+}
+
+async function searchAccountPlayers(query: PlayerQuery, serverId: string, signal: AbortSignal) {
+  const aliases = await lcu.getRiotAccountAliases(query.value, query.kind === 'riotId' ? query.tag : undefined, signal)
+  const accounts = new Map(aliases.map((account) => [account.puuid, account]))
+  const ids = [...accounts.keys()]
+  const region = serverId || await lcu.getSgpServerId()
+  const players: HistoryPlayer[] = []
+  for (let start = 0; start < ids.length; start += 16) {
+    if (signal.aborted) throw new DOMException('查询已取消', 'AbortError')
+    const batch = ids.slice(start, start + 16)
+    let profiles: SgpSummonerLite[]
+    if (region.startsWith('TENCENT_')) {
+      profiles = await lcu.getHistorySgpSummoners(region, batch, signal)
+    } else {
+      const results = await Promise.all(batch.map(async (id) => {
+        const profile = await localLookup(`/lol-summoner/v2/summoners/puuid/${encodeURIComponent(id)}`, signal)
+        return Array.isArray(profile) ? profile : profile ? [profile] : []
+      }))
+      profiles = results.flat()
+    }
+    for (const profile of profiles) {
+      const account = profile?.puuid && accounts.get(profile.puuid)
+      if (!account) continue
+      const player = historyPlayerFromSummoner({
+        ...profile, gameName: account.alias.game_name, tagLine: account.alias.tag_line,
+      }, serverId || undefined)
+      if (player) players.push(player)
+    }
+  }
+  return players
 }

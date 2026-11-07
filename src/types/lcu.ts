@@ -900,6 +900,9 @@ export interface ParticipantStats {
   perk5Var3: number
   perkPrimaryStyle: number
   perkSubStyle: number
+  statPerk0?: number
+  statPerk1?: number
+  statPerk2?: number
   physicalDamageDealt: number
   physicalDamageDealtToChampions: number
   physicalDamageTaken: number

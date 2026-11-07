@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Modal } from './Modal'
 import { HistoryImage } from './HistoryWidgets'
 import { HistoryPlayerName } from './HistoryPlayerName'
+import { HistoryAssetTooltip } from './HistoryAssetTooltip'
 import { deadline } from '@/lib/history-api'
 import { profileIconUrl } from '@/lib/history-model'
 import { historyPlayerFromFriend, historyPlayerMatches, historySearchServers, historyServerName, parsePlayerQuery,
@@ -171,7 +172,7 @@ function PlayerRow({ player, onSelect }: { player: HistoryPlayer; onSelect: (pla
   return <button type="button" className="rh-search-player" onClick={() => onSelect(player)} aria-label={`查看 ${player.name} 的战绩`}>
     <span className="rh-search-portrait">
       <HistoryImage src={profileIconUrl(player.iconId)} label={player.name} nativeTooltip={false} />
-      {status && <i className={`rh-search-status rh-search-status-${player.availability}`} title={status} aria-label={status} />}
+      {status && <HistoryAssetTooltip title={status} compact focusable={false} asChild><i className={`rh-search-status rh-search-status-${player.availability}`} aria-label={status} /></HistoryAssetTooltip>}
     </span>
     <span className="rh-search-identity"><strong><HistoryPlayerName name={player.name} /></strong>
       {(tag || player.serverId) && <small>{[tag && `#${tag}`, player.serverId && historyServerName(player.serverId)].filter(Boolean).join(' · ')}</small>}

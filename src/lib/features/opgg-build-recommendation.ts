@@ -117,7 +117,7 @@ let currentContext: RecommendationContext = {
 let currentChampionLocked = false
 const boundElements: Array<{ el: HTMLElement; handler: EventListener; originalText: string }> = []
 const recommendationCache = new Map<string, RecommendationCacheEntry>()
-const commonPositionMapCache = new Map<OpggTier, Promise<Map<number, OpggPosition>>>()
+const commonPositionMapCache = new Map<string, Promise<Map<number, OpggPosition>>>()
 let outsideCloseHandler: ((event: MouseEvent) => void) | null = null
 let activePanelKey = ''
 let panelReactRoot: Root | null = null
@@ -188,12 +188,13 @@ function getPositionPopularity(position: OpggRankedPosition): number {
   return Number.isFinite(pickRate) ? pickRate : 0
 }
 
-function ensureCommonPositionMap(tier: OpggTier): Promise<Map<number, OpggPosition>> {
-  const cached = commonPositionMapCache.get(tier)
+function ensureCommonPositionMap(tier: OpggTier, region: 'kr' | 'global'): Promise<Map<number, OpggPosition>> {
+  const key = `${region}:${tier}`
+  const cached = commonPositionMapCache.get(key)
   if (cached) return cached
 
   const promise = opggApi.getChampionsTier({
-    region: 'global',
+    region,
     mode: 'ranked',
     tier,
   }).then((summary) => {
@@ -217,19 +218,19 @@ function ensureCommonPositionMap(tier: OpggTier): Promise<Map<number, OpggPositi
     logger.info('[OPGG] 英雄常见分路表已缓存 → tier=%s, champions=%d', tier, positionsByChampion.size)
     return positionsByChampion
   }).catch((err) => {
-    commonPositionMapCache.delete(tier)
+    commonPositionMapCache.delete(key)
     throw err
   })
 
-  commonPositionMapCache.set(tier, promise)
+  commonPositionMapCache.set(key, promise)
   return promise
 }
 
-async function resolveMostCommonPosition(championId: number, tier = getSelectedOpggTier()): Promise<OpggPosition | null> {
+export async function resolveMostCommonPosition(championId: number, tier = getSelectedOpggTier(), region: 'kr' | 'global' = 'global'): Promise<OpggPosition | null> {
   if (championId <= 0) return null
 
   try {
-    const positionsByChampion = await ensureCommonPositionMap(tier)
+    const positionsByChampion = await ensureCommonPositionMap(tier, region)
     return positionsByChampion.get(championId) ?? null
   } catch (err) {
     logger.warn('[OPGG] 获取英雄常见分路失败:', err)

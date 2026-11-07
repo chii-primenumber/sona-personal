@@ -5,6 +5,7 @@ import { ChampionStrip, HistoryImage, MatchReport, championName } from './Histor
 import { HistoryDisplaySettings } from './HistoryDisplaySettings'
 import { HistoryPlayerName } from './HistoryPlayerName'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
+import { HistoryPerformanceStats } from './HistoryPerformanceStats'
 import { RefreshIcon, SettingsIcon } from './icons'
 import { lcu, LcuEventUri } from '@/lib/lcu'
 import { store } from '@/lib/store'
@@ -297,11 +298,12 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
             </strong>}
             {show('kda') && <strong>{numberText(stats.kda, 2)} <small>KDA</small></strong>}
           </div>}
-          {tags.length > 0 && <div className="rh-team-tags">
+          <div className="rh-team-tags">
             {tags.map(({ text, tone }) => (
               <HistoryAssetTooltip key={text} title={text.startsWith('Sona') ? '近期对局综合评分 · 3–16 分' : text} compact focusable={false} asChild><span className={`rh-team-tag rh-team-tag-${tone}`}>{text}</span></HistoryAssetTooltip>
             ))}
-          </div>}
+            <HistoryPerformanceStats matches={valid} section="team" />
+          </div>
           {show('champions') && <ChampionStrip matches={valid} limit={9} />}
           {show('recent') && <div className="rh-team-recent-list" aria-label="最近对局">
             {valid.slice(0, 8).map((match) => (

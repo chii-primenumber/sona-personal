@@ -3,6 +3,8 @@ import { deadline } from '@/lib/history-api'
 import { lcu } from '@/lib/lcu'
 import { prepareReplayMetadata, readReplayMetadata, requestReplay } from '@/lib/replay'
 import type { SgpGameSummaryJsonLol } from '@/types/sgp'
+import { HistoryAssetTooltip } from './HistoryAssetTooltip'
+import { RefreshIcon, ReplayDownloadIcon, ReplayPlayIcon } from './icons'
 
 export function HistoryReplayButton({ game }: { game: SgpGameSummaryJsonLol }) {
   const [ready, setReady] = useState(false)
@@ -82,9 +84,14 @@ export function HistoryReplayButton({ game }: { game: SgpGameSummaryJsonLol }) {
     }
   }
 
+  const label = progress || (error ? '重试回放' : ready ? '播放回放' : '下载回放')
   return <span className="rh-replay">
-    <button ref={button} type="button" className="rh-replay-button" aria-description={error || undefined}
-      disabled={!!progress} onClick={() => void activate()}>{progress || (error ? '重试回放' : ready ? '播放回放' : '下载回放')}</button>
+    <HistoryAssetTooltip className="rh-replay-trigger" title={label} description={error || undefined} compact={!error} focusable={false}>
+      <button ref={button} type="button" className="rh-replay-button" aria-label={label} aria-description={error || undefined} aria-busy={Boolean(progress)}
+        disabled={!!progress} onClick={() => void activate()}>
+        {progress ? <span className="rh-is-spinning" aria-hidden="true"><RefreshIcon /></span> : ready ? <ReplayPlayIcon /> : <ReplayDownloadIcon />}
+      </button>
+    </HistoryAssetTooltip>
     {error && <span className="rh-replay-error" role="status">{error}</span>}
   </span>
 }

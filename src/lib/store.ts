@@ -22,6 +22,7 @@
 import type { HistoryHiddenFields } from '@/lib/history-display'
 import type { HistoryPlayer } from '@/lib/history-search'
 import type { SonaTheme } from '@/lib/theme'
+import { DEFAULT_PERFORMANCE_FIELDS, type PerformanceSelection } from '@/lib/history-performance'
 
 // ==================== 配置项定义 ====================
 
@@ -29,6 +30,7 @@ import type { SonaTheme } from '@/lib/theme'
 export interface SonaConfig {
   /** 战绩界面各区隐藏的字段。新增字段默认显示。 */
   historyHiddenFields: HistoryHiddenFields
+  historyPerformanceFields: PerformanceSelection
   historyRecentPlayers: HistoryPlayer[]
   theme: SonaTheme
   /** 自动接受对局 */
@@ -237,6 +239,7 @@ export interface SonaConfig {
 /** 配置项默认值 */
 const DEFAULT_CONFIG: SonaConfig = {
   historyHiddenFields: {},
+  historyPerformanceFields: DEFAULT_PERFORMANCE_FIELDS,
   historyRecentPlayers: [],
   theme: 'client',
   autoAcceptMatch: false,

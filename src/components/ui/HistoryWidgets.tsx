@@ -10,7 +10,8 @@ import { rankText, type HistoryRank } from '@/lib/history-api'
 import { getRankedEmblem, getRankedMiniCrest } from '@/lib/ranked-assets'
 import { fetchHistoryAugmentDetail, historyAugmentRarity, type HistoryAugmentDetail, type HistoryAugmentMode } from '@/lib/history-augment-details'
 import { isHistoryFieldVisible, type HistoryDisplayField, type HistoryHiddenFields } from '@/lib/history-display'
-import { useHistoryHiddenFields } from '@/lib/use-history-display'
+import { useHistoryHiddenFields, useHistoryPerformanceFields } from '@/lib/use-history-display'
+import { PERFORMANCE_STATS, performanceText, performanceMatchForPlayer } from '@/lib/history-performance'
 import type { SgpGameSummaryLol, SgpParticipantLol } from '@/types/sgp'
 
 export function HistoryImage({ src, label, className = '', nativeTooltip = true }: {
@@ -196,7 +197,7 @@ type ReportView = 'combat' | 'support'
 type ShareMetric = 'totalDamageDealtToChampions' | 'totalDamageTaken' | 'goldEarned'
 type ReportField = HistoryDisplayField<'report'>
 type ReportColumn = {
-  key: ReportField | 'loadout'
+  key: ReportField | 'loadout' | `performance:${string}`
   label: string
   render: (player: SgpParticipantLol, teamKills: number | null) => ReactNode
 }
@@ -241,7 +242,7 @@ function ReportShare({ player, game, field, max }: {
   return <>{numberText(total)}{bar}<small>{percentText(ratio)}</small></>
 }
 
-function reportColumns(game: SgpGameSummaryLol, view: ReportView, show: (field: ReportField) => boolean) {
+function reportColumns(game: SgpGameSummaryLol, view: ReportView, show: (field: ReportField) => boolean, selectedData: string[]) {
   const columns: ReportColumn[] = []
   function add(key: ReportField, label: string, render: ReportColumn['render']) {
     if (show(key)) columns.push({ key, label, render })
@@ -292,6 +293,15 @@ function reportColumns(game: SgpGameSummaryLol, view: ReportView, show: (field: 
     add('vision', '视野 / 插眼 / 排眼', (p) => <>{numberText(metric(p, 'visionScore', game))}<small>{numberText(metric(p, 'wardsPlaced', game))} / {numberText(metric(p, 'wardsKilled', game))}</small></>)
     add('objectives', '目标 / 防御塔伤害', (p) => <>{numberText(metric(p, 'damageDealtToObjectives', game))}<small>推塔 {numberText(metric(p, 'damageDealtToTurrets', game))}</small></>)
   }
+  const extra = PERFORMANCE_STATS.filter((stat)=>stat.sections.includes('report') && selectedData.includes(stat.key)
+    && (view === 'support' ? stat.group === '治疗、控制与视野' : stat.group !== '治疗、控制与视野'))
+  if (extra.length) {
+    const matches = new Map(game.json.participants.map((player)=>[player,performanceMatchForPlayer(game,player)]))
+    for (const stat of extra) columns.push({key:`performance:${stat.key}`,label:stat.label,render:(player)=>{
+      const match = matches.get(player)
+      return performanceText(stat,match ? stat.read(match) : null)
+    }})
+  }
   return columns
 }
 
@@ -299,7 +309,8 @@ export function MatchReport({ game, focusPuuid, onInspect }: { game: SgpGameSumm
   const [view, setView] = useState<ReportView>('combat')
   const hidden = useHistoryHiddenFields()
   const show = (field: ReportField) => isHistoryFieldVisible(hidden, 'report', field)
-  const columns = reportColumns(game, view, show)
+  const performance = useHistoryPerformanceFields()
+  const columns = reportColumns(game, view, show, performance.report ?? [])
   const bars = view === 'combat' && show('bars')
   const damageLegend = bars && (show('damage') || show('taken'))
   const economyLegend = bars && show('gold')

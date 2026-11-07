@@ -3,6 +3,7 @@ import { Modal } from './Modal'
 import { HistoryImage } from './HistoryWidgets'
 import { HistoryPlayerName } from './HistoryPlayerName'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
+import { SearchIcon } from './icons'
 import { deadline } from '@/lib/history-api'
 import { profileIconUrl } from '@/lib/history-model'
 import { historyPlayerFromFriend, historyPlayerMatches, historySearchServers, historyServerName, parsePlayerQuery,
@@ -122,7 +123,7 @@ function PlayerSearchContent({ initialQuery, onSelect }: {
           </select>
           <input type="search" aria-label="玩家名称、编号或 PUUID" placeholder="名字 / 名字#编号 / PUUID" maxLength={120}
             value={query} autoFocus autoComplete="off" onChange={(event) => setQuery(event.target.value)} />
-          <button type="submit" className="rh-button" disabled={!query.trim() || state.pending}>{state.pending ? '搜索中…' : '搜索'}</button>
+          <HistoryAssetTooltip title={state.pending ? '搜索中…' : '搜索'} compact asChild><button type="submit" className="rh-button rh-icon-button" aria-label={state.pending ? '搜索中…' : '搜索'} disabled={!query.trim() || state.pending}><SearchIcon /></button></HistoryAssetTooltip>
         </form>
       </header>
       {showMerged && <div className="rh-merged-servers" aria-label="合区参照">

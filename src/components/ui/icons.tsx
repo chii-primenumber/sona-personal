@@ -49,6 +49,18 @@ export function RefreshIcon() {
   )
 }
 
+export function SearchIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>
+}
+
+export function ReplayDownloadIcon() {
+  return <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="16" cy="16" r="13.3" /><path d="M16 8v11m-5-5 5 5 5-5M9 19v5h14v-5" /></svg>
+}
+
+export function ReplayPlayIcon() {
+  return <svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="16" cy="16" r="13.3" /><path d="M10 23a9 9 0 1 1 7 2M14 10l8 6-8 6z" /></svg>
+}
+
 export function SettingsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

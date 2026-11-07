@@ -4,6 +4,8 @@ import { HistoryDisplaySettings } from './HistoryDisplaySettings'
 import { PlayerSearchModal } from './PlayerSearchModal'
 import { HistoryPlayerName } from './HistoryPlayerName'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
+import { HistoryPerformanceStats } from './HistoryPerformanceStats'
+import { RefreshIcon, SettingsIcon, SearchIcon } from './icons'
 import { ChampionStrip, HistoryImage, HistoryMatchCard, RankCards, SummaryStats, championName } from './HistoryWidgets'
 import { getChampIcon, getPlayableQueues, getQueueName } from '@/lib/assets'
 import { deadline, fetchHistoryMastery, fetchHistoryRanks, fetchHistorySummoner, type HistoryMastery, type HistoryRank } from '@/lib/history-api'
@@ -117,7 +119,9 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
   return <div className="rh-shell" data-testid="player-history">
     <header className={`rh-header${show('ranks') ? '' : ' rh-header-no-ranks'}`}>
       <div className="rh-profile">{onBack && <button className="rh-back" type="button" onClick={onBack}>‹ 返回</button>}
-        <HistoryImage src={profileIconUrl(profile?.iconId ?? target.iconId)} label={name} className="rh-profile-icon" />
+        <span className="rh-profile-portrait"><HistoryImage src={profileIconUrl(profile?.iconId ?? target.iconId)} label={name} className="rh-profile-icon" />
+          {level != null && <small className="rh-profile-level">{level}</small>}
+        </span>
         <div>
           <div className="rh-profile-name">
             <h2 aria-label={name}>{identity.name}</h2>
@@ -132,18 +136,18 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
             </button>}
           </div>
           {identity.tag && <span className="rh-profile-tag">{identity.tag}</span>}
-          <span className="rh-muted">{target.serverId && `${historyServerName(target.serverId)} · `}{level != null && `等级 ${level} · `}已加载 {allMatches.length} 场</span></div>
+          {target.serverId && <span className="rh-muted">{historyServerName(target.serverId)}</span>}</div>
       </div>
       {show('ranks') && <RankCards ranks={ranks} status={rankStatus} />}
       <div className="rh-header-actions">
-        <button type="button" className="rh-button" onClick={refresh} disabled={pages.loading}>刷新</button>
-        <button type="button" className="rh-button" onClick={() => setShowSettings(true)}>显示设置</button>
+        <HistoryAssetTooltip title="刷新" compact asChild><button type="button" className="rh-button rh-icon-button" aria-label="刷新" onClick={refresh} disabled={pages.loading}><span aria-hidden="true"><RefreshIcon /></span></button></HistoryAssetTooltip>
+        <HistoryAssetTooltip title="显示设置" compact asChild><button type="button" className="rh-button rh-icon-button" aria-label="显示设置" onClick={() => setShowSettings(true)}><span aria-hidden="true"><SettingsIcon /></span></button></HistoryAssetTooltip>
       </div>
     </header>
     <div className="rh-workspace">
       <aside className="rh-sidebar">
         <section className="rh-panel"><h3>查询范围</h3><label>游戏模式<select aria-label="游戏模式" value={queueId} onChange={(event) => { setQueueId(Number(event.target.value)); resetLocalFilters() }}><option value={0}>全部模式</option>{queues.map((q) => <option key={q.id} value={q.id}>{q.name}</option>)}</select></label><label>每次加载<select aria-label="每次加载场次" value={batchSize} onChange={(e) => setBatchSize(Number(e.target.value))}>{[20, 50, 100].map((count) => <option value={count} key={count}>{count} 场</option>)}</select></label></section>
-        {show('summary') && <section className="rh-panel"><h3>近期总览 <small>{stats.total} 场</small></h3>{strength && <HistoryAssetTooltip title="近期对局综合评分 · 3–16 分" compact focusable={false} asChild><div className="rh-score"><span>Sona 评分</span><strong>{strength.score.toFixed(1)}</strong></div></HistoryAssetTooltip>}<SummaryStats matches={filtered} />{stats.total > 0 && <div className="rh-summary-extra"><span>{stats.streak}</span><span>蓝方 {stats.blue} / 红方 {stats.red}</span></div>}</section>}
+        {show('summary') && <section className="rh-panel"><h3>近期总览 <small>{stats.total} 场</small></h3>{strength && <HistoryAssetTooltip title="近期对局综合评分 · 3–16 分" compact focusable={false} asChild><div className="rh-score"><span>Sona 评分</span><strong>{strength.score.toFixed(1)}</strong></div></HistoryAssetTooltip>}<SummaryStats matches={filtered} /><HistoryPerformanceStats matches={filtered} section="history" />{stats.total > 0 && <div className="rh-summary-extra"><span>{stats.streak}</span><span>蓝方 {stats.blue} / 红方 {stats.red}</span></div>}</section>}
         {show('champions') && <section className="rh-panel">
           <h3>近期常玩英雄</h3>
           <ChampionStrip matches={allMatches} selectedId={championId} limit={12}
@@ -180,7 +184,7 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
           <form className="rh-player-search" onSubmit={(event) => { event.preventDefault(); setShowSearch(true) }} role="search">
             <input type="search" aria-label="搜索玩家" placeholder="名字 / 名字#编号 / PUUID" maxLength={120}
               autoComplete="off" value={searchText} onChange={(event) => setSearchText(event.target.value)} />
-            <button type="submit" className="rh-button">搜索玩家</button>
+            <HistoryAssetTooltip title="搜索玩家" compact asChild><button type="submit" className="rh-button rh-icon-button" aria-label="搜索玩家"><SearchIcon /></button></HistoryAssetTooltip>
           </form>
           <span className="rh-muted">{pages.updatedAt ? `更新于 ${new Date(pages.updatedAt).toLocaleTimeString('zh-CN')}` : '正在查询'}</span>
         </div>

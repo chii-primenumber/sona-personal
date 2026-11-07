@@ -12,3 +12,10 @@ function snapshot() {
 export function useHistoryHiddenFields() {
   return useSyncExternalStore(subscribe, snapshot)
 }
+
+export function useHistoryPerformanceFields() {
+  return useSyncExternalStore(
+    (callback) => store.onChange('historyPerformanceFields', callback),
+    () => store.get('historyPerformanceFields'),
+  )
+}

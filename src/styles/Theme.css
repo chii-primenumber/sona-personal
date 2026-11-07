@@ -19,6 +19,10 @@
   --sona-history-loss: #1d181a;
   --sona-history-blue: #81a6af;
   --sona-history-red: #c5958b;
+  --sona-team-match-win: #31406f;
+  --sona-team-match-loss: #5f3142;
+  --sona-team-match-blue: #3667c0;
+  --sona-team-match-red: #b74045;
 }
 
 :root[data-sona-theme="slate"] {

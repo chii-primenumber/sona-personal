@@ -45,11 +45,10 @@ import { updateQuickLobbyMode } from '@/lib/features/quick-lobby-mode'
 import { preloadChampSelectTierBadgeData, updateChampSelectTierBadge } from '@/lib/features/champselect-tier-badge'
 import { setAvailabilityHijackEnabled, setHideTFTEnabled, setHideClassicModeEnabled, setHideRightNavTextEnabled } from '@/lib/injections'
 import {
-  calculateSonaPlayerStrengthScore,
   filterSonaStrengthGamesByQueue,
-  shouldSkipSonaStrengthGame,
-  type SonaPlayerStrengthScore,
 } from '@/lib/player-strength-score'
+import { calculatePlayerScore, shouldSkipPlayerScoreGame, formatPlayerScore, type PlayerScore } from '@/lib/player-score'
+import type { SgpGameSummaryLol } from '@/types/sgp'
 import { deobfuscateChampSelectPuuid } from '@/lib/champ-select-puuid'
 import { translate } from '@/i18n'
 import { initSonaTooltips } from '@/lib/tooltips'
@@ -73,7 +72,8 @@ interface TeammateStats {
   avgD: number
   avgA: number
   kdaNum: number
-  strengthScore: SonaPlayerStrengthScore | null
+  strengthScore: PlayerScore | null
+  scoreGames?: SgpGameSummaryLol[]
 }
 
 interface TeamStatsResult {
@@ -125,7 +125,9 @@ async function fetchTeamStats(): Promise<TeamStatsResult> {
 
   _fetchTeamStatsPromise = _doFetchTeamStats()
   try {
-    return await _fetchTeamStatsPromise
+    const result = await _fetchTeamStatsPromise
+    for (const stat of result.stats) if (stat.scoreGames) stat.strengthScore = calculatePlayerScore(stat.scoreGames,stat.puuid)
+    return result
   } finally {
     _fetchTeamStatsPromise = null
   }
@@ -224,7 +226,7 @@ async function _doFetchTeamStats(): Promise<TeamStatsResult> {
       for (const game of games) {
         const p = game.json.participants.find((pt) => pt.puuid === puuid)
         if (!p) continue
-        if (shouldSkipSonaStrengthGame(game, puuid)) continue
+        if (shouldSkipPlayerScoreGame(game, puuid)) continue
 
         matchStats.push({
           kills: p.kills,
@@ -247,7 +249,7 @@ async function _doFetchTeamStats(): Promise<TeamStatsResult> {
       }
 
       const total = matchStats.length
-      const strengthScore = calculateSonaPlayerStrengthScore(games, puuid)
+      const strengthScore = calculatePlayerScore(games, puuid)
       logger.info(
         '[TeamStats] %s → 当前模式有效 %d 场 / 返回 %d 场 (queueId=%d, tag=%s)',
         gameName,
@@ -273,6 +275,7 @@ async function _doFetchTeamStats(): Promise<TeamStatsResult> {
         avgA: totalAssists / total,
         kdaNum: totalDeaths === 0 ? totalKills + totalAssists : (totalKills + totalAssists) / totalDeaths,
         strengthScore,
+        scoreGames: games,
       } as TeammateStats
     } catch (error) {
       logger.warn('[TeamStats] %d楼战绩查询失败（visibility=%s）:', i + 1, player.nameVisibilityType || 'unknown', error)
@@ -902,7 +905,7 @@ const TEAM_POWER_TITLE_KEYS = [
 
 function assignTeamPowerTitles(stats: TeammateStats[]): Map<string, string> {
   const ranked = [...stats]
-    .filter((stat): stat is TeammateStats & { strengthScore: SonaPlayerStrengthScore } => Boolean(stat.strengthScore))
+    .filter((stat): stat is TeammateStats & { strengthScore: PlayerScore } => Boolean(stat.strengthScore))
     .sort((a, b) => b.strengthScore.score - a.strengthScore.score)
 
   const titles = new Map<string, string>()
@@ -933,7 +936,7 @@ async function analyzeTeammates() {
       const winRate = s.winRate.toFixed(1)
       const kdaStr = s.kdaNum >= 99 ? 'Perfect' : s.kdaNum.toFixed(2)
       const title = teamPowerTitles.get(getTeammateStatsKey(s)) ?? translate('strength.teamTier.newbie')
-      const scoreText = s.strengthScore ? s.strengthScore.score.toFixed(1) : '--'
+      const scoreText = s.strengthScore ? formatPlayerScore(s.strengthScore.score,s.strengthScore.system) : '--'
 
       logger.info(
         '│ %s — %s#%s — 近%d场 胜率: %s%% (%d胜%d负) | KDA: %s (%.1f/%.1f/%.1f) | 综合评分: %s | %s',
@@ -1105,6 +1108,10 @@ function pickRandomHomepageBackgroundOnStartup() {
 
 export function initFeatures() {
   initSonaTooltips()
+  store.onChange('playerScoreSystem', () => {
+    const cached = new Set([...statsByPuuid.values(),...statsBySummonerId.values(),...statsByObfuscatedPuuid.values(),...statsByObfuscatedSummonerId.values(),...floorStats])
+    for (const stat of cached) if (stat.scoreGames) stat.strengthScore = calculatePlayerScore(stat.scoreGames,stat.puuid)
+  })
   preloadChampSelectTierBadgeData()
   updateTeamHistoryOverview(store.get('teamHistoryOverview'))
   store.onChange('teamHistoryOverview', updateTeamHistoryOverview)

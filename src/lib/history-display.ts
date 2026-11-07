@@ -10,7 +10,7 @@ export const HISTORY_DISPLAY_FIELDS = {
     ['damage', '伤害占比'],
     ['taken', '承伤占比'],
     ['gold', '经济占比'],
-    ['score', 'Sona 评分'],
+    ['score', '综合评分'],
     ['champions', '常玩英雄'],
     ['recent', '最近对局'],
   ],

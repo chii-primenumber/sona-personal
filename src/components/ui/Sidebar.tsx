@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { MusicIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/ui/icons'
 import { useI18n } from '@/i18n'
 import '@/styles/Sidebar.css'
+import { ScoreSystemButton } from './ScoreSystemButton'
 
 declare const __PLUGIN_VERSION__: string
 
@@ -52,6 +53,7 @@ export function Sidebar({ items, activeId, onSelect, collapsed, onToggle }: Side
 
       {/* 底部展开/收缩按钮 */}
       <div className="sona-sidebar-footer">
+        <ScoreSystemButton collapsed={collapsed} />
         <button className="sona-sidebar-toggle" onClick={onToggle} title={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}>
           {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
         </button>

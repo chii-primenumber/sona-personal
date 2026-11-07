@@ -157,11 +157,18 @@
 /* ---- 底部按钮区 ---- */
 .sona-sidebar-footer {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
   justify-content: center;
   padding: 8px 6px;
   border-top: 1px solid rgb(var(--sona-accent-rgb) / 0.1);
   flex-shrink: 0;
 }
+
+.sona-score-system { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 6px 8px; min-height: 30px; border: 1px solid rgb(var(--sona-accent-rgb) / .25); border-radius: 4px; color: rgb(var(--sona-accent-rgb)); background: rgb(var(--sona-accent-rgb) / .08); font: 12px 'Microsoft YaHei UI',sans-serif; cursor: pointer; white-space: nowrap; }
+.sona-score-system:hover { background: rgb(var(--sona-accent-rgb) / .16); }
+.sona-score-system--collapsed { width: 30px; padding: 5px; }
 
 .sona-sidebar-toggle {
   display: flex;

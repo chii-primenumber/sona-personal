@@ -12,7 +12,8 @@ import { deadline, fetchHistoryMastery, fetchHistoryRanks, fetchHistorySummoner,
 import { lcu } from '@/lib/lcu'
 import { historyPlayerFromSummoner, historyServerName, rememberHistoryPlayer, type HistoryPlayer } from '@/lib/history-search'
 import { championStats, encounters, numberText, percentText, POSITION_NAMES, profileIconUrl, splitRiotId, summarize, toHistoryMatches } from '@/lib/history-model'
-import { calculateSonaPlayerStrengthScore } from '@/lib/player-strength-score'
+import { calculatePlayerScore, playerScoreLabel, playerScoreRange, formatPlayerScore } from '@/lib/player-score'
+import { usePlayerScoreSystem } from '@/lib/use-player-score'
 import { useHistoryPages } from '@/lib/use-history-pages'
 import { useHistoryHiddenFields } from '@/lib/use-history-display'
 import { isHistoryFieldVisible, type HistoryDisplayField } from '@/lib/history-display'
@@ -58,6 +59,7 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
   const [copyStatus, setCopyStatus] = useState('')
   const pages = useHistoryPages(target.puuid, queueId, batchSize, open, target.serverId)
   const hidden = useHistoryHiddenFields()
+  const scoreSystem = usePlayerScoreSystem()
   const show = (field: HistoryDisplayField<'history'>) => isHistoryFieldVisible(hidden, 'history', field)
 
   useEffect(() => {
@@ -102,8 +104,8 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
   const teammates = useMemo(() => encounters(filtered, 'ally'), [filtered])
   const opponents = useMemo(() => encounters(filtered, 'enemy'), [filtered])
   const strength = useMemo(() => {
-    try { const score = calculateSonaPlayerStrengthScore(filtered.filter((m) => m.outcome === 'win' || m.outcome === 'loss').map((m) => m.game), target.puuid); return score && Number.isFinite(score.score) ? score : null } catch { return null }
-  }, [filtered, target.puuid])
+    try { const score = calculatePlayerScore(filtered.filter((m) => m.outcome === 'win' || m.outcome === 'loss').map((m) => m.game), target.puuid, scoreSystem); return score && Number.isFinite(score.score) ? score : null } catch { return null }
+  }, [filtered, target.puuid, scoreSystem])
   const queues = useMemo(() => {
     const map = new Map(getPlayableQueues().map((q) => [q.id, q.name]))
     for (const id of [420, 440, 430, 450, 2400, defaultQueueId, ...pages.games.map((g) => g.json.queueId)]) if (id > 0 && !map.has(id)) map.set(id, getQueueName(id))
@@ -147,7 +149,7 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
     <div className="rh-workspace">
       <aside className="rh-sidebar">
         <section className="rh-panel"><h3>查询范围</h3><label>游戏模式<select aria-label="游戏模式" value={queueId} onChange={(event) => { setQueueId(Number(event.target.value)); resetLocalFilters() }}><option value={0}>全部模式</option>{queues.map((q) => <option key={q.id} value={q.id}>{q.name}</option>)}</select></label><label>每次加载<select aria-label="每次加载场次" value={batchSize} onChange={(e) => setBatchSize(Number(e.target.value))}>{[20, 50, 100].map((count) => <option value={count} key={count}>{count} 场</option>)}</select></label></section>
-        {show('summary') && <section className="rh-panel"><h3>近期总览 <small>{stats.total} 场</small></h3>{strength && <HistoryAssetTooltip title="近期对局综合评分 · 3–16 分" compact focusable={false} asChild><div className="rh-score"><span>Sona 评分</span><strong>{strength.score.toFixed(1)}</strong></div></HistoryAssetTooltip>}<SummaryStats matches={filtered} /><HistoryPerformanceStats matches={filtered} section="history" />{stats.total > 0 && <div className="rh-summary-extra"><span>{stats.streak}</span><span>蓝方 {stats.blue} / 红方 {stats.red}</span></div>}</section>}
+        {show('summary') && <section className="rh-panel"><h3>近期总览 <small>{stats.total} 场</small></h3>{strength && <HistoryAssetTooltip title={`${playerScoreLabel(scoreSystem)} · ${playerScoreRange(scoreSystem)} 分`} compact focusable={false} asChild><div className="rh-score" data-score-system={scoreSystem}><span>{playerScoreLabel(scoreSystem)}</span><strong>{formatPlayerScore(strength.score,scoreSystem)}</strong></div></HistoryAssetTooltip>}<SummaryStats matches={filtered} /><HistoryPerformanceStats matches={filtered} section="history" />{stats.total > 0 && <div className="rh-summary-extra"><span>{stats.streak}</span><span>蓝方 {stats.blue} / 红方 {stats.red}</span></div>}</section>}
         {show('champions') && <section className="rh-panel">
           <h3>近期常玩英雄</h3>
           <ChampionStrip matches={allMatches} selectedId={championId} limit={12}

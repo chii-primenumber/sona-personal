@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ToolsPage } from '@/components/pages/ToolsPage'
 import { SettingsPage } from '@/components/pages/SettingsPage'
+import { Sidebar } from '@/components/ui/Sidebar'
 import { LcuEventUri } from '@/lib/lcu'
 import { initAssets } from '@/lib/assets'
 import { initFeatures } from '@/lib/features'
@@ -59,6 +60,9 @@ function Preview() {
   const [phase, setPhase] = useState<GameflowPhase>('None')
   const move = (next: GameflowPhase) => { setPhase(next); emit(LcuEventUri.GAMEFLOW_PHASE_CHANGE, next) }
   return <><div className="qa-toolbar"><strong>离线界面验证 · 全部数据均为虚构</strong><button type="button" onClick={() => move('ChampSelect')}>模拟 BP</button><button type="button" onClick={() => move('InProgress')}>模拟进游戏</button><button type="button" onClick={() => move('Lobby')}>模拟回大厅</button></div>
+    <div id="qa-score-menu" style={{position:'absolute',right:22,top:90,width:180,height:430,display:'flex',pointerEvents:'none'}}>
+      <Sidebar items={[{id:'home',label:'首页',icon:null},{id:'tools',label:'工具',icon:null},{id:'settings',label:'设置',icon:null}]} activeId="tools" onSelect={()=>{}} collapsed={false} onToggle={()=>{}} />
+    </div>
     {phase === 'ChampSelect' && <><div className="party visible">{[0,1,2,3,4].map((index) => <div className="summoner-wrapper visible left" key={index}><div className="summoner-container"><div className="champion-icon-container" data-testid={`preview-avatar-${index}`}>{index + 1}</div><div className="player-details">{index + 1} 楼</div></div></div>)}</div><div className="bottom-right-buttons" /></>}
     {phase === 'ChampSelect' && <><EnemyRows />
       <div className="lock-in visible" style={{position:'relative',width:640,height:82,marginLeft:300}}>

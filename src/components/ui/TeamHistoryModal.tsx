@@ -14,7 +14,8 @@ import { getChampIcon, getPlayableQueues, getQueueName } from '@/lib/assets'
 import { getRankedMiniCrest } from '@/lib/ranked-assets'
 import { deadline, fetchHistoryRanks, fetchHistorySummoner, rankText, type HistoryRank } from '@/lib/history-api'
 import { mean, numberText, percentText, POSITION_NAMES, profileIconUrl, summarize, toHistoryMatches, validMatches, type HistoryMatch } from '@/lib/history-model'
-import { calculateSonaPlayerStrengthScore } from '@/lib/player-strength-score'
+import { calculatePlayerScore, playerScoreName, playerScoreLabel, playerScoreRange, formatPlayerScore } from '@/lib/player-score'
+import { usePlayerScoreSystem } from '@/lib/use-player-score'
 import { useHistoryPages } from '@/lib/use-history-pages'
 import { useHistoryHiddenFields } from '@/lib/use-history-display'
 import { isHistoryFieldVisible, type HistoryDisplayField, type HistoryHiddenFields } from '@/lib/history-display'
@@ -221,6 +222,7 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
   const [profile, setProfile] = useState<SummonerInfo | null>(null)
   const [ranks, setRanks] = useState<HistoryRank[] | null>(null)
   const [rankLoading, setRankLoading] = useState(true)
+  const scoreSystem = usePlayerScoreSystem()
   const pages = useHistoryPages(member.puuid, queueId, count, open)
   useEffect(() => {
     if (!open || !member.puuid) return
@@ -240,12 +242,12 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
   }, [member.key, open, stats, updateSummary])
   const score = useMemo(() => {
     try {
-      const result = calculateSonaPlayerStrengthScore(valid.map((match) => match.game), member.puuid)
+      const result = calculatePlayerScore(valid.map((match) => match.game), member.puuid, scoreSystem)
       return result && Number.isFinite(result.score) ? result.score : null
     } catch {
       return null
     }
-  }, [valid, member.puuid])
+  }, [valid, member.puuid, scoreSystem])
   const name = profile?.gameName ? `${profile.gameName}${profile.tagLine ? `#${profile.tagLine}` : ''}` : member.name
   const partyColor = premade ? premadeColors[premade.charCodeAt(0) - 65] : undefined
   const show = (field: HistoryDisplayField<'team'>) => isHistoryFieldVisible(hidden, 'team', field)
@@ -256,7 +258,7 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
     { field: 'damage', text: stats.damageShare == null ? '' : `伤害 ${percentText(stats.damageShare)}`, tone: 'red' },
     { field: 'taken', text: stats.takenShare == null ? '' : `承伤 ${percentText(stats.takenShare)}`, tone: 'purple' },
     { field: 'gold', text: stats.goldShare == null ? '' : `经济 ${percentText(stats.goldShare)}`, tone: 'gold' },
-    { field: 'score', text: score == null ? '' : `Sona ${numberText(score, 1)}`, tone: 'purple' },
+    { field: 'score', text: score == null ? '' : `${playerScoreName(scoreSystem)} ${formatPlayerScore(score,scoreSystem)}`, tone: 'purple' },
   ] as const).filter(({ field, text }) => text && show(field))
   return (
     <article className={`rh-team-card${member.self ? ' is-self' : ''}`}>
@@ -299,8 +301,8 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
             {show('kda') && <strong>{numberText(stats.kda, 2)} <small>KDA</small></strong>}
           </div>}
           <div className="rh-team-tags">
-            {tags.map(({ text, tone }) => (
-              <HistoryAssetTooltip key={text} title={text.startsWith('Sona') ? '近期对局综合评分 · 3–16 分' : text} compact focusable={false} asChild><span className={`rh-team-tag rh-team-tag-${tone}`}>{text}</span></HistoryAssetTooltip>
+            {tags.map(({ field, text, tone }) => (
+              <HistoryAssetTooltip key={field} title={field==='score' ? `${playerScoreLabel(scoreSystem)} · ${playerScoreRange(scoreSystem)} 分` : text} compact focusable={false} asChild><span className={`rh-team-tag rh-team-tag-${tone}`} data-score-system={field==='score'?scoreSystem:undefined}>{text}</span></HistoryAssetTooltip>
             ))}
             <HistoryPerformanceStats matches={valid} section="team" />
           </div>

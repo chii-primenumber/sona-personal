@@ -23,6 +23,7 @@ import type { HistoryHiddenFields } from '@/lib/history-display'
 import type { HistoryPlayer } from '@/lib/history-search'
 import type { SonaTheme } from '@/lib/theme'
 import { DEFAULT_PERFORMANCE_FIELDS, type PerformanceSelection } from '@/lib/history-performance'
+import type { PlayerScoreSystem } from '@/lib/player-score'
 
 // ==================== 配置项定义 ====================
 
@@ -33,6 +34,7 @@ export interface SonaConfig {
   historyPerformanceFields: PerformanceSelection
   historyRecentPlayers: HistoryPlayer[]
   theme: SonaTheme
+  playerScoreSystem: PlayerScoreSystem
   /** 自动接受对局 */
   autoAcceptMatch: boolean
   /** 允许接受对局后再拒绝（解禁 ReadyCheck 的接受/拒绝按钮，使其始终可点） */
@@ -242,6 +244,7 @@ const DEFAULT_CONFIG: SonaConfig = {
   historyPerformanceFields: DEFAULT_PERFORMANCE_FIELDS,
   historyRecentPlayers: [],
   theme: 'client',
+  playerScoreSystem: 'akari',
   autoAcceptMatch: false,
   allowDeclineAfterAccept: true,
   autoAcceptDelayMin: 0,

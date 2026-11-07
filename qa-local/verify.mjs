@@ -40,7 +40,7 @@ const makeGame = (n) => {
       ...(i !== 2 && { physicalDamageDealtToChampions:damage*.5, magicDamageDealtToChampions:damage*.4, trueDamageDealtToChampions:damage*.1 }),
       physicalDamageTaken:taken*.6,magicDamageTaken:taken*.3,trueDamageTaken:taken*.1,
       totalMinionsKilled:aram?8+(n+i)%40:24+(n*5+i*23)%240, neutralMinionsKilled:i%5===2?74:0,
-      visionScore:aram?0:10+(n+4*i)%40, wardsPlaced:aram?0:4+i, wardsKilled:aram?0:i%4,
+      visionScore:aram?0:10+(n+4*i)%40, wardsPlaced:aram?0:4+i, wardsKilled:aram?0:i%4, detectorWardsPlaced:0, turretTakedowns:0,
       totalHeal:1500+i*712,totalHealsOnTeammates:i===0?8450:0,totalDamageShieldedOnTeammates:i===0?4190:250*i,
       damageDealtToObjectives:1365+i*630,damageDealtToTurrets:360+i*233,timeCCingOthers:18+i*3, damageSelfMitigated:6300,
       item0:3158,item1:6617,item2:3504,item3:6621,item4:n%2?3089:0,item5:n%3?3020:0,item6:3364,
@@ -254,6 +254,28 @@ try {
   assert.equal(await page.evaluate(() => window.DataStore.get('sona:ignoreProfilePrivacy')), false)
   await privacySwitch.click()
   const query = page.getByPlaceholder(/名字#Tag/)
+  const scoreSwitch = page.getByTestId('score-system-switch')
+  assert.equal(await scoreSwitch.getAttribute('aria-label'),'评分机制：Akari')
+  await scoreSwitch.click()
+  assert.equal(await page.evaluate(()=>window.DataStore.get('sona:playerScoreSystem')),'sona')
+  await scoreSwitch.click()
+  await page.locator('#qa-score-menu').screenshot({path:path.join(out,'主菜单评分切换_模拟界面.png')})
+  await page.evaluate(async (puuid)=>{
+    const host=document.createElement('div');host.id='qa-lobby-score'
+    const regalia=document.createElement('lol-regalia-parties-v2-element');regalia.setAttribute('puuid',puuid)
+    const identity=document.createElement('div');identity.className='player-identity-container';identity.style.cssText='width:300px;height:160px;position:relative'
+    regalia.appendChild(identity);host.appendChild(regalia);document.body.appendChild(host)
+    const {store}=await import('/src/lib/store.ts');store.set('lobbyEnhancement',true)
+  },ids[0])
+  const lobbyScore = page.locator('#qa-lobby-score [data-sona-lobby-stats]')
+  await lobbyScore.getByText(/Akari 评分/).waitFor()
+  const lobbyRequests = counts.length
+  await scoreSwitch.click()
+  await lobbyScore.getByText(/Sona 评分/).waitFor()
+  await scoreSwitch.click()
+  await lobbyScore.getByText(/Akari 评分/).waitFor()
+  assert.equal(counts.length,lobbyRequests)
+  await page.evaluate(async()=>{const {store}=await import('/src/lib/store.ts');store.set('lobbyEnhancement',false);document.getElementById('qa-lobby-score').remove()})
   await query.fill('练习星轨#DEMO')
   await page.getByRole('button',{name:'查询战绩',exact:true}).click()
   const profileView = page.getByTestId('player-history')
@@ -296,6 +318,17 @@ try {
   await profileView.getByText('流光翡翠 I',{exact:true}).waitFor()
   await profileView.getByText('璀璨钻石 II',{exact:true}).waitFor()
   const rankCards = profileView.locator('.rh-rank-card')
+  const scorePanel = profileView.locator('.rh-score')
+  await profileView.locator('.rh-score[data-score-system="akari"]').waitFor()
+  const akariValue = await scorePanel.locator('strong').textContent(), scoreRequests = counts.length
+  await scoreSwitch.evaluate((button)=>button.click())
+  await profileView.locator('.rh-score[data-score-system="sona"]').waitFor()
+  assert.match(await scorePanel.locator('strong').textContent(),/^\d+\.\d$/)
+  await scoreSwitch.evaluate((button)=>button.click())
+  await profileView.locator('.rh-score[data-score-system="akari"]').waitFor()
+  assert.equal(await scorePanel.locator('strong').textContent(),akariValue)
+  assert.match(akariValue,/^\d+\.\d{2}$/)
+  assert.equal(counts.length,scoreRequests)
   assert.equal(await profileView.locator('.rh-profile-level').textContent(),'241')
   const profileTitle = profileView.locator('.rh-profile-name h2')
   const originalTitle = await profileTitle.textContent()
@@ -722,6 +755,15 @@ try {
   await bpView.screenshot({path:path.join(out,'BP己方五人_模拟数据.png')})
   await bpView.locator('.rh-team-card-head').first().click()
   await profileView.locator('.rh-match').first().waitFor()
+  await profileView.locator('.rh-score[data-score-system="akari"]').waitFor()
+  const bothRequests = counts.length
+  await scoreSwitch.evaluate((button)=>button.click())
+  await profileView.locator('.rh-score[data-score-system="sona"]').waitFor()
+  await bpView.locator('[data-score-system="sona"]').nth(4).waitFor()
+  await scoreSwitch.evaluate((button)=>button.click())
+  await profileView.locator('.rh-score[data-score-system="akari"]').waitFor()
+  await bpView.locator('[data-score-system="akari"]').nth(4).waitFor()
+  assert.equal(counts.length,bothRequests)
   assert.equal(await profileView.getByLabel('游戏模式').inputValue(),'440')
   await page.keyboard.press('Escape')
   await profileView.waitFor({state:'hidden'})

@@ -6,10 +6,10 @@ import { injector } from '@/lib/InjectorManager'
 import { lcu, LcuEventUri, queueIdToTag } from '@/lib/lcu'
 import type { LCUEventMessage, Lobby } from '@/lib/lcu'
 import {
-  calculateSonaPlayerStrengthScore,
   filterSonaStrengthGamesByQueue,
-  shouldSkipSonaStrengthGame,
 } from '@/lib/player-strength-score'
+import { calculatePlayerScore, shouldSkipPlayerScoreGame, getPlayerScoreSystem, formatPlayerScore, playerScoreLabel, playerScoreColor } from '@/lib/player-score'
+import type { SgpGameSummaryLol } from '@/types/sgp'
 import { store } from '@/lib/store'
 
 const SONA_LOBBY_HISTORY_ATTR = 'data-sona-lobby-history'
@@ -38,6 +38,7 @@ interface LobbyMemberStats {
   kda: number
   score: number | null
   total: number
+  scoreGames: SgpGameSummaryLol[]
 }
 
 interface BoundIdentity {
@@ -51,6 +52,7 @@ interface BoundIdentity {
 let lobbyMemberHistoryRegistered = false
 let lobbyMemberHistoryInjected = false
 let lobbyMemberHistoryUnsub: (() => void) | null = null
+let lobbyMemberScoreUnsub: (() => void) | null = null
 let lobbyMemberHistoryMap = new Map<string, LobbyMemberInfo>()
 let lobbyMemberHistoryQueueId = 0
 let lobbyMemberStatsMap = new Map<string, LobbyMemberStats>()
@@ -162,7 +164,7 @@ async function doRefreshLobbyMemberStats() {
       for (const game of games) {
         const participant = game.json.participants.find((item) => item.puuid === member.puuid)
         if (!participant) continue
-        if (shouldSkipSonaStrengthGame(game, member.puuid)) continue
+        if (shouldSkipPlayerScoreGame(game, member.puuid)) continue
         total++
         if (participant.win) wins++
         kills += participant.kills
@@ -172,12 +174,13 @@ async function doRefreshLobbyMemberStats() {
 
       if (total === 0) return
 
-      const strengthScore = calculateSonaPlayerStrengthScore(games, member.puuid)
+      const strengthScore = calculatePlayerScore(games, member.puuid)
       nextStats.set(member.puuid, {
         winRate: wins / total,
         kda: deaths === 0 ? kills + assists : (kills + assists) / deaths,
         score: strengthScore?.score ?? null,
         total,
+        scoreGames: games,
       })
       logger.debug(
         '[LobbyHistory] %s 当前模式有效 %d 场 / 返回 %d 场 (queueId=%d)',
@@ -193,6 +196,7 @@ async function doRefreshLobbyMemberStats() {
 
   if (!lobbyMemberHistoryRegistered) return
 
+  for (const [puuid,stats] of nextStats) stats.score = calculatePlayerScore(stats.scoreGames,puuid)?.score ?? null
   lobbyMemberStatsMap = nextStats
   tryInjectLobbyMemberHistory()
 }
@@ -241,12 +245,6 @@ function getKdaColor(kda: number): string {
   return '#e74c3c'
 }
 
-function getScoreColor(score: number): string {
-  if (score >= 14.5) return '#5bbd72'
-  if (score >= 11.2) return '#c8aa6e'
-  return '#e74c3c'
-}
-
 function ensureStatsOverlay(identity: HTMLElement): HTMLDivElement {
   let overlay = identity.querySelector(`[${SONA_LOBBY_STATS_ATTR}]`) as HTMLDivElement | null
   if (overlay) return overlay
@@ -279,11 +277,12 @@ function ensureStatsOverlay(identity: HTMLElement): HTMLDivElement {
 
 function renderStatsOverlay(identity: HTMLElement, stats: LobbyMemberStats | undefined) {
   const overlay = ensureStatsOverlay(identity)
+  const system = getPlayerScoreSystem()
   const nextText = stats
     ? [
         `胜率 ${Math.round(stats.winRate * 100)}%`,
         `KDA ${stats.kda >= 99 ? 'Perfect' : stats.kda.toFixed(2)}`,
-        `评分 ${stats.score != null ? stats.score.toFixed(1) : '--'}`,
+        `${playerScoreLabel(system)} ${stats.score != null ? formatPlayerScore(stats.score,system) : '--'}`,
       ].join('|')
     : '战绩加载中...'
 
@@ -302,7 +301,7 @@ function renderStatsOverlay(identity: HTMLElement, stats: LobbyMemberStats | und
     `<span style="color:#5c5b57">|</span>`,
     `<span style="color:${getKdaColor(stats.kda)}">KDA ${stats.kda >= 99 ? 'Perfect' : stats.kda.toFixed(2)}</span>`,
     `<span style="color:#5c5b57">|</span>`,
-    `<span style="color:${stats.score != null ? getScoreColor(stats.score) : '#a09b8c'}">评分 ${stats.score != null ? stats.score.toFixed(1) : '--'}</span>`,
+    `<span style="color:${stats.score != null ? playerScoreColor(stats.score,system) : '#a09b8c'}">${playerScoreLabel(system)} ${stats.score != null ? formatPlayerScore(stats.score,system) : '--'}</span>`,
   ].join('')
 }
 
@@ -381,6 +380,10 @@ function cleanupBoundIdentities() {
 export function updateLobbyMemberMatchHistory(enabled: boolean) {
   if (enabled && !lobbyMemberHistoryRegistered) {
     lobbyMemberHistoryRegistered = true
+    lobbyMemberScoreUnsub = store.onChange('playerScoreSystem',()=>{
+      for (const [puuid,stats] of lobbyMemberStatsMap) stats.score = calculatePlayerScore(stats.scoreGames,puuid)?.score ?? null
+      tryInjectLobbyMemberHistory()
+    })
 
     injector.register(tryInjectLobbyMemberHistory)
     lobbyMemberHistoryInjected = true
@@ -412,6 +415,7 @@ export function updateLobbyMemberMatchHistory(enabled: boolean) {
     }
 
     lobbyMemberHistoryRegistered = false
+    lobbyMemberScoreUnsub?.(); lobbyMemberScoreUnsub = null
     indexLobby(null)
     lobbyMemberStatsMap.clear()
     lobbyMemberNameMap.clear()

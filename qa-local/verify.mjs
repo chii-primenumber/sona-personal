@@ -9,6 +9,10 @@ const { chromium } = require(process.env.SONA_PLAYWRIGHT_PATH || 'playwright')
 const base = path.resolve(import.meta.dirname, '..')
 const out = path.resolve(base, '..', 'sona-preview')
 await fs.mkdir(out, { recursive: true })
+const nativeRankFiles = new Map(await Promise.all([
+  'iron.svg','bronze.svg','silver.svg','gold.svg','platinum.svg','emerald.svg','diamond.svg',
+  'master.svg','grandmaster.svg','challenger.svg','unranked.svg','unranked.png',
+].map(async (name) => [name,await fs.readFile(path.join(base,'qa-local','fixtures','ranked',name))])))
 const names = ['练习星轨', '薄荷汽水', '雨后回声', '微光纸船', '海盐风铃', '白昼拾荒', '云端烟火', '满月航线', '橘子信笺', '栖木午后']
 const champions = [[16,'索拉卡'],[350,'悠米'],[117,'璐璐'],[37,'娑娜'],[267,'娜美'],[103,'阿狸'],[99,'拉克丝'],[22,'艾希'],[51,'凯特琳'],[64,'李青'],[157,'亚索'],[222,'金克丝']]
 const positions = ['TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY']
@@ -16,6 +20,7 @@ const ids = names.map((_, i) => `preview-player-${i}`)
 ids[2] = 'deadbeef-cafe-5eed-babe-f00df00df00d'
 const queues = [[440,'排位赛 灵活排位'],[420,'排位赛 单双排'],[450,'极地大乱斗'],[2400,'海克斯大乱斗'],[430,'匹配模式']].map(([id,name]) => ({ id,name,description:name, gameMode:id >= 450 ? 'ARAM' : 'CLASSIC', queueAvailability:'Available', isEnabled:true, category:'PvP', isRanked:id===440||id===420, mapId:id>=450?12:11 }))
 const ranks = { queueMap: { RANKED_SOLO_5x5: {tier:'EMERALD',division:'I',leaguePoints:55,wins:10,losses:7,highestTier:'DIAMOND',highestDivision:'I'}, RANKED_FLEX_SR: {tier:'DIAMOND',division:'II',leaguePoints:40,wins:126,losses:91,highestTier:'MASTER',highestDivision:'NA'} } }
+const emptyRanks = {queueMap:Object.fromEntries(Object.keys(ranks.queueMap).map((key)=>[key,{tier:'UNRANKED',division:'',leaguePoints:0,wins:0,losses:0}]))}
 Object.assign(ranks.queueMap.RANKED_SOLO_5x5, {previousSeasonHighestTier:'DIAMOND',previousSeasonHighestDivision:'II',previousSeasonEndTier:'PLATINUM',previousSeasonEndDivision:'I'})
 const profile = (i) => ({ puuid: ids[i], gameName: names[i], tagLine:'DEMO', displayName:names[i], summonerId:i+100, profileIconId:i+1, summonerLevel:241-i*13, privacy:'PUBLIC' })
 const makeGame = (n) => {
@@ -71,6 +76,7 @@ const fuzzyAccounts = Array.from({length:33},(_,index) => ({ puuid:`region-searc
 const replayActions = []
 let augmentRequests = 0
 let slowQueue = 0, failSgp = false, failMastery = false
+let unrankedProfile = false, mixedTeamRanks = false
 
 function image(url) {
   const id = Number(url.match(/(\d+)\.(?:svg|png|jpg)$/)?.[1] || '0')
@@ -154,6 +160,8 @@ try {
       return json(ranks)
     }
     if (url.origin !== origin) { external.push(url.hostname); return route.abort().catch(()=>{}) }
+    if (p==='/fe/lol-shared-components/unranked.png') return route.fulfill({contentType:'image/png',body:nativeRankFiles.get('unranked.png')}).catch(()=>{})
+    if (p.includes('/ranked-mini-crests/') && nativeRankFiles.has(p.split('/').at(-1))) return route.fulfill({contentType:'image/svg+xml',body:nativeRankFiles.get(p.split('/').at(-1))}).catch(()=>{})
     if (p.startsWith('/qa-art/')||p.includes('/champion-icons/')||p.includes('/profile-icons/')||p.includes('/ranked-mini-crests/')||p.startsWith('/fe/lol-shared-components/')) return route.fulfill({contentType:'image/svg+xml',body:image(p)}).catch(()=>{})
     if (p.endsWith('/champion-summary.json')) return json([...champions,[154,'扎克'],[83,'约里克']].map(([id,name])=>({id,name:'英雄',description:name,alias:`Preview${id}`,squarePortraitPath:`/qa-art/champion-${id}.svg`})))
     if (p.endsWith('/items.json')) return json(mockIcons(items,'item'))
@@ -191,8 +199,11 @@ try {
     }
     if (/^\/lol-summoner\/v1\/summoners\/\d+$/.test(p)) return json(profile(Number(p.split('/').at(-1)) - 100))
     if (p.includes('/lol-summoner/v2/summoners/puuid/')) return json(profile(Math.max(0,ids.indexOf(p.split('/').at(-1)))))
-    if (p.startsWith('/lol-ranked/')) return p.endsWith(ids[1])
-      ? json({queueMap:Object.fromEntries(Object.entries(ranks.queueMap).map(([key,rank])=>[key,{...rank,losses:0}]))}) : json(ranks)
+    if (p.startsWith('/lol-ranked/')) {
+      if (unrankedProfile || mixedTeamRanks && p.endsWith(ids[2])) return json(emptyRanks)
+      if (mixedTeamRanks && p.endsWith(ids[1])) return json({queueMap:{...emptyRanks.queueMap,RANKED_SOLO_5x5:{tier:'BRONZE',division:'IV',leaguePoints:18,wins:7,losses:9}}})
+      return p.endsWith(ids[1]) ? json({queueMap:Object.fromEntries(Object.entries(ranks.queueMap).map(([key,rank])=>[key,{...rank,losses:0}]))}) : json(ranks)
+    }
     if (p.endsWith('/champion-mastery')) return failMastery?json({},403):json(champions.map(([championId],i)=>({championId,championLevel:30-i,championPoints:350000-i*24700})))
     if (p.endsWith('/gameflow-phase')) return json('Lobby')
     if (p.endsWith('/lol-gameflow/v1/session')) return json(game)
@@ -312,6 +323,16 @@ try {
     '/fe/lol-shared-components/emerald.png',
     '/fe/lol-shared-components/diamond.png',
   ])
+  unrankedProfile = true
+  await profileView.getByRole('button',{name:'刷新',exact:true}).click()
+  const emptyEmblems = rankCards.locator('img.rh-rank-crest[src="/fe/lol-shared-components/unranked.png"]')
+  await emptyEmblems.nth(1).waitFor()
+  await emptyEmblems.evaluateAll((icons)=>Promise.all(icons.map((icon)=>icon.decode())))
+  await profileView.locator('.rh-ranks').screenshot({path:path.join(out,'未定级完整徽章_真实资源.png')})
+  unrankedProfile = false
+  await profileView.getByRole('button',{name:'刷新',exact:true}).click()
+  await rankCards.locator('img[src="/fe/lol-shared-components/emerald.png"]').waitFor()
+  await profileView.locator('.rh-match').nth(48).waitFor()
   await profileView.getByRole('button',{name:'显示设置',exact:true}).click()
   await settings.getByRole('checkbox',{name:'对局卡片的双方阵容'}).uncheck()
   assert.equal(await profileView.locator('.rh-mini-roster').count(),0)
@@ -567,6 +588,7 @@ try {
   await bpEntry.waitFor()
   assert.equal(await bpEntry.evaluate((node) => node.parentElement.classList.contains('bottom-right-buttons')),true)
   bp.queueId = 0
+  mixedTeamRanks = true
   await bpEntry.click()
   const bpView = page.getByTestId('bp-history')
   await bpView.locator('.rh-team-card').nth(4).waitFor()
@@ -590,6 +612,26 @@ try {
   ])
   assert.equal(await rankRows.first().getAttribute('aria-label'), '单双排 · 流光翡翠 I · 55 LP')
   assert.equal((await rankRows.nth(1).boundingBox()).y, (await rankRows.first().boundingBox()).y)
+  await bpView.locator('.rh-team-rank-icon-bronze').first().waitFor()
+  await bpView.locator('.rh-team-rank-icon-unranked').first().waitFor()
+  const crestSizes = await bpView.locator('.rh-team-rank-icon').evaluateAll(async (nodes) => {
+    const selected = [...new Map(nodes.filter((node)=>/\/(bronze|emerald|unranked)\.svg$/.test(node.src)).map((node)=>[node.src,node])).values()]
+    await Promise.all(selected.map((node)=>node.decode()))
+    return selected.map((node) => {
+      const style = getComputedStyle(node), transform = new DOMMatrixReadOnly(style.transform)
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 160
+      const ctx = canvas.getContext('2d'), scale = 160 / Math.max(node.naturalWidth,node.naturalHeight)
+      ctx.translate(80,80); ctx.scale(transform.a,transform.d)
+      ctx.drawImage(node,-node.naturalWidth*scale/2,-node.naturalHeight*scale/2,node.naturalWidth*scale,node.naturalHeight*scale)
+      const pixels = ctx.getImageData(0,0,160,160).data
+      let left = 160, right = -1
+      for (let y=0;y<160;y++) for (let x=0;x<160;x++) if (pixels[(y*160+x)*4+3]>32) { left=Math.min(left,x); right=Math.max(right,x) }
+      return {tier:node.src.split('/').at(-1),fit:style.objectFit,width:style.width,height:style.height,visibleWidth:(right-left+1)/10}
+    })
+  })
+  assert.equal(crestSizes.length,3)
+  for (const size of crestSizes) { assert.equal(size.fit,'contain'); assert.equal(size.width,'16px'); assert.equal(size.height,'16px') }
+  assert.ok(Math.max(...crestSizes.map((size)=>size.visibleWidth))-Math.min(...crestSizes.map((size)=>size.visibleWidth))<.8,JSON.stringify(crestSizes))
   const portrait = bpView.locator('.rh-team-card').first().locator('.rh-team-portrait img')
   assert.ok((await portrait.getAttribute('src')).includes('/profile-icons/'))
   const lockedBp = { ...bp, myTeam:bp.myTeam.map((member,index) => index === 0 ? {...member,championId:157} : member), actions:[[{...bp.actions[0][0],completed:true}]] }
@@ -682,6 +724,7 @@ try {
   assert.equal(await gameView.locator('.rh-team-red .rh-team-card').count(),5)
   await gameView.locator('.rh-team-card-stats').nth(9).waitFor()
   await gameView.getByText('组队 A',{exact:true}).first().waitFor()
+  await page.mouse.move(4,4)
   await gameView.screenshot({path:path.join(out,'游戏后双方总览_模拟数据.png')})
   await page.keyboard.press('Escape')
   await gameView.waitFor({state:'hidden'})

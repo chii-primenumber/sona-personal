@@ -273,7 +273,7 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
               const description = [queueName, rankText(rank), lp !== '—' && lp].filter(Boolean).join(' · ')
               return (
                 <HistoryAssetTooltip key={rank.key} title={description} compact focusable={false} asChild><span className="rh-team-rank-row" aria-label={description}>
-                  <HistoryImage src={getRankedMiniCrest(rank.tier)} label={description} className="rh-team-rank-icon" nativeTooltip={false} />
+                  <HistoryImage src={getRankedMiniCrest(rank.tier)} label={description} className={`rh-team-rank-icon rh-team-rank-icon-${rank.tier.toLowerCase()}`} nativeTooltip={false} />
                   <span className="rh-team-rank-lp">{lp}</span>
                 </span></HistoryAssetTooltip>
               )

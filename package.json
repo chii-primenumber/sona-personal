@@ -1,7 +1,7 @@
 {
   "name": "sona",
   "private": true,
-  "version": "1.10.0-personal.16",
+  "version": "1.10.0-personal.17",
   "type": "module",
   "description": "Sona - A League of Legends client plugin for Pengu Loader",
   "license": "AGPL-3.0",

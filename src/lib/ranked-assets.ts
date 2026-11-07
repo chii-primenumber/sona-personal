@@ -10,6 +10,5 @@ export function getRankedMiniCrest(tier: string): string | undefined {
 
 export function getRankedEmblem(tier: string): string | undefined {
   const name = tier.toLowerCase()
-  if (name === 'unranked') return getRankedMiniCrest(tier)
   return RANKED_CREST_TIERS.has(name) ? `/fe/lol-shared-components/${name}.png` : undefined
 }

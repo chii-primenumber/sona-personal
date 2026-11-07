@@ -316,7 +316,11 @@
 .rh-team-identity > strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .rh-team-ranks { display: flex; align-items: center; gap: 10px; min-height: 18px; font-size: 10px; line-height: 16px; color: rgb(var(--sona-muted-rgb)); }
 .rh-team-rank-row { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-.rh-team-rank-icon { width: 16px; height: 16px; object-fit: contain; }
+/* Native crests have different transparent padding. Normalize their visible width within a fixed slot. */
+.rh-team-rank-row .rh-team-rank-icon { width: 16px; height: 16px; object-fit: contain; flex: 0 0 16px; transform: scale(.93); }
+.rh-team-rank-row :is(.rh-team-rank-icon-bronze,.rh-team-rank-icon-silver,.rh-team-rank-icon-diamond) { transform: none; }
+.rh-team-rank-row :is(.rh-team-rank-icon-platinum,.rh-team-rank-icon-emerald) { transform: scale(1.1); }
+.rh-team-rank-row .rh-team-rank-icon-unranked { transform: scale(.875); }
 .rh-team-rank-lp { font-variant-numeric: tabular-nums; }
 .rh-team-selection { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; min-height: 16px; color: rgb(var(--sona-muted-rgb)); font-size: 10px; }
 .rh-team-selection b { padding: 0 4px; border-radius: 3px; color: #ebd6ff; background: #5e467a; }

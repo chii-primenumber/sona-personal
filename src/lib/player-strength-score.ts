@@ -350,10 +350,8 @@ export function getSonaStrengthGrade(score: number): SonaStrengthGrade {
   return 'critical'
 }
 
-export function getSonaStrengthVerdict(score: number, confidence = 1): string {
-  const prefix = confidence < 0.55 ? translate('strength.lowConfidence') : ''
-  const grade = getGradeLabel(getSonaStrengthGrade(score))
-  return `${prefix}${grade}`
+export function getSonaStrengthVerdict(score: number, _confidence = 1): string {
+  return getGradeLabel(getSonaStrengthGrade(score))
 }
 
 export function formatSonaStrengthScoreLine(score: SonaPlayerStrengthScore): string {

@@ -32,6 +32,16 @@
   100% { transform: rotate(360deg); }
 }
 
+.lock-in > [data-sona-opgg-preselect-build] {
+  position: absolute;
+  left: calc(50% - 211px);
+  top: 18px;
+  width: 110px;
+  height: 30px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
 .sona-entry-btn {
   /* 🪄 按钮现在是 .play-button-container 的兄弟节点，
      绝对定位基于共同的父容器 */

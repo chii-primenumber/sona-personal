@@ -39,6 +39,7 @@ const TARGET_SELECTOR = '.toggle-ability-previews-button'
 const HIJACK_ATTR = 'data-sona-opgg-build-hijacked'
 const PANEL_ID = 'sona-opgg-build-panel'
 const IN_GAME_BUILD_BUTTON_ATTR = 'data-sona-opgg-ingame-build'
+const PRESELECT_BUILD_BUTTON_ATTR = 'data-sona-opgg-preselect-build'
 const DEFAULT_OPGG_TIER: OpggTier = 'master_plus'
 const SONA_ITEM_SET_TITLE_PREFIX = '[Sona]'
 const HEALTH_POTION_ID = 2003
@@ -144,8 +145,12 @@ const smartLoadoutFirstSavedRuneKeys = new Set<string>()
 const smartLoadoutFirstSavedSpellKeys = new Set<string>()
 
 function getLocalChampionId(session: ChampSelectSession): number {
-  const localPlayer = session.myTeam.find((player) => player.cellId === session.localPlayerCellId)
-  return localPlayer?.championId ?? 0
+  const localPlayer = getLocalPlayer(session)
+  if (!localPlayer) return 0
+  if (isLocalChampionLocked(session)) return localPlayer.championId
+  const pick = (session.actions || []).flat(2).find((action) =>
+    action.actorCellId === session.localPlayerCellId && action.type === 'pick' && action.isInProgress && !action.completed)
+  return pick?.championId || localPlayer.championPickIntent || localPlayer.championId || 0
 }
 
 function getLocalPlayer(session: ChampSelectSession) {
@@ -156,7 +161,7 @@ function isLocalChampionLocked(session: ChampSelectSession): boolean {
   const localPlayer = getLocalPlayer(session)
   if (!localPlayer || localPlayer.championId <= 0) return false
 
-  const localPickActions = session.actions
+  const localPickActions = (session.actions || [])
     .flat(2)
     .filter((action) => action.actorCellId === session.localPlayerCellId && action.type === 'pick')
 
@@ -1319,6 +1324,7 @@ function scheduleRefreshWhenChampionLocked(delay = 250) {
       }
 
       const session = await lcu.getChampSelectSession()
+      if (getLocalChampionId(session) !== currentContext.championId) await refreshContext(session)
       if (isLocalChampionLocked(session)) {
         stopChampionLockPolling()
         await refreshContext(session)
@@ -1343,7 +1349,7 @@ async function refreshContext(session?: ChampSelectSession) {
     const currentSession = session ?? await lcu.getChampSelectSession()
     const localPlayer = getLocalPlayer(currentSession)
     const queueId = currentSession.queueId ?? 0
-    const championId = localPlayer?.championId ?? getLocalChampionId(currentSession)
+    const championId = getLocalChampionId(currentSession)
     const gameMode = await resolveGameMode(queueId)
     const assignedPosition = mapAssignedPosition(localPlayer?.assignedPosition)
     const position = await resolveInitialRecommendationPosition({
@@ -1355,6 +1361,7 @@ async function refreshContext(session?: ChampSelectSession) {
     if (refreshToken !== contextRefreshToken) return
 
     currentChampionLocked = isLocalChampionLocked(currentSession)
+    if (championId !== currentContext.championId) closePanel()
     currentContext = {
       championId,
       queueId,
@@ -2157,9 +2164,47 @@ function unregisterInGameBuildButton() {
   cleanupInGameBuildRecommendationModal()
 }
 
+function tryInjectPreselectBuildButton(): boolean {
+  const host = document.querySelector<HTMLElement>('.lock-in.visible')
+  const previous = document.querySelector<HTMLElement>(`[${PRESELECT_BUILD_BUTTON_ATTR}]`)
+  if (!host || currentChampionLocked || currentContext.championId <= 0) {
+    previous?.remove()
+    return true
+  }
+  if (previous?.parentElement === host) return true
+  previous?.remove()
+  const button = document.createElement('lol-uikit-flat-button')
+  button.setAttribute(PRESELECT_BUILD_BUTTON_ATTR, 'true')
+  button.setAttribute('role', 'button')
+  button.setAttribute('tabindex', '0')
+  button.textContent = '配装推荐'
+  const open = async () => {
+    try {
+      await refreshContext()
+      if (currentContext.championId > 0) await openRecommendationPanel(button, { ...currentContext })
+    } catch {
+      if (typeof Toast !== 'undefined') Toast.error('配装推荐打开失败')
+    }
+  }
+  button.addEventListener('click', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    void open()
+  })
+  button.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    event.stopPropagation()
+    void open()
+  })
+  host.append(button)
+  return true
+}
+
 function mount() {
   if (!injectRegistered) {
     injector.register(tryHijackAbilityPreviewPanel)
+    injector.register(tryInjectPreselectBuildButton)
     injectRegistered = true
     logger.info('[OPGG] 已检测到本地英雄，开始接管技能预览入口')
   }
@@ -2168,9 +2213,11 @@ function mount() {
 function unmountPanel() {
   if (injectRegistered) {
     injector.unregister(tryHijackAbilityPreviewPanel)
+    injector.unregister(tryInjectPreselectBuildButton)
     injectRegistered = false
   }
 
+  document.querySelectorAll(`[${PRESELECT_BUILD_BUTTON_ATTR}]`).forEach((element) => element.remove())
   for (const { el, handler, originalText } of boundElements) {
     el.removeEventListener('click', handler, true)
     el.removeAttribute(HIJACK_ATTR)
@@ -2247,9 +2294,9 @@ function startOpggListeners() {
   champSelectUnsub = lcu.observe(LcuEventUri.CHAMP_SELECT, (event: LCUEventMessage) => {
     if (event.eventType !== 'Create' && event.eventType !== 'Update') return
     const session = event.data as ChampSelectSession
+    void refreshContext(session)
     if (isLocalChampionLocked(session)) {
       stopChampionLockPolling()
-      refreshContext(session)
     } else {
       scheduleRefreshWhenChampionLocked(500)
     }

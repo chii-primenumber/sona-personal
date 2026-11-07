@@ -1,14 +1,16 @@
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
-export function HistoryAssetTooltip({ className, title, subtitle, description, icon, onShow, children }: {
+export function HistoryAssetTooltip({ className, title, subtitle, description, icon, onShow, children, compact = false, focusable = true }: {
   className?: string
   title: string
   subtitle?: string
-  description: string
+  description?: string
   icon?: string
   onShow?: () => void
   children: ReactNode
+  compact?: boolean
+  focusable?: boolean
 }) {
   const anchorRef = useRef<HTMLSpanElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
@@ -43,17 +45,17 @@ export function HistoryAssetTooltip({ className, title, subtitle, description, i
   }, [visible, title, subtitle, description, icon])
 
   return (
-    <span ref={anchorRef} className={className} tabIndex={0} aria-label={title} aria-describedby={visible ? id : undefined}
+    <span ref={anchorRef} className={className} tabIndex={focusable ? 0 : undefined} aria-label={title} aria-describedby={visible ? id : undefined}
       onMouseEnter={() => { setHovered(true); onShow?.() }} onMouseLeave={() => setHovered(false)}
       onFocus={() => { setFocused(true); onShow?.() }} onBlur={() => setFocused(false)}>
       {children}
       {visible && createPortal(
-        <div ref={tooltipRef} id={id} role="tooltip" className="rh-asset-tooltip">
+        <div ref={tooltipRef} id={id} role="tooltip" className={`rh-asset-tooltip${compact ? ' rh-identity-tooltip' : ''}`}>
           <div className="rh-asset-tooltip-head">
             {icon && <img src={icon} alt="" />}
             <div><strong>{title}</strong>{subtitle && <small>{subtitle}</small>}</div>
           </div>
-          <div className="rh-asset-tooltip-description">{description}</div>
+          {description && <div className="rh-asset-tooltip-description">{description}</div>}
         </div>,
         document.body,
       )}

@@ -19,6 +19,24 @@ function extend(parent: Prototype, ...mixins: Prototype[]): FixtureClass {
 }
 
 export async function setupNativeHistoryFixture(socket: PenguContext['socket']) {
+  const friendMenuManager = {
+    items: [] as Array<{label: string; icon?: Element; action: () => void; target: unknown}>,
+    setMenuItems(items: typeof this.items) { this.items = items },
+    openAtEvent() {
+      document.querySelector('.qa-friend-context-menu')?.remove()
+      const menu = document.createElement('div')
+      menu.className = 'qa-friend-context-menu'
+      for (const item of this.items) {
+        const button = document.createElement('button')
+        button.className = 'menu-item with-icon'
+        if (item.icon) button.append(item.icon.cloneNode(true))
+        button.append(item.label)
+        button.addEventListener('click', () => { item.action.call(item.target); menu.remove() })
+        menu.append(button)
+      }
+      document.body.append(menu)
+    },
+  }
   const matchApi = { displayMatchSummary(_options: unknown) {} }
   const emberApi = { getEmber: async () => ({ Component: extend({}) }) }
   const context = {
@@ -28,6 +46,7 @@ export async function setupNativeHistoryFixture(socket: PenguContext['socket']) 
       postInit(name: string, callback: (api: unknown) => void) {
         if (name === 'rcp-fe-lol-match-history') callback(matchApi)
         if (name === 'rcp-fe-ember-libs') callback(emberApi)
+        if (name === 'rcp-fe-lol-uikit') callback({ getContextMenuManager: () => friendMenuManager })
       },
     },
   } as unknown as PenguContext
@@ -63,6 +82,7 @@ export async function setupNativeHistoryFixture(socket: PenguContext['socket']) 
         <lol-regalia-profile-v2-element puuid="deadbeef-cafe-5eed-babe-f00df00df00d">召唤师生涯</lol-regalia-profile-v2-element>
       </div>
       <button type="button" id="qa-open-summary">切换至对局记录</button>
+      <div class="lol-social-roster-member" style="padding:8px">好友玩家</div>
       <div class="player-history-object" style="padding:8px">历史战报玩家</div>
       <div class="scoreboard-row-component" style="padding:8px"><span>结算玩家</span>
         <button type="button" class="scoreboard-row-actions-button">更多操作</button>
@@ -81,7 +101,20 @@ export async function setupNativeHistoryFixture(socket: PenguContext['socket']) 
       matchApi.displayMatchSummary({ rootElement: summary, summonerId: 103 })
     })
     const createInstance = (klass: FixtureClass, element: Element, data: Record<string, unknown>) =>
-      Object.assign(Object.create(klass.proto()), { element, get: (key: string) => data[key] })
+      Object.assign(Object.create(klass.proto()), { element, get: (key: string) => data[key], set: (key: string, value: unknown) => { data[key] = value } })
+    const friendRow = fixture.querySelector('.lol-social-roster-member')!
+    const profileIcon = document.createElement('span')
+    profileIcon.className = 'menu-item-icon icon-profile'
+    const friendClass = Component.extend({ classNames: ['lol-social-roster-member'], contextMenu() {} })
+    const friend = createInstance(friendClass, friendRow, {
+      friend: { puuid: 'preview-player-6', gameName: '云端烟火', gameTag: 'DEMO' },
+      tra: { get: () => '查看生涯' },
+      contextMenuModel: Promise.resolve([
+        { label: '发送信息', action() {}, icon: profileIcon },
+        { label: '查看生涯', action() {}, icon: profileIcon },
+      ]),
+    })
+    friendRow.addEventListener('contextmenu', (event) => friend.contextMenu(event))
     const historyClass = Component.extend({
       classNames: ['player-history-object'],
       getMenuItemModel() { return [{ label: '查看资料', target: this, action() {} }] },

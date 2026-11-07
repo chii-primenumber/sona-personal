@@ -12,13 +12,14 @@ const profileScreen = '.rcp-fe-lol-profiles-main, .rcp-fe-lol-profiles-modal'
 const postgameActions = '.scoreboard-row-actions-button, .strawberry-scoreboard-row-actions-button, .jade-scoreboard-row-actions-button'
 
 type Identity = { puuid?: string; summonerId?: number; name?: string; ownProfile?: boolean }
-type Component = { element?: Element; get(key: string): unknown; _super(...args: unknown[]): unknown }
-type MenuItem = { label: string; target: Component; action: () => void }
+type Component = { element?: Element; get(key: string): unknown; set(key: string, value: unknown): void; _super(...args: unknown[]): unknown }
+type MenuItem = { label: string; target: Component; action: (() => void) | string; icon?: Element }
 type MenuManager = { setMenuItems(items: MenuItem[]): void; openAtEvent(event: MouseEvent): void }
 
 let historyRoot: Root | undefined
 let profileEntry: HTMLButtonElement | undefined
 let latestRequest = 0
+let friendContextMenu: MenuManager | undefined
 const summaryIdentities = new WeakMap<Element, Identity>()
 const rowListeners = new WeakMap<Component, (event: Event) => void>()
 
@@ -30,7 +31,7 @@ function playerIdentity(value: unknown): Identity | undefined {
   const summonerId = Number(player.summonerId)
   if (!puuid && !(summonerId > 0)) return
   const name = player.riotIdGameName || player.gameName || player.summonerName
-  const tag = player.riotIdTagLine || player.riotIdTagline || player.tagLine
+  const tag = player.riotIdTagLine || player.riotIdTagline || player.tagLine || player.gameTag
   return {
     puuid,
     summonerId,
@@ -116,6 +117,40 @@ export function enableNativeProfileHistory() {
 }
 
 export function registerNativeHistoryHooks(context: PenguContext) {
+  context.rcp.postInit('rcp-fe-lol-uikit', (value) => {
+    const api = value as { getContextMenuManager?(): MenuManager } | undefined
+    friendContextMenu = api?.getContextMenuManager?.()
+  }, true)
+
+  registerEmberRule({
+    name: 'friend-context-player-history',
+    matcher: 'lol-social-roster-member',
+    wraps: [{
+      name: 'contextMenu',
+      replacement(original, args) {
+        const component = this as Component
+        const identity = playerIdentity(component.get('friend'))
+        const event = args[0]
+        const manager = friendContextMenu
+        if (!identity || !manager || !(event instanceof MouseEvent)) return original(...args)
+        event.preventDefault()
+        component.set('isContextMenuOpened', true)
+        return Promise.resolve(component.get('contextMenuModel')).then((model) => {
+          if (!Array.isArray(model)) return
+          const items = [...model] as MenuItem[]
+          const translations = component.get('tra') as { get(key: string): string } | undefined
+          const profileIndex = items.findIndex((item) => item.label === translations?.get('context_menu_view_profile'))
+          const item = menuItem(identity, component)
+          const icon = items[profileIndex]?.icon
+          if (icon instanceof Element) item.icon = icon.cloneNode(true) as Element
+          items.splice(profileIndex >= 0 ? profileIndex + 1 : Math.min(1, items.length), 0, item)
+          manager.setMenuItems(items)
+          manager.openAtEvent(event)
+        })
+      },
+    }],
+  })
+
   context.rcp.postInit('rcp-fe-lol-match-history', (value) => {
     const api = value as { displayMatchSummary?(...args: unknown[]): unknown } | undefined
     const display = api?.displayMatchSummary

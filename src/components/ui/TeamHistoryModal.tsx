@@ -3,13 +3,14 @@ import { Modal } from './Modal'
 import { PlayerHistoryModal } from './PlayerHistoryModal'
 import { ChampionStrip, HistoryImage, MatchReport, championName } from './HistoryWidgets'
 import { HistoryDisplaySettings } from './HistoryDisplaySettings'
+import { HistoryPlayerName } from './HistoryPlayerName'
 import { lcu, LcuEventUri } from '@/lib/lcu'
 import { store } from '@/lib/store'
 import { deobfuscateChampSelectPuuid } from '@/lib/champ-select-puuid'
 import { getChampIcon, getPlayableQueues, getQueueName } from '@/lib/assets'
 import { getRankedMiniCrest } from '@/lib/ranked-assets'
 import { deadline, fetchHistoryRanks, fetchHistorySummoner, rankText, type HistoryRank } from '@/lib/history-api'
-import { mean, numberText, percentText, POSITION_NAMES, profileIconUrl, splitRiotId, summarize, toHistoryMatches, validMatches, type HistoryMatch } from '@/lib/history-model'
+import { mean, numberText, percentText, POSITION_NAMES, profileIconUrl, summarize, toHistoryMatches, validMatches, type HistoryMatch } from '@/lib/history-model'
 import { calculateSonaPlayerStrengthScore } from '@/lib/player-strength-score'
 import { useHistoryPages } from '@/lib/use-history-pages'
 import { useHistoryHiddenFields } from '@/lib/use-history-display'
@@ -124,7 +125,7 @@ export function TeamHistoryModal({ open, onClose, mode, party = emptyParty }: {
                   onInspect={(puuid, name) => setTarget({ puuid, name })} onMatch={setSelectedMatch} />
               ))}
             </div>}
-        </div><footer className="rh-team-footer">每位玩家独立加载。样本数按实际返回计算；当前模式无记录时，可切换到全部模式。近况仅供参考。</footer>
+        </div>
       </div>
     </Modal>
     <HistoryDisplaySettings open={open && showSettings} onClose={() => setShowSettings(false)} initialSection="team" />
@@ -218,7 +219,6 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
     }
   }, [valid, member.puuid])
   const name = profile?.gameName ? `${profile.gameName}${profile.tagLine ? `#${profile.tagLine}` : ''}` : member.name
-  const identity = splitRiotId(name)
   const partyColor = premade ? premadeColors[premade.charCodeAt(0) - 65] : undefined
   const show = (field: HistoryDisplayField<'team'>) => isHistoryFieldVisible(hidden, 'team', field)
   const tags = ([
@@ -231,13 +231,13 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
   ] as const).filter(({ field, text }) => text && show(field))
   return (
     <article className={`rh-team-card${member.self ? ' is-self' : ''}`}>
-      <button type="button" className="rh-team-card-head" title="打开个人详细战绩" disabled={!member.puuid} onClick={() => onInspect(name)}>
+      <button type="button" className="rh-team-card-head" aria-label={`查看 ${name} 的战绩`} disabled={!member.puuid} onClick={() => onInspect(name)}>
         <span className="rh-team-portrait">
-          <HistoryImage src={profileIconUrl(profile?.profileIconId ?? valid[0]?.player.profileIcon)} label={name} />
+          <HistoryImage src={profileIconUrl(profile?.profileIconId ?? valid[0]?.player.profileIcon)} label={name} nativeTooltip={false} />
           {profile?.summonerLevel && <small>{profile.summonerLevel}</small>}
         </span>
         <span className="rh-team-identity">
-          <strong><span style={{ color: partyColor }}>{identity.name}</span>{identity.tag && <span className="rh-id-tag">{identity.tag}</span>}</strong>
+          <strong><HistoryPlayerName name={name} showTag color={partyColor} /></strong>
           {show('ranks') && <span className="rh-team-ranks">
             {ranks?.map((rank) => {
               const queueName = rank.key === 'RANKED_SOLO_5x5' ? '单双排' : '灵活组排'
@@ -273,7 +273,7 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
           </div>}
           {tags.length > 0 && <div className="rh-team-tags">
             {tags.map(({ text, tone }) => (
-              <span key={text} className={`rh-team-tag rh-team-tag-${tone}`} title={text.startsWith('Sona') ? 'Sona 近期表现参考分，范围 3–16' : text}>{text}</span>
+              <span key={text} className={`rh-team-tag rh-team-tag-${tone}`} title={text.startsWith('Sona') ? '近期对局综合评分 · 3–16 分' : text}>{text}</span>
             ))}
           </div>}
           {show('champions') && <ChampionStrip matches={valid} limit={9} />}

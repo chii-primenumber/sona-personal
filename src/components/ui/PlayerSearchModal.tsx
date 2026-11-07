@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Modal } from './Modal'
 import { HistoryImage } from './HistoryWidgets'
+import { HistoryPlayerName } from './HistoryPlayerName'
 import { deadline } from '@/lib/history-api'
 import { profileIconUrl } from '@/lib/history-model'
 import { historyPlayerFromFriend, historyPlayerMatches, historySearchServers, historyServerName, parsePlayerQuery,
@@ -133,7 +134,7 @@ function PlayerSearchContent({ initialQuery, onSelect }: {
       <div className="rh-search-results" aria-live="polite">
         {state.pending ? <div className="rh-empty"><span className="rh-spinner" />正在搜索召唤师…</div> : results.size ? <>
           <p className="rh-search-result-count">{results.size} 位玩家</p>
-          {state.error && <p className="rh-search-result-count">服务器搜索暂不可用，以下来自最近访问和好友。</p>}
+          {state.error && <p className="rh-search-result-count">好友和最近访问中的匹配结果</p>}
           {[...results.values()].map((player) => <PlayerRow key={player.puuid} player={player} onSelect={onSelect} />)}
         </> : <div className="rh-search-empty">
           <strong role={state.error ? 'alert' : undefined}>{state.error || (state.query ? '没有找到匹配的玩家' : '暂无搜索结果')}</strong>
@@ -165,14 +166,14 @@ function PlayerList({ title, players, emptyText, onSelect }: {
 }
 
 function PlayerRow({ player, onSelect }: { player: HistoryPlayer; onSelect: (player: HistoryPlayer) => void }) {
-  const [name, tag] = player.name.split('#')
+  const tag = player.name.split('#')[1]
   const status = player.availability ? ONLINE_STATUS[player.availability] : undefined
   return <button type="button" className="rh-search-player" onClick={() => onSelect(player)} aria-label={`查看 ${player.name} 的战绩`}>
     <span className="rh-search-portrait">
       <HistoryImage src={profileIconUrl(player.iconId)} label={player.name} nativeTooltip={false} />
       {status && <i className={`rh-search-status rh-search-status-${player.availability}`} title={status} aria-label={status} />}
     </span>
-    <span className="rh-search-identity"><strong>{name}</strong>
+    <span className="rh-search-identity"><strong><HistoryPlayerName name={player.name} /></strong>
       {(tag || player.serverId) && <small>{[tag && `#${tag}`, player.serverId && historyServerName(player.serverId)].filter(Boolean).join(' · ')}</small>}
     </span>
   </button>

@@ -49,6 +49,9 @@ const makeGame = (n) => {
 }
 const games = Array.from({length:67},(_,i)=>makeGame(i))
 const bp = { queueId:440,localPlayerCellId:0,myTeam:names.slice(0,5).map((gameName,i)=>({ puuid:ids[i],gameName,tagLine:'DEMO',cellId:i,summonerId:i+100,assignedPosition:positions[(i+4)%5].toLowerCase(),championId:champions[i][0],nameVisibilityType:'PUBLIC',isHumanoid:true })),theirTeam:[] }
+bp.myTeam[0].championId = 0
+bp.myTeam[0].championPickIntent = 157
+bp.actions = [[{actorCellId:0,type:'pick',championId:157,completed:false,isInProgress:true}]]
 const game = { phase:'InProgress', map:{id:11,name:'召唤师峡谷'}, gameData:{ gameId:9828375, queue:queues[0], playerChampionSelections:ids.map((puuid,i)=>({puuid,championId:champions[i][0]})),teamOne:ids.slice(0,5).map((puuid,i)=>({puuid,championId:champions[i][0],teamParticipantId:i<2?1:0,selectedPosition:positions[i].toLowerCase()})), teamTwo:ids.slice(5).map((puuid,i)=>({puuid,championId:champions[i+5][0],teamParticipantId:0,selectedPosition:positions[i].toLowerCase()})) } }
 const items = [[3158,'明朗之靴'],[6617,'月石再生器'],[3504,'炽热香炉'],[6621,'黎明核心'],[3089,'灭世者的死亡之帽'],[3020,'法师之靴'],[3364,'神谕透镜']]
 const mockIcons = (array, type) => array.map(([id,name]) => ({id,name,iconPath:`/qa-art/${type}-${id}.svg`,description:`${name} · 离线演示图标`}))
@@ -128,13 +131,13 @@ try {
       return json(ranks)
     }
     if (url.origin !== origin) { external.push(url.hostname); return route.abort().catch(()=>{}) }
-    if (p.startsWith('/qa-art/')||p.includes('/champion-icons/')||p.includes('/profile-icons/')||p.includes('/ranked-mini-crests/')) return route.fulfill({contentType:'image/svg+xml',body:image(p)}).catch(()=>{})
+    if (p.startsWith('/qa-art/')||p.includes('/champion-icons/')||p.includes('/profile-icons/')||p.includes('/ranked-mini-crests/')||p.startsWith('/fe/lol-shared-components/')) return route.fulfill({contentType:'image/svg+xml',body:image(p)}).catch(()=>{})
     if (p.endsWith('/champion-summary.json')) return json([...champions,[154,'扎克'],[83,'约里克']].map(([id,name])=>({id,name,title:'英雄',alias:`Preview${id}`,squarePortraitPath:`/qa-art/champion-${id}.svg`})))
     if (p.endsWith('/items.json')) return json(mockIcons(items,'item'))
     if (p.endsWith('/summoner-spells.json')) return json(mockIcons([[4,'闪现'],[7,'治疗'],[32,'雪球']],'spell'))
     if (p.endsWith('/perks.json')) return json(mockIcons([[8214,'召唤艾黎'],[8453,'复苏']],'perk'))
     if (p.endsWith('/perkstyles.json')) return json({styles:mockIcons([[8200,'巫术'],[8400,'坚决']],'perkstyle')})
-    if (p.endsWith('/cherry-augments.json')) return json([101,102,103].map((id)=>({id,nameTRA:`演示强化 ${id}`,simpleNameTRA:`演示强化 ${id}`,augmentSmallIconPath:`/qa-art/augment-${id}.svg`,rarity:'kGold'})))
+    if (p.endsWith('/cherry-augments.json')) return json([101,102,103].map((id,index)=>({id,nameTRA:`演示强化 ${id}`,simpleNameTRA:`演示强化 ${id}`,augmentSmallIconPath:`/qa-art/augment-${id}.svg`,rarity:['kGold','kSilver','kPrismatic'][index]})))
     if (p.endsWith('/maps.json')) return json([{id:11,name:'召唤师峡谷',gameModeName:'经典'},{id:12,name:'嚎哭深渊',gameModeName:'大乱斗'}])
     if (p==='/lol-game-queues/v1/queues') return json(queues)
     if (p==='/lol-chat/v1/me') return json({platformId:'HN1',puuid:ids[0],gameName:names[0],tagLine:'DEMO'})
@@ -148,6 +151,7 @@ try {
     if (p==='/entitlements/v1/token') return json({accessToken:'test-fixture-only',issuer:'http://hn1-k8s-bcs-internal.lol.qq.com:28088'})
     if (p.endsWith('/league-session-token')) return json('test-fixture-only')
     if (p==='/lol-summoner/v1/current-summoner') return json(profile(0))
+    if (p==='/lol-patch/v1/game-version') return json('16.22.1')
     if (p==='/lol-summoner/v1/profile-privacy-enabled') {
       return json('ENABLED', url.searchParams.has('fail') ? 503 : 200)
     }
@@ -217,6 +221,7 @@ try {
   await page.getByRole('button',{name:'查询战绩',exact:true}).click()
   const profileView = page.getByTestId('player-history')
   const settings = page.getByTestId('history-display-settings')
+  const tooltip = page.getByRole('tooltip')
   await profileView.locator('.rh-match').first().waitFor()
   await profileView.getByText('流光翡翠 I',{exact:true}).waitFor()
   await profileView.getByText('璀璨钻石 II',{exact:true}).waitFor()
@@ -235,11 +240,18 @@ try {
   await rankHistory.waitFor({state:'hidden'})
   const miniName = profileView.locator('.rh-mini-roster button').first()
   assert.equal(await miniName.textContent(),'练习星轨')
-  assert.equal(await miniName.getAttribute('title'),'练习星轨#DEMO')
+  assert.equal(await miniName.getAttribute('title'),null)
+  assert.equal(await miniName.getAttribute('aria-label'),'练习星轨#DEMO')
+  await miniName.locator('.rh-player-name').hover()
+  await tooltip.getByText('练习星轨#DEMO',{exact:true}).waitFor()
+  assert.ok(await tooltip.evaluate((node) => node.classList.contains('rh-identity-tooltip')))
+  assert.equal(await tooltip.evaluate((node) => getComputedStyle(node).backgroundColor),'rgb(28, 44, 64)')
+  await page.mouse.move(4,4)
+  await tooltip.waitFor({state:'hidden'})
   assert.deepEqual(await rankCards.locator('.rh-rank-peak').allTextContents(), ['赛季最高璀璨钻石 I','赛季最高超凡大师'])
   assert.deepEqual(await rankCards.locator('.rh-rank-crest').evaluateAll((icons) => icons.map((icon) => icon.getAttribute('src'))), [
-    '/fe/lol-static-assets/images/ranked-mini-crests/emerald.svg',
-    '/fe/lol-static-assets/images/ranked-mini-crests/diamond.svg',
+    '/fe/lol-shared-components/emerald.png',
+    '/fe/lol-shared-components/diamond.png',
   ])
   await profileView.getByRole('button',{name:'显示设置',exact:true}).click()
   await settings.getByRole('checkbox',{name:'对局卡片的双方阵容'}).uncheck()
@@ -251,7 +263,6 @@ try {
   assert.ok(await profileView.locator('.rh-mini-roster').first().isVisible())
   const firstItem = profileView.locator('.rh-match .rh-item-slot[tabindex]').first()
   await firstItem.hover()
-  const tooltip = page.getByRole('tooltip')
   await tooltip.getByText('明朗之靴',{exact:true}).waitFor()
   await tooltip.getByText('明朗之靴 · 离线演示图标',{exact:true}).waitFor()
   assert.equal(await firstItem.locator('[title]').count(),0)
@@ -398,7 +409,7 @@ try {
   assert.equal(await profileView.locator('.rh-match-loss').count(),0)
   await profileView.getByRole('button',{name:'重置筛选'}).click()
   await profileView.getByRole('button',{name:'继续加载 50 场'}).click()
-  await profileView.getByText('已到当前接口的可用末尾',{exact:true}).waitFor()
+  await profileView.getByText('已加载完毕',{exact:true}).waitFor()
   assert.equal(await profileView.locator('.rh-match').count(),66)
   assert.ok(counts.some((entry)=>entry.start===50))
   slowQueue = 420
@@ -407,6 +418,10 @@ try {
   await profileView.locator('.rh-match').first().waitFor()
   assert.ok((await profileView.locator('.rh-match-meta > span:first-child').allTextContents()).every((line)=>line.includes('海克斯大乱斗')))
   await profileView.locator('.rh-augments').first().waitFor()
+  const rarityIcons = profileView.locator('.rh-augments').first()
+  assert.equal(await rarityIcons.locator('.rh-augment-gold').evaluate((node) => getComputedStyle(node).backgroundColor),'rgb(106, 75, 18)')
+  assert.equal(await rarityIcons.locator('.rh-augment-silver').evaluate((node) => getComputedStyle(node).backgroundColor),'rgb(75, 88, 109)')
+  assert.notEqual(await rarityIcons.locator('.rh-augment-prismatic').evaluate((node) => getComputedStyle(node).backgroundImage),'none')
   assert.equal(augmentRequests,0)
   const firstAugment = profileView.locator('.rh-augment-slot').first()
   await firstAugment.hover()
@@ -422,7 +437,7 @@ try {
   assert.equal(augmentRequests,1)
   failSgp = true
   await profileView.getByLabel('游戏模式').selectOption('450')
-  await profileView.getByText(/仅覆盖最近 100 场/).waitFor()
+  await profileView.getByText('当前范围为最近 100 场。',{exact:true}).waitFor()
   await profileView.locator('.rh-expand').first().click()
   await profileView.getByRole('button',{name:'治疗、控制与视野'}).click()
   await profileView.getByText('护盾 —',{exact:true}).first().waitFor()
@@ -481,7 +496,7 @@ try {
   await bpView.getByText('练习星轨#DEMO',{exact:true}).waitFor()
   await bpView.getByRole('heading',{name:'对局信息',exact:true}).waitFor()
   const firstTwoNames = bpView.locator('.rh-team-identity > strong').and(bpView.locator('.rh-team-card:nth-child(-n+2) strong'))
-  assert.deepEqual(await firstTwoNames.locator('span:first-child').evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).color)), ['rgb(214, 181, 120)','rgb(214, 181, 120)'])
+  assert.deepEqual(await firstTwoNames.locator('.rh-player-name-text').evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).color)), ['rgb(214, 181, 120)','rgb(214, 181, 120)'])
   assert.ok(await firstTwoNames.locator('.rh-id-tag').first().evaluate((node) => getComputedStyle(node).color !== getComputedStyle(node.previousElementSibling).color))
   assert.equal(await bpView.getByText('白昼拾荒#DEMO',{exact:true}).count(),0)
   await bpView.locator('.rh-team-card-stats').nth(4).waitFor()
@@ -535,6 +550,29 @@ try {
   assert.ok(await bpView.isVisible())
   await page.keyboard.press('Escape')
   await bpView.waitFor({state:'hidden'})
+  await page.evaluate(async (session) => {
+    const { store } = await import('/src/lib/store.ts')
+    store.set('opggBuildRecommendation',true)
+    window.qaEmit('/lol-champ-select/v1/session',session)
+  }, bp)
+  const previewBuild = page.locator('[data-sona-opgg-preselect-build]')
+  await previewBuild.waitFor()
+  assert.ok((await previewBuild.boundingBox()).x < (await page.getByRole('button',{name:'锁定',exact:true}).boundingBox()).x)
+  await previewBuild.click()
+  const buildPanel = page.locator('#sona-opgg-build-panel')
+  await buildPanel.locator('.sobp-title-name').getByText(/亚索/).waitFor()
+  await buildPanel.locator('.sobp-close').click()
+  bp.myTeam[0].championPickIntent = 103
+  bp.actions[0][0].championId = 103
+  await page.evaluate((session) => window.qaEmit('/lol-champ-select/v1/session',session), bp)
+  await previewBuild.click()
+  await buildPanel.locator('.sobp-title-name').getByText(/阿狸/).waitFor()
+  await buildPanel.locator('.sobp-close').click()
+  await page.evaluate(async () => {
+    const { store } = await import('/src/lib/store.ts')
+    store.set('opggBuildRecommendation',false)
+  })
+  await previewBuild.waitFor({state:'hidden'})
   const avatar = page.getByTestId('preview-avatar-0')
   await avatar.locator('[data-sona-particle]').waitFor({state:'attached'})
   await avatar.click({position:{x:24,y:24}})
@@ -597,6 +635,13 @@ try {
   assert.equal(await page.locator('.qa-context-menu').getByRole('button', {name:'查看资料'}).count(),1)
   await page.locator('.qa-context-menu').getByRole('button', {name:'详细战绩'}).click()
   await assertProfile('海盐风铃#DEMO')
+  await page.getByText('好友玩家',{exact:true}).click({button:'right'})
+  const friendMenu = page.locator('.qa-friend-context-menu')
+  await friendMenu.getByRole('button',{name:'详细战绩',exact:true}).waitFor()
+  assert.equal(await friendMenu.getByRole('button',{name:'查看生涯',exact:true}).count(),1)
+  assert.equal(await friendMenu.getByRole('button',{name:'详细战绩',exact:true}).locator('.menu-item-icon.icon-profile').count(),1)
+  await friendMenu.getByRole('button',{name:'详细战绩',exact:true}).click()
+  await assertProfile('云端烟火#DEMO')
   await page.getByText('结算玩家', {exact:true}).click({button:'right'})
   const actions = page.locator('.player-actions-menu-container')
   assert.equal(await actions.getByRole('button', {name:'查看资料'}).count(),1)

@@ -60,7 +60,11 @@ function Preview() {
   const move = (next: GameflowPhase) => { setPhase(next); emit(LcuEventUri.GAMEFLOW_PHASE_CHANGE, next) }
   return <><div className="qa-toolbar"><strong>离线界面验证 · 全部数据均为虚构</strong><button type="button" onClick={() => move('ChampSelect')}>模拟 BP</button><button type="button" onClick={() => move('InProgress')}>模拟进游戏</button><button type="button" onClick={() => move('Lobby')}>模拟回大厅</button></div>
     {phase === 'ChampSelect' && <><div className="party visible">{[0,1,2,3,4].map((index) => <div className="summoner-wrapper visible left" key={index}><div className="summoner-container"><div className="champion-icon-container" data-testid={`preview-avatar-${index}`}>{index + 1}</div><div className="player-details">{index + 1} 楼</div></div></div>)}</div><div className="bottom-right-buttons" /></>}
-    {phase === 'ChampSelect' && <EnemyRows />}
+    {phase === 'ChampSelect' && <><EnemyRows />
+      <div className="lock-in visible" style={{position:'relative',width:640,height:82,marginLeft:300}}>
+        <button type="button" className="action-button-container" style={{display:'block',width:178,height:82,margin:'0 auto'}}>锁定</button>
+      </div><button type="button" data-testid="qa-rune-editor">符文编辑</button>
+    </>}
     {phase === 'InProgress' && <div className="game-in-progress-container">游戏仍在进行中</div>}
     <div className="qa-tools"><ToolsPage /></div>
     <div className="qa-tools"><SettingsPage /></div>

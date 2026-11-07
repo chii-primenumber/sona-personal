@@ -142,7 +142,7 @@ export function summarize(matches: HistoryMatch[]) {
     taken: avgMetric('totalDamageTaken'), gold: avgMetric('goldEarned'), vision: avgMetric('visionScore'),
     healing: avgMetric('totalHealsOnTeammates'), shielding: avgMetric('totalDamageShieldedOnTeammates'),
     blue: valid.filter((m) => m.player.teamId === 100).length, red: valid.filter((m) => m.player.teamId === 200).length,
-    streak: valid.length ? `${streak} 连${valid[0].outcome === 'win' ? '胜' : '败'}` : '暂无样本',
+    streak: valid.length ? `${streak} 连${valid[0].outcome === 'win' ? '胜' : '败'}` : '暂无战绩',
   }
 }
 

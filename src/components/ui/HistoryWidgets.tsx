@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
 import { HistoryReplayButton } from './HistoryReplayButton'
+import { HistoryPlayerName } from './HistoryPlayerName'
 import { Modal } from './Modal'
 import { getChampIcon, getChampionById, getItemInfo, getSpellInfo, getPerkInfo, getPerkStyleIcon, getAugmentInfo, getQueueName, getMapName } from '@/lib/assets'
-import { championStats, durationText, finite, getOutcome, getPosition, matchBadges, metric, numberText, percentText, POSITION_NAMES, riotName, share, splitRiotId, summarize, teamKey, type HistoryMatch } from '@/lib/history-model'
+import { championStats, durationText, finite, getOutcome, getPosition, matchBadges, metric, numberText, percentText, POSITION_NAMES, riotName, share, summarize, teamKey, type HistoryMatch } from '@/lib/history-model'
 import { rankText, type HistoryRank } from '@/lib/history-api'
-import { getRankedMiniCrest } from '@/lib/ranked-assets'
+import { getRankedEmblem, getRankedMiniCrest } from '@/lib/ranked-assets'
 import { fetchHistoryAugmentDetail, historyAugmentRarity, type HistoryAugmentDetail, type HistoryAugmentMode } from '@/lib/history-augment-details'
 import { isHistoryFieldVisible, type HistoryDisplayField, type HistoryHiddenFields } from '@/lib/history-display'
 import { useHistoryHiddenFields } from '@/lib/use-history-display'
@@ -43,7 +44,7 @@ export function RankCards({ ranks, status }: { ranks: HistoryRank[] | null; stat
           {total > 0 && <small>胜率 {((rank.wins ?? 0) / total * 100).toFixed(1)}%</small>}
         </span>
         <span className="rh-rank-card-main">
-          <HistoryImage src={getRankedMiniCrest(rank.tier)} label={name} className="rh-rank-crest" />
+          <HistoryImage src={getRankedEmblem(rank.tier)} label={name} className="rh-rank-crest" />
           <span className="rh-rank-card-data">
             <strong className={`rh-rank-${rank.tier.toLowerCase()}`}>{name}</strong>
             {ranks && rank.tier !== 'UNRANKED' && <small>{numberText(rank.wins)} 胜 {numberText(rank.losses)} 负 · {numberText(rank.lp)} LP</small>}
@@ -138,6 +139,8 @@ export function RunesAndSpells({ player }: { player: SgpParticipantLol }) {
   </div>
 }
 
+const AUGMENT_RARITY_CLASSES: Record<string, string> = { 白银: 'silver', 黄金: 'gold', 棱彩: 'prismatic' }
+
 function HistoryAugmentIcon({ id, mode }: { id: number; mode: HistoryAugmentMode }) {
   const info = getAugmentInfo(id)
   const [requested, setRequested] = useState(false)
@@ -153,10 +156,11 @@ function HistoryAugmentIcon({ id, mode }: { id: number; mode: HistoryAugmentMode
 
   const name = info?.name && info.name !== String(id) ? info.name : detail?.name || `海克斯 ${id}`
   const rarity = historyAugmentRarity(info?.rarity) || detail?.rarity
+  const rarityClass = rarity ? AUGMENT_RARITY_CLASSES[rarity] : undefined
   const description = info?.description || detail?.description ||
     (requested && detail === undefined ? '正在读取效果说明…' : '暂无该强化的效果说明')
   return (
-    <HistoryAssetTooltip className="rh-augment-slot" title={name} icon={info?.iconPath}
+    <HistoryAssetTooltip className={`rh-augment-slot${rarityClass ? ` rh-augment-${rarityClass}` : ''}`} title={name} icon={info?.iconPath}
       subtitle={rarity ? `${rarity}强化` : '海克斯强化'} description={description}
       onShow={() => setRequested(true)}>
       <HistoryImage src={info?.iconPath} label={name} nativeTooltip={false} />
@@ -174,8 +178,8 @@ export function Augments({ player, game }: { player: SgpParticipantLol; game: Sg
 function MiniRoster({ game, onInspect }: { game: SgpGameSummaryLol; onInspect?: (puuid: string, name: string) => void }) {
   const groups = new Map<number, SgpParticipantLol[]>()
   game.json.participants.forEach((p) => { const key = teamKey(p, game); const group = groups.get(key) || []; group.push(p); groups.set(key, group) })
-  return <div className="rh-mini-roster">{[...groups].map(([key, players]) => <div key={key}>{players.map((p, index) => <button type="button" key={p.puuid || index} title={riotName(p)} disabled={!p.puuid || !onInspect} onClick={() => onInspect?.(p.puuid, riotName(p))}>
-    <HistoryImage src={getChampIcon(p.championId)} label={championName(p.championId)} /><span>{splitRiotId(riotName(p)).name}</span>
+  return <div className="rh-mini-roster">{[...groups].map(([key, players]) => <div key={key}>{players.map((p, index) => <button type="button" key={p.puuid || index} aria-label={riotName(p)} disabled={!p.puuid || !onInspect} onClick={() => onInspect?.(p.puuid, riotName(p))}>
+    <HistoryImage src={getChampIcon(p.championId)} label={championName(p.championId)} /><HistoryPlayerName name={riotName(p)} />
   </button>)}</div>)}</div>
 }
 
@@ -325,7 +329,6 @@ export function MatchReport({ game, focusPuuid, onInspect }: { game: SgpGameSumm
       {economyLegend && <span><i className="rh-report-bar-gold" />经济</span>}
       <span>条长相对本场同项最高值，百分比为队内占比。</span>
     </div>}
-    <p className="rh-footnote">占比以本场本队总量计算。— 表示接口未提供或分母不足。</p>
   </div>
 }
 
@@ -337,7 +340,7 @@ function TeamReportRows({ players, label, game, focusPuuid, onInspect, columns, 
     {players.map((p, index) => <tr key={p.puuid || index} className={p.puuid === focusPuuid ? 'is-focus' : ''}>
       <td><button type="button" className="rh-player-link" disabled={!p.puuid || !onInspect} onClick={() => onInspect?.(p.puuid, riotName(p))}>
         <HistoryImage src={getChampIcon(p.championId)} label={championName(p.championId)} />
-        <span><strong>{riotName(p)}</strong><small>{championName(p.championId)} · {POSITION_NAMES[getPosition(p, game)]}</small></span>
+        <span><strong><HistoryPlayerName name={riotName(p)} showTag /></strong><small>{championName(p.championId)} · {POSITION_NAMES[getPosition(p, game)]}</small></span>
       </button></td>
       {columns.map(({ key, render }) =>
         <td key={key} className={key === 'loadout' ? 'rh-report-loadout-cell' : undefined}>{render(p, teamKills)}</td>)}

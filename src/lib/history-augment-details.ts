@@ -37,16 +37,14 @@ function cleanDescription(description: unknown) {
 
 function arenaDescription(augment: ArenaAugment) {
   const raw = augment.desc || augment.tooltip
-  let variable = false
   const description = cleanDescription(raw?.replace(/@([\w]+)(?:\*([0-9.]+))?@/g, (_, key: string, multiplier?: string) => {
     const values = augment.dataValues?.[key]
     if (values?.length && Number.isFinite(values[0]) && values.every((value) => value === values[0])) {
       return String(Number((values[0] * Number(multiplier ?? 1)).toFixed(2)))
     }
-    variable = true
     return '…'
-  }).replace(/@[^@]+@/g, () => { variable = true; return '…' }))
-  return variable && description ? `${description}\n\n部分数值以游戏内说明为准。` : description
+  }).replace(/@[^@]+@/g, '…'))
+  return description
 }
 
 async function loadCatalog(mode: HistoryAugmentMode): Promise<Map<number, HistoryAugmentDetail>> {

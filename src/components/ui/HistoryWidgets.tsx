@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
 import { HistoryReplayButton } from './HistoryReplayButton'
 import { HistoryPlayerName } from './HistoryPlayerName'
@@ -11,7 +11,9 @@ import { getRankedEmblem, getRankedMiniCrest } from '@/lib/ranked-assets'
 import { fetchHistoryAugmentDetail, historyAugmentRarity, type HistoryAugmentDetail, type HistoryAugmentMode } from '@/lib/history-augment-details'
 import { isHistoryFieldVisible, type HistoryDisplayField, type HistoryHiddenFields } from '@/lib/history-display'
 import { useHistoryHiddenFields, useHistoryPerformanceFields } from '@/lib/use-history-display'
-import { PERFORMANCE_STATS, performanceText, performanceMatchForPlayer } from '@/lib/history-performance'
+import { PERFORMANCE_STATS, performanceText, performanceMatchForPlayer, performanceSummary } from '@/lib/history-performance'
+import { calculatePlayerScore, playerScoreLabel, formatPlayerScore } from '@/lib/player-score'
+import { usePlayerScoreSystem } from '@/lib/use-player-score'
 import type { SgpGameSummaryLol, SgpParticipantLol } from '@/types/sgp'
 
 export function HistoryImage({ src, label, className = '', nativeTooltip = true }: {
@@ -109,11 +111,37 @@ export function ChampionStrip({ matches, onSelect, selectedId, limit = 5 }: {
   selectedId?: number
   limit?: number
 }) {
-  return <div className="rh-champion-strip">{championStats(matches).slice(0, limit).map((item) => <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}
-    aria-pressed={onSelect && selectedId !== undefined ? selectedId === item.id : undefined}
-    aria-label={`${championName(item.id)} · ${item.total} 场 · 胜率 ${percentText(item.winRate)}`} disabled={!onSelect}>
-    <HistoryImage src={getChampIcon(item.id)} label={`${championName(item.id)}\n${item.total} 场 · 胜率 ${percentText(item.winRate)}`} /><span>{item.total}</span>
-  </button>)}</div>
+  const champions = useMemo(()=>championStats(matches).slice(0,limit),[matches,limit])
+  return <div className="rh-champion-strip">{champions.map((item) => <ChampionStripItem key={item.id} item={item}
+    selected={selectedId === item.id} onSelect={onSelect} />)}</div>
+}
+
+function ChampionStripItem({ item, selected, onSelect }: { item: ReturnType<typeof championStats>[number]; selected: boolean; onSelect?: (id:number)=>void }) {
+  const [requested,setRequested] = useState(false)
+  const system = usePlayerScoreSystem()
+  const selectable = Boolean(onSelect)
+  const details = useMemo(()=>{
+    if (!requested) return ''
+    const score = calculatePlayerScore(item.games.map((match)=>match.game),item.games[0]?.player.puuid || '',system)
+    const performance = new Map(performanceSummary(item.games,['damageGold','damageMinute','goldMinute'],'team').map((entry)=>[entry.stat.key,entry.value]))
+    return [
+      `${playerScoreLabel(system)} ${score ? formatPlayerScore(score.score,system) : '—'}`,
+      `KDA ${numberText(item.kda,2)} · 参团 ${percentText(item.participation)}`,
+      `伤转率 ${percentText(performance.get('damageGold'))} · 伤害占比 ${percentText(item.damageShare)}`,
+      `承伤占比 ${percentText(item.takenShare)} · 经济占比 ${percentText(item.goldShare)}`,
+      `场均伤害 ${numberText(item.damage)} · 分均伤害 ${numberText(performance.get('damageMinute'))}`,
+      `补刀 / 分 ${numberText(item.csPerMinute,1)} · 金币 / 分 ${numberText(performance.get('goldMinute'))}`,
+      `友方治疗 ${numberText(item.healing)} · 友方护盾 ${numberText(item.shielding)}`,
+      selectable ? (selected ? '再次点击显示全部英雄战绩' : '点击筛选该英雄战绩') : '',
+    ].filter(Boolean).join('\n')
+  },[requested,item,system,selected,selectable])
+  return <HistoryAssetTooltip title={championName(item.id)} icon={getChampIcon(item.id)} subtitle={`${item.total} 场 · ${item.wins} 胜 ${item.losses} 负 · 胜率 ${percentText(item.winRate)}`}
+    description={details} onShow={()=>setRequested(true)} focusable={false} asChild>
+    <button type="button" onClick={()=>onSelect?.(item.id)} aria-pressed={onSelect ? selected : undefined}
+      aria-label={`${championName(item.id)} · ${item.total} 场 · 胜率 ${percentText(item.winRate)}`} aria-disabled={!onSelect || undefined}>
+      <HistoryImage src={getChampIcon(item.id)} label={championName(item.id)} nativeTooltip={false} /><span>{item.total}</span>
+    </button>
+  </HistoryAssetTooltip>
 }
 
 export function Equipment({ player, dense = false }: { player: SgpParticipantLol; dense?: boolean }) {

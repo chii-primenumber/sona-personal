@@ -76,6 +76,7 @@
 .rh-workspace { flex: 1 1 auto; display: grid; grid-template-columns: 255px minmax(0,1fr); gap: 11px; padding: 11px; min-height: 0; overflow: hidden; }
 .rh-sidebar, .rh-content, .rh-team-body { overflow: auto; min-height: 0; }
 .rh-sidebar { padding-right: 4px; }
+.rh-sidebar .rh-champion-strip { gap: 3px; }
 .rh-panel { margin: 0 0 8px; padding: 10px 11px; background: var(--rh-panel); border: 1px solid var(--sona-history-line); border-radius: 7px; }
 .rh-panel h3, .rh-team-group h3 { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; margin-bottom: 7px; font-size: 14px; color: rgb(var(--sona-text-rgb)); }
 .rh-panel h3 small, .rh-team-group h3 small { color: var(--rh-muted); font-weight: 400; white-space: nowrap; }
@@ -160,7 +161,10 @@
 .rh-local-filters select { max-width: 188px; }
 .rh-local-filters label { display: flex; align-items: center; gap: 4px; color: rgb(var(--sona-pale-rgb)); white-space: nowrap; }
 .rh-local-filters input { accent-color: rgb(var(--sona-accent-rgb)); }
-.rh-content { flex: 1; padding-right: 4px; }
+.rh-content { flex: 1; padding-right: 4px; padding-bottom: 48px; }
+.rh-history-shell, .rh-team-shell { position: relative; }
+.rh-shell .rh-scroll-top { position: absolute; z-index: 6; right: 26px; bottom: 18px; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid rgb(var(--sona-accent-rgb) / .65); border-radius: 50%; color: rgb(var(--sona-accent-rgb)); background: var(--sona-history-raised); box-shadow: 0 3px 12px #0008; cursor: pointer; }
+.rh-shell .rh-scroll-top:hover { background: var(--sona-history-hover); color: rgb(var(--sona-pale-rgb)); border-color: rgb(var(--sona-accent-rgb)); }
 .rh-notice, .rh-error { font-size: 11px; border: 1px solid #896738; background: #30271c; padding: 6px 9px; border-radius: 5px; margin: 0 0 7px; color: #f2d6a3; }
 .rh-error { display: flex; gap: 8px; align-items: center; justify-content: space-between; border-color: #9b5e60; background: #36242c; color: #ffd0c6; }
 .rh-error button { padding: 2px 8px; }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Modal } from './Modal'
 import { PlayerHistoryModal } from './PlayerHistoryModal'
 import { ChampionStrip, HistoryImage, MatchReport, championName } from './HistoryWidgets'
@@ -6,6 +6,7 @@ import { HistoryDisplaySettings } from './HistoryDisplaySettings'
 import { HistoryPlayerName } from './HistoryPlayerName'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
 import { HistoryPerformanceStats } from './HistoryPerformanceStats'
+import { HistoryScrollTop } from './HistoryScrollTop'
 import { RefreshIcon, SettingsIcon } from './icons'
 import { lcu, LcuEventUri } from '@/lib/lcu'
 import { store } from '@/lib/store'
@@ -83,6 +84,8 @@ export function TeamHistoryModal({ open, onClose, mode, party = emptyParty }: {
   const [target, setTarget] = useState<{ puuid: string; name: string } | null>(null)
   const [selectedMatch, setSelectedMatch] = useState<HistoryMatch | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const bodyRef = useRef<HTMLDivElement | null>(null)
+  const scrollTargets = useMemo(()=>[bodyRef],[])
   const hidden = useHistoryHiddenFields()
   useEffect(() => {
     if (!open) { setTarget(null); setSelectedMatch(null); setShowSettings(false); setSelectedQueue(null); return }
@@ -146,7 +149,7 @@ export function TeamHistoryModal({ open, onClose, mode, party = emptyParty }: {
             </HistoryAssetTooltip>
           </div>
         </header>
-        <div className="rh-team-body">
+        <div className="rh-team-body rh-scroll-area" ref={bodyRef}>
           {error ? <div className="rh-error" role="alert">{error}<button type="button" onClick={() => setRevision((n) => n + 1)}>重试</button></div> : !snapshot ? <div className="rh-empty"><span className="rh-spinner" />读取当前对局…</div> : !playerCount ? <div className="rh-empty">客户端还未提供参赛者信息，可稍后刷新。</div> :
             <div className="rh-team-groups">
               {snapshot.teams.map((team) => (
@@ -155,6 +158,7 @@ export function TeamHistoryModal({ open, onClose, mode, party = emptyParty }: {
               ))}
             </div>}
         </div>
+        <HistoryScrollTop targets={scrollTargets} resetKey={`${open}:${mode}:${revision}`} />
       </div>
     </Modal>
     <HistoryDisplaySettings open={open && showSettings} onClose={() => setShowSettings(false)} initialSection="team" />
@@ -222,6 +226,8 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
   const [profile, setProfile] = useState<SummonerInfo | null>(null)
   const [ranks, setRanks] = useState<HistoryRank[] | null>(null)
   const [rankLoading, setRankLoading] = useState(true)
+  const [championFilter, setChampionFilter] = useState(0)
+  const recentRef = useRef<HTMLDivElement | null>(null)
   const scoreSystem = usePlayerScoreSystem()
   const pages = useHistoryPages(member.puuid, queueId, count, open)
   useEffect(() => {
@@ -233,13 +239,21 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
     return () => controller.abort()
   }, [open, member.puuid])
   const matches = useMemo(() => toHistoryMatches(pages.games, member.puuid).filter((m) => !queueId || m.game.json.queueId === queueId), [pages.games, member.puuid, queueId])
-  const stats = useMemo(() => summarize(matches), [matches])
-  const valid = useMemo(() => validMatches(matches), [matches])
+  const allValid = useMemo(() => validMatches(matches), [matches])
+  const selectedMatches = useMemo(()=>championFilter ? matches.filter((match)=>match.player.championId===championFilter) : matches,[matches,championFilter])
+  const allStats = useMemo(() => summarize(matches), [matches])
+  const stats = useMemo(() => summarize(selectedMatches), [selectedMatches])
+  const valid = useMemo(() => validMatches(selectedMatches), [selectedMatches])
+  useEffect(()=>{ setChampionFilter(0) },[queueId,member.puuid])
+  useEffect(()=>{
+    if (!pages.loading && championFilter && !allValid.some((match)=>match.player.championId===championFilter)) setChampionFilter(0)
+  },[allValid,pages.loading,championFilter])
+  useEffect(()=>{ if (recentRef.current) recentRef.current.scrollTop=0 },[championFilter])
   useEffect(() => {
-    if (!open || !stats.total) return
-    updateSummary(member.key, stats)
+    if (!open || !allStats.total) return
+    updateSummary(member.key, allStats)
     return () => updateSummary(member.key, null)
-  }, [member.key, open, stats, updateSummary])
+  }, [member.key, open, allStats, updateSummary])
   const score = useMemo(() => {
     try {
       const result = calculatePlayerScore(valid.map((match) => match.game), member.puuid, scoreSystem)
@@ -306,8 +320,8 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
             ))}
             <HistoryPerformanceStats matches={valid} section="team" />
           </div>
-          {show('champions') && <ChampionStrip matches={valid} limit={9} />}
-          {show('recent') && <div className="rh-team-recent-list" aria-label="最近对局">
+          {show('champions') && <ChampionStrip matches={allValid} limit={9} selectedId={championFilter} onSelect={(id)=>setChampionFilter((current)=>current===id?0:id)} />}
+          {show('recent') && <div className="rh-team-recent-list rh-scroll-area" aria-label="最近对局" ref={recentRef}>
             {valid.slice(0, 8).map((match) => (
               <button type="button" className={`rh-team-match rh-team-match-${match.outcome}`} key={match.id}
                 aria-label="打开这场对局的详细战报" onClick={() => onMatch(match)}>

@@ -59,3 +59,14 @@
 :is(#sona-root, .sona-modal-overlay, .sobp) ::-webkit-scrollbar-thumb:active {
   background: rgba(194, 186, 218, 0.52);
 }
+
+/* Keep the track transparent while widening the actual draggable scrollbar. */
+:is(#sona-root, .sona-modal-overlay, .sobp) .rh-scroll-area::-webkit-scrollbar { width: 14px; height: 14px; }
+:is(#sona-root, .sona-modal-overlay, .sobp) .rh-scroll-area::-webkit-scrollbar-thumb {
+  min-height: 38px; min-width: 38px; border: 3px solid transparent; background: rgb(var(--sona-muted-rgb) / .36); background-clip: padding-box;
+}
+:is(#sona-root, .sona-modal-overlay, .sobp) .rh-scroll-area::-webkit-scrollbar-thumb:hover,
+:is(#sona-root, .sona-modal-overlay, .sobp) .rh-scroll-area::-webkit-scrollbar-thumb:active {
+  background: rgb(var(--sona-accent-rgb) / .7); background-clip: padding-box;
+}
+:is(#sona-root, .sona-modal-overlay, .sobp) .rh-scroll-area::-webkit-scrollbar-track:hover { background: rgb(var(--sona-accent-rgb) / .035); }

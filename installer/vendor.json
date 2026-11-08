@@ -1,0 +1,16 @@
+{
+  "pengu": {
+    "version": "1.1.6",
+    "url": "https://github.com/PenguLoader/PenguLoader/releases/download/v1.1.6/pengu-loader-v1.1.6.zip",
+    "sha256": "D9AAFFD776A1594E4FB5EF060814C40CAB0CB4DE07F1F0CE3246E9C12EDA8836",
+    "source": "https://github.com/PenguLoader/PenguLoader/tree/v1.1.6",
+    "commit": "4d641f52bc5d70aac4c09dfa1fa7a043a9069aff",
+    "files": ["Pengu Loader.exe", "core.dll", "ModernWpf.dll", "ModernWpf.Controls.dll", "Ookii.Dialogs.Wpf.dll", "System.ValueTuple.dll", "version"]
+  },
+  "vcRuntime": {
+    "version": "14.44.35211.0",
+    "url": "https://download.visualstudio.microsoft.com/download/pr/990c720a-46ce-4dc7-87b9-c2eb615d34b9/CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B/VC_redist.x64.exe",
+    "sha256": "CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B",
+    "documentation": "https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist"
+  }
+}

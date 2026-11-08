@@ -2,6 +2,14 @@
 
 版本为 `1.10.0-personal.23`，基于 **原作者 WJZ-P** 的 **Sona v1.10.0** 定制，沿用原项目的 **AGPL-3.0** 许可。主要增强个人战绩、玩家搜索、队伍总览、对位与回放，并提供全局主题和显示设置。队伍卡片与 Akari 评分参考 Hanxven 的 [League Akari](https://github.com/LeagueAkari/LeagueAkari)，评分适配保留其 MIT 许可。[Sona 上游项目](https://github.com/WJZ-P/sona/tree/v1.10.0)
 
+本个人版新增功能主要参考开源项目 [League Akari](https://github.com/LeagueAkari/LeagueAkari) 的个人战绩、队伍卡片、玩家搜索、数据展示与交互，并适配其评分机制。[完整功能介绍](README.md)
+
+## 一键安装
+
+Release 中带 `one-click-windows.zip` 的包包含官方 Pengu Loader v1.1.6、Sona、脚本与说明。完整解压后退出客户端和 Loader 管理窗口，双击「一键安装.cmd」并允许管理员授权。脚本自动寻找客户端、备份旧安装、保留自定义资源与设置、安装并激活；搜索不到时按提示粘贴目录。运行库缺失时从微软官网下载补齐。完成后重新启动客户端，按 F1 打开。
+
+[详细安装说明、备份位置与回退方式](installer/INSTALL.md)。下列方法用于已有 Loader 时手动安装仅插件包。
+
 ## 安装与回退
 
 1. 退出英雄联盟客户端。在 **Pengu Loader → Plugins** 中打开插件目录。

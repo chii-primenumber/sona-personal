@@ -9,7 +9,16 @@ permissions:
   contents: write
 
 jobs:
+  test-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test isolated installation and rollback
+        shell: powershell
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File qa-local/verify-installer.ps1
+
   build-and-release:
+    needs: test-installer
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ github.ref_name }}
@@ -33,13 +42,8 @@ jobs:
 
       - name: Prepare release package
         run: |
-          mkdir -p release/sona/assets
-          cp dist/index.js dist/index.css LICENSE release/sona/
-          cp -R assets/. release/sona/assets/
-          if [ -d dist/assets ]; then cp -R dist/assets/. release/sona/assets/; fi
-          cp README_个人版.md release/sona/README.md
-          (cd release && zip -r "../sona-$RELEASE_TAG.zip" sona/)
-          sha256sum "sona-$RELEASE_TAG.zip" > SHA256SUMS.txt
+          curl --fail --location --retry 2 https://github.com/PenguLoader/PenguLoader/releases/download/v1.1.6/pengu-loader-v1.1.6.zip --output pengu.zip
+          python scripts/package-release.py --pengu-zip pengu.zip --output release
 
       - name: Generate release notes
         run: |
@@ -48,6 +52,7 @@ jobs:
             found { print }
           ' CHANGELOG.md > release-notes.md
           grep -q '[^[:space:]]' release-notes.md
+          cat installer/RELEASE_GUIDE.md >> release-notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -55,8 +60,9 @@ jobs:
           name: Sona 个人战绩增强版 ${{ github.ref_name }}
           body_path: release-notes.md
           files: |
-            sona-${{ github.ref_name }}.zip
-            SHA256SUMS.txt
+            release/sona-${{ github.ref_name }}-one-click-windows.zip
+            release/sona-${{ github.ref_name }}.zip
+            release/SHA256SUMS.txt
           fail_on_unmatched_files: true
           draft: false
           prerelease: true

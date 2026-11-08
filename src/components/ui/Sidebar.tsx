@@ -3,6 +3,7 @@ import { MusicIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/ui/ic
 import { useI18n } from '@/i18n'
 import '@/styles/Sidebar.css'
 import { ScoreSystemButton } from './ScoreSystemButton'
+import { ProfileHistoryToggle } from './ProfileHistoryToggle'
 
 declare const __PLUGIN_VERSION__: string
 
@@ -54,6 +55,7 @@ export function Sidebar({ items, activeId, onSelect, collapsed, onToggle }: Side
       {/* 底部展开/收缩按钮 */}
       <div className="sona-sidebar-footer">
         <ScoreSystemButton collapsed={collapsed} />
+        <ProfileHistoryToggle collapsed={collapsed} />
         <button className="sona-sidebar-toggle" onClick={onToggle} title={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}>
           {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
         </button>

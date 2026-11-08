@@ -1,12 +1,15 @@
 import { cloneElement, isValidElement, useId, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+export interface TooltipStat { label: string; value: string }
 
-export function HistoryAssetTooltip({ className, title, subtitle, description, icon, onShow, children, compact = false, focusable = true, asChild = false }: {
+export function HistoryAssetTooltip({ className, title, subtitle, description, icon, stats, footer, onShow, children, compact = false, focusable = true, asChild = false }: {
   className?: string
   title: string
   subtitle?: string
   description?: string
   icon?: string
+  stats?: TooltipStat[]
+  footer?: string
   onShow?: () => void
   children: ReactNode
   compact?: boolean
@@ -33,13 +36,13 @@ export function HistoryAssetTooltip({ className, title, subtitle, description, i
   return (
     <>{anchor}
       {visible && anchorRef.current && <TooltipBubble anchor={anchorRef.current} id={id} title={title} subtitle={subtitle}
-        description={description} icon={icon} compact={compact} />}
+        description={description} icon={icon} stats={stats} footer={footer} compact={compact} />}
     </>
   )
 }
 
-export function TooltipBubble({ anchor, id, title, subtitle, description, icon, compact = false }: {
-  anchor: HTMLElement; id?: string; title: string; subtitle?: string; description?: string; icon?: string; compact?: boolean
+export function TooltipBubble({ anchor, id, title, subtitle, description, icon, stats, footer, compact = false }: {
+  anchor: HTMLElement; id?: string; title: string; subtitle?: string; description?: string; icon?: string; stats?: TooltipStat[]; footer?: string; compact?: boolean
 }) {
   const tooltipRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -61,12 +64,23 @@ export function TooltipBubble({ anchor, id, title, subtitle, description, icon, 
       window.removeEventListener('scroll', positionTooltip, true)
       window.removeEventListener('resize', positionTooltip)
     }
-  }, [anchor, title, subtitle, description, icon, compact])
+  }, [anchor, title, subtitle, description, icon, stats, footer, compact])
   return createPortal(<div ref={tooltipRef} id={id} role="tooltip" className={`rh-asset-tooltip${compact ? ' rh-identity-tooltip' : ''}`}>
     <div className="rh-asset-tooltip-head">
       {icon && <img src={icon} alt="" />}
       <div><strong>{title}</strong>{subtitle && <small>{subtitle}</small>}</div>
     </div>
     {description && <div className="rh-asset-tooltip-description">{description}</div>}
+    {stats && stats.length>0 && <table className="rh-tooltip-stats" aria-label="英雄表现数据"><tbody>
+      {Array.from({length:Math.ceil(stats.length/2)},(_,index)=>stats.slice(index*2,index*2+2)).map((row,index)=><tr key={index}>
+        {row.map((stat)=><TooltipStatCells key={stat.label} stat={stat} />)}
+        {row.length===1 && <td colSpan={2} />}
+      </tr>)}
+    </tbody></table>}
+    {footer && <p className="rh-tooltip-footer">{footer}</p>}
   </div>, document.body)
+}
+
+function TooltipStatCells({stat}:{stat:TooltipStat}) {
+  return <><th scope="row">{stat.label}</th><td>{stat.value}</td></>
 }

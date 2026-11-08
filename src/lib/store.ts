@@ -24,6 +24,7 @@ import type { HistoryPlayer } from '@/lib/history-search'
 import type { SonaTheme } from '@/lib/theme'
 import { DEFAULT_PERFORMANCE_FIELDS, type PerformanceSelection } from '@/lib/history-performance'
 import type { PlayerScoreSystem } from '@/lib/player-score'
+import type { OpggTier } from '@/lib/opgg-api'
 
 // ==================== 配置项定义 ====================
 
@@ -35,6 +36,8 @@ export interface SonaConfig {
   historyRecentPlayers: HistoryPlayer[]
   theme: SonaTheme
   playerScoreSystem: PlayerScoreSystem
+  profileHistoryEntry: boolean
+  enemyOpggMatchupTier: OpggTier
   /** 自动接受对局 */
   autoAcceptMatch: boolean
   /** 允许接受对局后再拒绝（解禁 ReadyCheck 的接受/拒绝按钮，使其始终可点） */
@@ -245,6 +248,8 @@ const DEFAULT_CONFIG: SonaConfig = {
   historyRecentPlayers: [],
   theme: 'client',
   playerScoreSystem: 'akari',
+  profileHistoryEntry: true,
+  enemyOpggMatchupTier: 'emerald_plus',
   autoAcceptMatch: false,
   allowDeclineAfterAccept: true,
   autoAcceptDelayMin: 0,

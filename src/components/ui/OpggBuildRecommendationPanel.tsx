@@ -45,7 +45,7 @@ const OPGG_TIER_BASE_OPTIONS: Array<{ value: OpggTier; label: string }> = [
   { value: 'bronze', label: '英勇黄铜' },
   { value: 'iron', label: '坚韧黑铁' },
 ]
-const OPGG_TIER_OPTIONS: Array<{ value: OpggTier; label: string; icon?: string }> = OPGG_TIER_BASE_OPTIONS.map((option) => ({
+export const OPGG_TIER_OPTIONS: Array<{ value: OpggTier; label: string; icon?: string }> = OPGG_TIER_BASE_OPTIONS.map((option) => ({
   ...option,
   icon: getRankedMiniCrest(option.value.replace('_plus', '')),
 }))
@@ -148,12 +148,14 @@ export function OpggBuildRecommendationPanel({
             <PositionFilterSelect value={context.position} onChange={onPositionChange} allowUnselected={!!koreanMatchups} />
           )}
           <TierFilterSelect value={selectedTier} onChange={onTierChange} />
+        </div>
+        <button type="button" className="sobp-close" onClick={onClose} aria-label={t('opgg.close')}>
+          ×
+        </button>
+        {(recommendation?.meta || !!recommendation?.summary.length) && <div className="sobp-overview">
           <TrendMeta meta={recommendation?.meta} />
           <SummaryCards values={recommendation?.summary ?? []} />
-          <button type="button" className="sobp-close" onClick={onClose} aria-label={t('opgg.close')}>
-            ×
-          </button>
-        </div>
+        </div>}
       </header>
 
       <main className="sobp-body">
@@ -174,7 +176,7 @@ export function OpggBuildRecommendationPanel({
               <LastItemTrendSection title={t('opgg.section.trends')} builds={recommendation?.lastItems} />
             </div>
             <MatchupSection title={t('opgg.section.matchups')} matchups={recommendation?.matchups} />
-            {showAugments && <AugmentSection title={t('opgg.section.augments')} groups={recommendation?.augments} winRateFirst={isKiwiMode(context)} />}
+            {showAugments && <AugmentSection title={t('opgg.section.augments')} groups={recommendation?.augments} />}
           </>
         )}
 
@@ -406,7 +408,7 @@ function ItemSection({ title, builds, itemLimit }: { title: string; builds?: Opg
               })}
             </div>
           </div>
-          <StatBar value={build.pick_rate} maxRate={maxRate} />
+          <RecommendationStats build={build} maxRate={maxRate} />
         </div>
       ))}
     </Section>
@@ -419,6 +421,7 @@ function LastItemTrendSection({ title, builds }: { title: string; builds?: OpggI
       id,
       key: `${buildIndex}-${itemIndex}-${id}`,
       pickRate: build.pick_rate,
+      winRate: getBuildWinRate(build),
     })))
     .slice(0, 18)
 
@@ -429,8 +432,8 @@ function LastItemTrendSection({ title, builds }: { title: string; builds?: OpggI
           const item = getItemInfo(entry.id)
           return (
             <div className="sobp-last-item" key={entry.key}>
-              <div className="sobp-last-item-rate">{formatPercent(entry.pickRate)}</div>
               <BuildIcon src={item.iconPath} title={item.name} description={item.description} price={item.price} size={34} />
+              <RecommendationRates pickRate={entry.pickRate} winRate={entry.winRate} maxRate={1} />
             </div>
           )
         })}
@@ -456,7 +459,7 @@ function SpellSection({ title, builds, limit }: { title: string; builds?: OpggIt
               })}
             </div>
           </div>
-          <StatBar value={build.pick_rate} maxRate={maxRate} />
+          <RecommendationStats build={build} maxRate={maxRate} />
         </div>
       ))}
     </Section>
@@ -584,7 +587,7 @@ function RuneSection({ title, runes, championName, modeLabel }: { title: string;
               </div>
             </div>
             <div className="sobp-rune-actions">
-              <StatBar value={rune.pick_rate} maxRate={maxRate} />
+              <RecommendationStats build={rune} maxRate={maxRate} />
               <button
                 type="button"
                 className={`sobp-apply-rune${appliedKey === applyKey ? ' sobp-apply-rune--done' : ''}${applyErrorKey === applyKey ? ' sobp-apply-rune--error' : ''}`}
@@ -604,7 +607,7 @@ function RuneSection({ title, runes, championName, modeLabel }: { title: string;
   )
 }
 
-function AugmentSection({ title, groups, winRateFirst = false }: { title: string; groups?: BuildRecommendation['augments']; winRateFirst?: boolean }) {
+function AugmentSection({ title, groups }: { title: string; groups?: BuildRecommendation['augments'] }) {
   const visibleGroups = groups ?? []
 
   return (
@@ -616,9 +619,6 @@ function AugmentSection({ title, groups, winRateFirst = false }: { title: string
             <div className="sobp-augment-grid">
               {group.items.map((augment) => {
                 const info = getAugmentInfo(augment.id)
-                const detailText = Number.isFinite(augment.winRate)
-                  ? formatAugmentWinRateText(augment, winRateFirst)
-                  : `登场 ${formatPercent(augment.pickRate)} · 均排 ${formatPlace(augment.averagePlace)}`
                 return (
                   <div className="sobp-augment" key={augment.id}>
                     <BuildIcon
@@ -631,7 +631,8 @@ function AugmentSection({ title, groups, winRateFirst = false }: { title: string
                     />
                     <div className="sobp-augment-info">
                       <div className="sobp-augment-name">{info?.name ?? String(augment.id)}</div>
-                      <div className="sobp-augment-meta">{detailText}</div>
+                      <RecommendationRates pickRate={augment.pickRate} winRate={augment.winRate} maxRate={1} />
+                      {Number.isFinite(augment.averagePlace) && <div className="sobp-augment-meta">均排 {formatPlace(augment.averagePlace)}</div>}
                     </div>
                   </div>
                 )
@@ -644,14 +645,25 @@ function AugmentSection({ title, groups, winRateFirst = false }: { title: string
   )
 }
 
-function formatAugmentWinRateText(augment: { pickRate: number; winRate?: number }, winRateFirst: boolean): string {
-  const winRateText = `胜率 ${formatPercent(augment.winRate)}`
-  const pickRateText = `登场 ${formatPercent(augment.pickRate)}`
-  return winRateFirst ? `${winRateText} · ${pickRateText}` : `${pickRateText} · ${winRateText}`
-}
-
 function RankBadge({ rank }: { rank: number }) {
   return <div className={`sobp-rank${rank === 1 ? ' sobp-rank--first' : ''}`}>#{rank}</div>
+}
+
+function getBuildWinRate(build: {win?: number; play?: number}): number | undefined {
+  const {win,play} = build
+  return typeof win === 'number' && Number.isFinite(win) && typeof play === 'number' && Number.isFinite(play)
+    && play > 0 && win >= 0 && win <= play ? win / play : undefined
+}
+
+function RecommendationStats({ build, maxRate }: { build: {pick_rate: number; win?: number; play?: number}; maxRate: number }) {
+  return <RecommendationRates pickRate={build.pick_rate} winRate={getBuildWinRate(build)} maxRate={maxRate} />
+}
+
+function RecommendationRates({pickRate,winRate,maxRate}:{pickRate:number;winRate?:number;maxRate:number}) {
+  return <div className="sobp-recommendation-stats">
+    <StatBar value={pickRate} maxRate={maxRate} />
+    <div className="sobp-win-rate"><span>胜率</span><strong>{formatPercent(winRate)}</strong></div>
+  </div>
 }
 
 function StatBar({ value, maxRate }: { value?: number; maxRate: number }) {
@@ -661,7 +673,7 @@ function StatBar({ value, maxRate }: { value?: number; maxRate: number }) {
 
   return (
     <div className="sobp-stat">
-      <span>{formatPercent(value)}</span>
+      <div className="sobp-pick-rate"><span>选取率</span><strong>{formatPercent(value)}</strong></div>
       <div className="sobp-stat-track">
         <div className="sobp-stat-fill" style={{ width: `${width.toFixed(1)}%` }} />
       </div>
@@ -758,7 +770,8 @@ function IconTooltip({
 
     let placement: TooltipPosition['placement'] = 'top'
     let top = anchor.top - tooltip.height - gap
-    if (top < margin) {
+    const titlebar = anchorRef.current.closest('.sobp')?.querySelector('.sobp-titlebar')?.getBoundingClientRect()
+    if (top < Math.max(margin, (titlebar?.bottom ?? 0) + gap)) {
       placement = 'bottom'
       top = anchor.bottom + gap
     }
@@ -892,7 +905,7 @@ function getMaxRunePickRate(runes: OpggRuneBuild[], fallback: number): number {
 }
 
 function formatPercent(value: number | undefined): string {
-  if (!Number.isFinite(value)) return '-'
+  if (!Number.isFinite(value)) return '—'
   return `${((value ?? 0) * 100).toFixed(1)}%`
 }
 

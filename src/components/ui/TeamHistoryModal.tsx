@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Modal } from './Modal'
 import { PlayerHistoryModal } from './PlayerHistoryModal'
 import { ChampionStrip, HistoryImage, MatchReport, championName } from './HistoryWidgets'
@@ -30,7 +30,7 @@ interface Team { id: string; label: string; members: Member[] }
 interface Snapshot { queueId: number; queueName: string; teams: Team[] }
 type PlayerSummary = ReturnType<typeof summarize>
 const recentMatchDate = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
-const premadeColors = ['#d6b578', '#91b6d1', '#91bf9e', '#dca0a0', '#bca9d8']
+const premadeColors = ['#ffc857', '#55d6ff', '#70f0a4', '#ff7b9c', '#c9a0ff']
 const emptyParty = new Set<string>()
 
 const positionName = (position: string) => POSITION_NAMES[({ MID: 'MIDDLE', BOT: 'BOTTOM', SUPPORT: 'UTILITY' } as Record<string, string>)[position.toUpperCase()] || position.toUpperCase()] || ''
@@ -277,7 +277,8 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
     { field: 'score', text: score == null ? '' : `${playerScoreName(scoreSystem)} ${formatPlayerScore(score,scoreSystem)}`, tone: 'purple' },
   ] as const).filter(({ field, text }) => text && show(field))
   return (
-    <article className={`rh-team-card${member.self ? ' is-self' : ''}`}>
+    <article className={`rh-team-card${member.self ? ' is-self' : ''}`} data-sona-premade={premade || undefined}
+      style={partyColor ? {borderColor:partyColor,'--rh-premade-glow':`${partyColor}35`} as CSSProperties : undefined}>
       <button type="button" className="rh-team-card-head" aria-label={`查看 ${name} 的战绩`} disabled={!member.puuid} onClick={() => onInspect(name)}>
         <span className="rh-team-portrait">
           <HistoryImage src={portraitChampion ? getChampIcon(portraitChampion) : profileIconUrl(profile?.profileIconId ?? valid[0]?.player.profileIcon)} label={portraitChampion ? championName(portraitChampion) : name} nativeTooltip={Boolean(portraitChampion)} />

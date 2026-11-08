@@ -40,6 +40,7 @@ function EnemyRows() {
     Object.assign(window, {
       qaEnemyQueue: (queueId: number, isCustomGame = false, pickMode = '') => rows.forEach((row) =>
         row.update({ queueId, isCustomGame, 'summoner.root.queue.pickMode': pickMode })),
+      qaEnemyChampion: (championId:number) => rows[0].update({'summoner.championId':championId}),
     })
     return () => rows.forEach((row) => row.destroy())
   }, [])

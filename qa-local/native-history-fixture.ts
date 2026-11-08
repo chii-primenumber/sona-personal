@@ -20,23 +20,39 @@ function extend(parent: Prototype, ...mixins: Prototype[]): FixtureClass {
 
 export async function setupNativeHistoryFixture(socket: PenguContext['socket']) {
   const friendMenuManager = {
-    items: [] as Array<{label: string; icon?: Element; action: () => void; target: unknown}>,
+    items: [] as Array<{label: string; icon?: Element; action: (() => void) | string; target: unknown; args?:unknown[]; disabled?:boolean}>,
     setMenuItems(items: typeof this.items) { this.items = items },
-    openAtEvent() {
+    setCustomMenuItems(items: typeof this.items, _options?:unknown) { this.setMenuItems(items) },
+    openAtEvent(event?:MouseEvent) {
       document.querySelector('.qa-friend-context-menu')?.remove()
       const menu = document.createElement('div')
       menu.className = 'qa-friend-context-menu'
       for (const item of this.items) {
         const button = document.createElement('button')
         button.className = 'menu-item with-icon'
+        button.disabled = Boolean(item.disabled)
         if (item.icon) button.append(item.icon.cloneNode(true))
         button.append(item.label)
-        button.addEventListener('click', () => { item.action.call(item.target); menu.remove() })
+        button.addEventListener('click', () => {
+          if (typeof item.action === 'function') item.action.call(item.target)
+          else { const handler=(item.target as Record<string,unknown>)[item.action]; if(typeof handler==='function') handler.apply(item.target,item.args || []) }
+          menu.remove()
+        })
         menu.append(button)
       }
       document.body.append(menu)
+      menu.style.left = `${Math.max(8,Math.min(event?.clientX ?? 100,window.innerWidth-menu.offsetWidth-8))}px`
+      menu.style.top = `${Math.max(8,Math.min(event?.clientY ?? 100,window.innerHeight-menu.offsetHeight-8))}px`
     },
   }
+  const createProfileIcon = () => {
+    const icon=document.createElement('div');icon.className='lol-social-context-menu-icon profile'
+    icon.style.cssText='width:18px;height:18px;display:block;background-color:#c8aa6e;-webkit-mask:url(/fe/lol-social/profile-mask.svg) no-repeat center / contain;'
+    return icon
+  }
+  // This controller exists before Sona's Ember hook, matching the other native roster implementation.
+  const legacyFriend = {friend:{puuid:'preview-player-7',gameName:'满月航线',gameTag:'DEMO'},viewProfile(){},get(){return undefined}}
+  Object.assign(window,{qaUnrelatedContextMenu:()=>{friendMenuManager.setMenuItems([{label:'查看生涯',action(){},target:{},icon:createProfileIcon()}]);friendMenuManager.openAtEvent()}})
   const matchApi = { displayMatchSummary(_options: unknown) {} }
   const emberApi = { getEmber: async () => ({ Component: extend({}) }) }
   const context = {
@@ -46,7 +62,7 @@ export async function setupNativeHistoryFixture(socket: PenguContext['socket']) 
       postInit(name: string, callback: (api: unknown) => void) {
         if (name === 'rcp-fe-lol-match-history') callback(matchApi)
         if (name === 'rcp-fe-ember-libs') callback(emberApi)
-        if (name === 'rcp-fe-lol-uikit') callback({ getContextMenuManager: () => friendMenuManager })
+        if (name === 'rcp-fe-lol-uikit') callback({ getContextMenuManager: () => Promise.resolve(friendMenuManager) })
       },
     },
   } as unknown as PenguContext
@@ -84,6 +100,7 @@ export async function setupNativeHistoryFixture(socket: PenguContext['socket']) 
       </div>
       <button type="button" id="qa-open-summary">切换至对局记录</button>
       <div class="lol-social-roster-member" style="padding:8px">好友玩家</div>
+      <div class="qa-legacy-friend" style="padding:8px">旧版好友玩家</div>
       <div class="player-history-object" style="padding:8px">历史战报玩家</div>
       <div class="scoreboard-row-component" style="padding:8px"><span>结算玩家</span>
         <button type="button" class="scoreboard-row-actions-button">更多操作</button>
@@ -115,18 +132,29 @@ export async function setupNativeHistoryFixture(socket: PenguContext['socket']) 
     const createInstance = (klass: FixtureClass, element: Element, data: Record<string, unknown>) =>
       Object.assign(Object.create(klass.proto()), { element, get: (key: string) => data[key], set: (key: string, value: unknown) => { data[key] = value } })
     const friendRow = fixture.querySelector('.lol-social-roster-member')!
-    const profileIcon = document.createElement('span')
-    profileIcon.className = 'menu-item-icon icon-profile'
-    const friendClass = Component.extend({ classNames: ['lol-social-roster-member'], contextMenu() {} })
+    const profileIcon = createProfileIcon()
+    const messageIcon = createProfileIcon()
+    messageIcon.className='lol-social-context-menu-icon send-message'
+    messageIcon.style.webkitMaskImage='url(/fe/lol-social/message-mask.svg)'
+    const friendClass = Component.extend({ classNames: ['lol-social-roster-member'],
+      contextMenu(this:any,event:MouseEvent) {
+        event.preventDefault();this.set('isContextMenuOpened',true)
+        return this.get('contextMenuModel').then((items:any)=>{friendMenuManager.setMenuItems(items);friendMenuManager.openAtEvent(event)})
+      },
+    })
     const friend = createInstance(friendClass, friendRow, {
       friend: { puuid: 'preview-player-6', gameName: '云端烟火', gameTag: 'DEMO' },
-      tra: { get: () => '查看生涯' },
-      contextMenuModel: Promise.resolve([
-        { label: '发送信息', action() {}, icon: profileIcon },
-        { label: '查看生涯', action() {}, icon: profileIcon },
-      ]),
     })
+    friend.set('contextMenuModel',Promise.resolve([
+      {label:'发送信息',action(){},target:friend,icon:messageIcon},
+      {label:'查看生涯',action(){},target:friend,icon:profileIcon},
+    ]))
     friendRow.addEventListener('contextmenu', (event) => friend.contextMenu(event))
+    fixture.querySelector('.qa-legacy-friend')!.addEventListener('contextmenu',(event)=>{
+      event.preventDefault()
+      friendMenuManager.setCustomMenuItems([{label:'查看生涯',action:'viewProfile',args:[legacyFriend.friend],target:legacyFriend,icon:createProfileIcon()}],{})
+      friendMenuManager.openAtEvent(event as MouseEvent)
+    })
     const historyClass = Component.extend({
       classNames: ['player-history-object'],
       getMenuItemModel() { return [{ label: '查看资料', target: this, action() {} }] },

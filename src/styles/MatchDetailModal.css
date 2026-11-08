@@ -347,7 +347,7 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  background: rgb(var(--sona-base-rgb));
+  background: var(--sona-level-badge-bg);
   color: rgb(var(--sona-text-rgb));
   border: 1px solid rgb(var(--sona-muted-rgb) / 0.5);
   border-radius: 50%;

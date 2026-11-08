@@ -1,6 +1,7 @@
 /* Sona palette inherited by the panel, body-level dialogs, and injected controls. */
 :root {
   --sona-base-rgb: 1 10 19;
+  --sona-level-badge-bg: rgb(var(--sona-base-rgb) / .6);
   --sona-raised-rgb: 30 35 40;
   --sona-hover-rgb: 9 20 40;
   --sona-text-rgb: 240 230 210;

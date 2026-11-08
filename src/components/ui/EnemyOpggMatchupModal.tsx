@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Modal } from './Modal'
-import { OpggBuildRecommendationPanel } from './OpggBuildRecommendationPanel'
+import { OpggBuildRecommendationPanel, OPGG_TIER_OPTIONS } from './OpggBuildRecommendationPanel'
+import { store } from '@/lib/store'
 import { resolveMostCommonPosition } from '@/lib/features/opgg-build-recommendation'
 import { mapOpggMatchups, opggApi, type OpggMatchup, type OpggPosition, type OpggTier } from '@/lib/opgg-api'
 
@@ -18,7 +19,10 @@ export function EnemyOpggMatchupModal({ championId, queueId, initialPosition, on
   onClose: () => void
 }) {
   const [position, setPosition] = useState(initialPosition)
-  const [tier, setTier] = useState<OpggTier>('emerald_plus')
+  const [tier, setTier] = useState<OpggTier>(()=>{
+    const saved = store.get('enemyOpggMatchupTier')
+    return OPGG_TIER_OPTIONS.some((option)=>option.value===saved) ? saved : 'emerald_plus'
+  })
   const [query, setQuery] = useState<MatchupQuery | null>(null)
   const key = `${championId}:${position}:${tier}`
   const current = query?.key === key ? query : null
@@ -71,7 +75,7 @@ export function EnemyOpggMatchupModal({ championId, queueId, initialPosition, on
           isLoading={position !== 'none' && !current}
           loadError={current?.error ?? ''}
           selectedTier={tier}
-          onTierChange={setTier}
+          onTierChange={(value)=>{setTier(value);store.set('enemyOpggMatchupTier',value)}}
           onPositionChange={setPosition}
           onClose={onClose}
         />

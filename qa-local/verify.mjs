@@ -123,9 +123,22 @@ try {
       return index < 0 ? json([]) : json([{puuid:ids[index],alias:{game_name:names[index],tag_line:'DEMO'}}])
     }
     if (url.hostname === 'lol-api-champion.op.gg' && p === '/api/kr/champions/ranked') {
-      return json({meta:{version:'16.22'},data:[{id:154,positions:[
+      return json({meta:{version:'16.22'},data:[154,16].map((id)=>({id,positions:[
         {name:'JUNGLE',stats:{role_rate:.8}},{name:'TOP',stats:{role_rate:.2}},
-      ]}]})
+      ]}))})
+    }
+    if (url.hostname === 'lol-api-champion.op.gg' && p === '/api/global/champions/ranked') {
+      return json({meta:{version:'16.22'},data:[157,103].map((id)=>({id,positions:[{name:'JUNGLE',stats:{role_rate:1}}]}))})
+    }
+    if (url.hostname === 'lol-api-champion.op.gg' && p.startsWith('/api/global/champions/ranked/')) {
+      const build = (ids,win=60,play=100,pick_rate=.313)=>({ids,win,play,pick_rate})
+      const core = [build([6617,3504,6621]),build([6617,3504,3089],0),{ids:[6617,3504,3158],play:100,pick_rate:.1},build([6617,3504,3020],0,0),build([3504,6621,3089],55)]
+      const rune={id:1,primary_page_id:8200,primary_rune_ids:[8214,8234,8210,8237],secondary_page_id:8400,secondary_rune_ids:[8453,8444],stat_mod_ids:[5008,5008,5002],play:100,win:67,pick_rate:.341}
+      return json({meta:{version:'16.22',match_count:1000},data:{
+        summary:{average_stats:{win_rate:.493,pick_rate:.07,tier:3,rank:8,tier_data:{rank:8,rank_prev:8}}},
+        core_items:core,starter_items:[],boots:[],last_items:[build([6617],84,100,.84),build([3504],0,100,.4)],
+        summoner_spells:[build([4,7],74,100,.999),build([4,32],50,100,.001)],rune_pages:[],runes:Array.from({length:5},(_,index)=>({...rune,id:index+1,pick_rate:.341/(index+1)})),counters:[],
+      }})
     }
     if (url.hostname === 'aramgg.com' && p === '/data/aram-mayhem-augments.zh_cn.json') {
       augmentRequests++
@@ -160,6 +173,8 @@ try {
       return json(ranks)
     }
     if (url.origin !== origin) { external.push(url.hostname); return route.abort().catch(()=>{}) }
+    if (p==='/fe/lol-social/profile-mask.svg') return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18"><circle cx="9" cy="5" r="4"/><path d="M1 18v-2a8 8 0 0 1 16 0v2z"/></svg>'})
+    if (p==='/fe/lol-social/message-mask.svg') return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18"><path d="M1 2h16v11H8l-5 4v-4H1z"/></svg>'})
     if (p==='/fe/lol-shared-components/unranked.png') return route.fulfill({contentType:'image/png',body:nativeRankFiles.get('unranked.png')}).catch(()=>{})
     if (p.includes('/ranked-mini-crests/') && nativeRankFiles.has(p.split('/').at(-1))) return route.fulfill({contentType:'image/svg+xml',body:nativeRankFiles.get(p.split('/').at(-1))}).catch(()=>{})
     if (p.startsWith('/qa-art/')||p.includes('/champion-icons/')||p.includes('/profile-icons/')||p.includes('/ranked-mini-crests/')||p.startsWith('/fe/lol-shared-components/')) return route.fulfill({contentType:'image/svg+xml',body:image(p)}).catch(()=>{})
@@ -330,6 +345,10 @@ try {
   assert.match(akariValue,/^\d+\.\d{2}$/)
   assert.equal(counts.length,scoreRequests)
   assert.equal(await profileView.locator('.rh-profile-level').textContent(),'241')
+  for (const selector of ['.rh-profile-level','.rh-match-hero > button small']) {
+    const style=await profileView.locator(selector).first().evaluate((node)=>({bg:getComputedStyle(node).backgroundColor,opacity:getComputedStyle(node).opacity}))
+    assert.ok(style.bg.endsWith(', 0.6)'),JSON.stringify(style));assert.equal(style.opacity,'1')
+  }
   const profileTitle = profileView.locator('.rh-profile-name h2')
   const originalTitle = await profileTitle.textContent()
   for (const width of [1450,1000]) {
@@ -426,7 +445,10 @@ try {
   const championGames = games.slice(0,50).filter((game)=>game.json.endOfGameResult==='GameComplete' && game.json.participants[0].championId===hoveredChampionId)
   const expectedConversion = Math.round(championGames.reduce((sum,game)=>sum+game.json.participants[0].totalDamageDealtToChampions/game.json.participants[0].goldEarned,0)/championGames.length*100)
   const expectedDamageShare = Math.round(championGames.reduce((sum,game)=>sum+game.json.participants[0].totalDamageDealtToChampions/game.json.participants.filter((p)=>p.teamId===100).reduce((n,p)=>n+p.totalDamageDealtToChampions,0),0)/championGames.length*100)
-  await tooltip.getByText(new RegExp(`伤转率 ${expectedConversion}% · 伤害占比 ${expectedDamageShare}%`)).waitFor()
+  await tooltip.getByRole('table',{name:'英雄表现数据'}).waitFor()
+  assert.equal(await tooltip.getByRole('rowheader',{name:'伤转率',exact:true}).evaluate((node)=>node.nextElementSibling.textContent),`${expectedConversion}%`)
+  assert.equal(await tooltip.getByRole('rowheader',{name:'伤害占比',exact:true}).evaluate((node)=>node.nextElementSibling.textContent),`${expectedDamageShare}%`)
+  assert.equal(await tooltip.getByRole('rowheader').count(),14)
   assert.ok((await tooltip.textContent()).includes('KDA'))
   await tooltip.screenshot({path:path.join(out,'常用英雄详细提示_模拟数据.png')})
   await scoreSwitch.evaluate((button)=>button.click())
@@ -533,6 +555,7 @@ try {
   assert.equal(await searchResult.locator('.rh-search-player').count(),33)
   assert.equal(await searchResult.locator('.rh-search-player-card').count(),33)
   assert.equal(await searchResult.locator('.rh-search-avatar-level').first().textContent(),'80')
+  assert.ok((await searchResult.locator('.rh-search-avatar-level').first().evaluate((node)=>getComputedStyle(node).backgroundColor)).endsWith(', 0.6)'))
   assert.equal(await searchResult.locator('.rh-search-card-grid').evaluate((node)=>getComputedStyle(node).gridTemplateColumns.split(' ').length),2)
   await page.mouse.move(4,4)
   await searchPanel.screenshot({path:path.join(out,'搜索玩家卡片与等级_模拟数据.png')})
@@ -681,6 +704,7 @@ try {
   await matchupPanel.getByText('32.0%',{exact:true}).waitFor()
   await matchupPanel.getByRole('button',{name:'流光翡翠+',exact:true}).click()
   await matchupPanel.getByRole('button',{name:'璀璨钻石+',exact:true}).click()
+  assert.equal(await page.evaluate(()=>window.DataStore.get('sona:enemyOpggMatchupTier')),'diamond_plus')
   await matchupPanel.getByText('40.0%',{exact:true}).waitFor()
   await matchupPanel.getByRole('button',{name:'打野',exact:true}).click()
   await matchupPanel.getByRole('button',{name:'上路',exact:true}).click()
@@ -702,7 +726,15 @@ try {
   assert.equal(await matchupPanel.count(),0)
   await page.evaluate(() => window.qaEnemyQueue(0, true, 'TournamentPickStrategy'))
   await locked.click()
-  await matchupPanel.getByText('32.0%',{exact:true}).waitFor()
+  await matchupPanel.getByText('40.0%',{exact:true}).waitFor()
+  await matchupPanel.getByRole('button',{name:'璀璨钻石+',exact:true}).waitFor()
+  await page.evaluate(()=>window.qaEnemyChampion(16))
+  await matchupPanel.waitFor({state:'hidden'})
+  await locked.click()
+  await matchupPanel.getByRole('button',{name:'璀璨钻石+',exact:true}).waitFor()
+  await matchupPanel.getByText('40.0%',{exact:true}).waitFor()
+  assert.equal(await page.evaluate(async()=>{const fresh=await import('/src/lib/store.ts?qa-restart');return fresh.store.get('enemyOpggMatchupTier')}),'diamond_plus')
+  await matchupPanel.screenshot({path:path.join(out,'康特段位记忆_模拟数据.png')})
   await page.keyboard.press('Escape')
   await matchupPanel.waitFor({state:'hidden'})
   const bpEntry = page.getByRole('button',{name:'对局信息',exact:true})
@@ -731,7 +763,14 @@ try {
   assert.equal(await bpView.getByRole('option',{name:'本局模式',exact:true}).count(),0)
   bp.queueId = 440
   const firstTwoNames = bpView.locator('.rh-team-identity > strong').and(bpView.locator('.rh-team-card:nth-child(-n+2) strong'))
-  assert.deepEqual(await firstTwoNames.locator('.rh-player-name-text').evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).color)), ['rgb(214, 181, 120)','rgb(214, 181, 120)'])
+  assert.deepEqual(await firstTwoNames.locator('.rh-player-name-text').evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).color)), ['rgb(255, 200, 87)','rgb(255, 200, 87)'])
+  for (const card of await bpView.locator('.rh-team-card[data-sona-premade]').all()) {
+    assert.equal(await card.evaluate((node)=>getComputedStyle(node).borderTopColor),await card.locator('.rh-player-name-text').evaluate((node)=>getComputedStyle(node).color))
+    assert.equal(await card.evaluate((node)=>getComputedStyle(node).borderTopWidth),'2px')
+  }
+  assert.ok((await bpView.locator('.rh-team-portrait small').first().evaluate((node)=>getComputedStyle(node).backgroundColor)).endsWith(', 0.6)'))
+  await page.mouse.move(2,2)
+  await bpView.screenshot({path:path.join(out,'组队同色边框_模拟数据.png'),animations:'disabled'})
   assert.ok(await firstTwoNames.locator('.rh-id-tag').first().evaluate((node) => getComputedStyle(node).color !== getComputedStyle(node.previousElementSibling).color))
   assert.equal(await bpView.getByText('白昼拾荒#DEMO',{exact:true}).count(),0)
   await bpView.locator('.rh-team-card-stats').nth(4).waitFor()
@@ -866,7 +905,50 @@ try {
   await previewBuild.click()
   const buildPanel = page.locator('#sona-opgg-build-panel')
   await buildPanel.locator('.sobp-title-name').getByText(/亚索/).waitFor()
+  await buildPanel.locator('.sobp-recommendation-stats').first().waitFor()
+  const coreRows=buildPanel.locator('.sobp-grid > .sobp-section').nth(0).locator('.sobp-row')
+  assert.equal(await coreRows.nth(0).locator('.sobp-pick-rate strong').textContent(),'31.3%')
+  assert.equal(await coreRows.nth(0).locator('.sobp-win-rate strong').textContent(),'60.0%')
+  assert.equal(await coreRows.nth(1).locator('.sobp-win-rate strong').textContent(),'0.0%')
+  assert.equal(await coreRows.nth(2).locator('.sobp-win-rate strong').textContent(),'—')
+  assert.equal(await coreRows.nth(3).locator('.sobp-win-rate strong').textContent(),'—')
+  assert.equal(await buildPanel.locator('.sobp-grid > .sobp-section').nth(1).locator('.sobp-win-rate strong').first().textContent(),'67.0%')
+  assert.equal(await buildPanel.locator('.sobp-grid > .sobp-section').nth(2).locator('.sobp-win-rate strong').first().textContent(),'74.0%')
+  assert.equal(await buildPanel.locator('.sobp-win-rate .sobp-stat-track').count(),0)
+  assert.equal(await buildPanel.locator('.sobp-stat-track').count(),await buildPanel.locator('.sobp-pick-rate').count())
+  async function assertBuildLayout() {
+    const result=await buildPanel.evaluate((root)=>{
+      const panel=root.querySelector('.sobp'), close=panel.querySelector('.sobp-close'), body=panel.querySelector('.sobp-body')
+      const box=panel.getBoundingClientRect(), button=close.getBoundingClientRect()
+      return {inViewport:box.left>=19&&box.top>=19&&box.right<=innerWidth-19&&box.bottom<=innerHeight-19,
+        closeInside:button.left>=box.left&&button.right<=box.right&&button.top>=box.top&&button.bottom<=box.bottom,
+        hit:close.contains(document.elementFromPoint(button.x+button.width/2,button.y+button.height/2)),
+        overflow:body.scrollWidth>body.clientWidth,scrolls:body.scrollHeight>body.clientHeight}
+    })
+    assert.equal(result.inViewport,true,JSON.stringify(result))
+    assert.equal(result.closeInside,true,JSON.stringify(result))
+    assert.equal(result.hit,true,JSON.stringify(result))
+    assert.equal(result.overflow,false,JSON.stringify(result))
+  }
+  await page.mouse.move(2,2)
+  await assertBuildLayout()
+  await buildPanel.locator('.sobp-grid > .sobp-section').nth(2).locator('.sobp-icon-tooltip-wrap').first().hover()
+  await page.locator('.sobp-official-tooltip--ready').waitFor()
+  const buildTitleRect=await buildPanel.locator('.sobp-titlebar').boundingBox()
+  const buildTooltipRect=await page.locator('.sobp-official-tooltip--ready').boundingBox()
+  assert.ok(buildTooltipRect.y>=buildTitleRect.y+buildTitleRect.height)
+  await page.mouse.move(2,2)
+  await page.locator('.sobp-official-tooltip').waitFor({state:'detached'})
+  await buildPanel.locator('.sobp').screenshot({path:path.join(out,'配装选取率与胜率_模拟数据.png')})
+  await page.setViewportSize({width:1024,height:720})
+  await page.waitForFunction(()=>{const panel=document.querySelector('#sona-opgg-build-panel .sobp');return panel&&panel.getBoundingClientRect().right<=innerWidth-19})
+  await assertBuildLayout()
+  await buildPanel.locator('.sobp-body').evaluate((node)=>{node.scrollTop=node.scrollHeight})
+  await assertBuildLayout()
+  await buildPanel.locator('.sobp').screenshot({path:path.join(out,'配装窄窗口与关闭按钮_模拟数据.png')})
   await buildPanel.locator('.sobp-close').click()
+  await buildPanel.waitFor({state:'detached'})
+  await page.setViewportSize({width:1450,height:940})
   bp.myTeam[0].championPickIntent = 103
   bp.actions[0][0].championId = 103
   await page.evaluate((session) => window.qaEmit('/lol-champ-select/v1/session',session), bp)
@@ -904,6 +986,14 @@ try {
   assert.equal(await page.locator('.game-in-progress-container').evaluate((node)=>{const text=[...node.childNodes].find((child)=>child.nodeType===Node.TEXT_NODE && child.textContent.trim());const range=document.createRange();range.selectNode(text);return range.getBoundingClientRect().width}),0)
   await page.mouse.move(4,4)
   await page.locator('.qa-in-game-screen').screenshot({path:path.join(out,'游戏中对局详情入口_模拟界面.png')})
+  await ingameBuild.click()
+  const ingameBuildView=page.locator('.sona-opgg-modal-content').filter({has:page.locator('.sobp-overview')})
+  await ingameBuildView.locator('.sobp-pick-rate').first().waitFor()
+  const ingameCloseBox=await ingameBuildView.locator('.sobp-close').boundingBox()
+  assert.ok(ingameCloseBox.x>=0 && ingameCloseBox.x+ingameCloseBox.width<=1450 && ingameCloseBox.y>=0)
+  await ingameBuildView.screenshot({path:path.join(out,'游戏中配装推荐_模拟数据.png')})
+  await ingameBuildView.locator('.sobp-close').click()
+  await ingameBuildView.waitFor({state:'hidden'})
   await gameEntry.click()
   const gameView = page.getByTestId('game-history')
   await gameView.locator('.rh-team-card').nth(9).waitFor()
@@ -952,6 +1042,14 @@ try {
   const nativeEntry = page.locator('.sona-profile-history-entry')
   const ownEntry = page.locator('.rcp-fe-lol-profiles-main').locator(nativeEntry)
   await ownEntry.waitFor()
+  const profileToggle = page.getByTestId('profile-history-toggle')
+  assert.equal(await profileToggle.getAttribute('aria-pressed'),'true')
+  await profileToggle.evaluate((button)=>button.click())
+  await nativeEntry.waitFor({state:'detached'})
+  assert.equal(await page.evaluate(()=>window.DataStore.get('sona:profileHistoryEntry')),false)
+  await page.locator('#qa-score-menu').screenshot({path:path.join(out,'主菜单生涯入口开关_模拟界面.png')})
+  await profileToggle.evaluate((button)=>button.click())
+  await ownEntry.waitFor()
   await page.getByRole('button',{name:'编辑身份',exact:true}).click()
   await nativeEntry.waitFor({state:'hidden'})
   await page.getByRole('button',{name:'关闭身份',exact:true}).click()
@@ -978,6 +1076,8 @@ try {
   await ownEntry.waitFor()
   await ownEntry.click()
   await assertProfile('练习星轨#DEMO')
+  await profileToggle.evaluate((button)=>button.click())
+  await nativeEntry.waitFor({state:'detached'})
   await page.getByText('历史战报玩家', {exact:true}).click({button:'right'})
   assert.equal(await page.locator('.qa-context-menu').getByRole('button', {name:'查看资料'}).count(),1)
   await page.locator('.qa-context-menu').getByRole('button', {name:'详细战绩'}).click()
@@ -986,9 +1086,24 @@ try {
   const friendMenu = page.locator('.qa-friend-context-menu')
   await friendMenu.getByRole('button',{name:'详细战绩',exact:true}).waitFor()
   assert.equal(await friendMenu.getByRole('button',{name:'查看生涯',exact:true}).count(),1)
-  assert.equal(await friendMenu.getByRole('button',{name:'详细战绩',exact:true}).locator('.menu-item-icon.icon-profile').count(),1)
+  const detailedFriend = friendMenu.getByRole('button',{name:'详细战绩',exact:true})
+  assert.equal(await detailedFriend.locator('.lol-social-context-menu-icon.profile').count(),1)
+  assert.equal(await detailedFriend.locator('.lol-social-context-menu-icon').evaluate((node)=>node.outerHTML),await friendMenu.getByRole('button',{name:'查看生涯',exact:true}).locator('.lol-social-context-menu-icon').evaluate((node)=>node.outerHTML))
+  assert.deepEqual(await friendMenu.locator('button').allTextContents(),['发送信息','查看生涯','详细战绩'])
+  await friendMenu.screenshot({path:path.join(out,'好友原生右键详细战绩_模拟界面.png')})
   await friendMenu.getByRole('button',{name:'详细战绩',exact:true}).click()
   await assertProfile('云端烟火#DEMO')
+  await page.getByText('旧版好友玩家',{exact:true}).click({button:'right'})
+  await friendMenu.getByRole('button',{name:'详细战绩',exact:true}).waitFor()
+  assert.equal(await friendMenu.getByRole('button',{name:'详细战绩',exact:true}).count(),1)
+  assert.equal(await friendMenu.getByRole('button',{name:'详细战绩',exact:true}).locator('.lol-social-context-menu-icon.profile').count(),1)
+  await friendMenu.getByRole('button',{name:'详细战绩',exact:true}).click()
+  await assertProfile('满月航线#DEMO')
+  await page.evaluate(()=>window.qaUnrelatedContextMenu())
+  assert.equal(await friendMenu.getByRole('button',{name:'详细战绩',exact:true}).count(),0)
+  await friendMenu.getByRole('button',{name:'查看生涯',exact:true}).click()
+  await profileToggle.evaluate((button)=>button.click())
+  await ownEntry.waitFor()
   await page.getByText('结算玩家', {exact:true}).click({button:'right'})
   const actions = page.locator('.player-actions-menu-container')
   assert.equal(await actions.getByRole('button', {name:'查看资料'}).count(),1)

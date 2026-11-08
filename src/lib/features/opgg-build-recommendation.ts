@@ -121,6 +121,7 @@ const commonPositionMapCache = new Map<string, Promise<Map<number, OpggPosition>
 let outsideCloseHandler: ((event: MouseEvent) => void) | null = null
 let activePanelKey = ''
 let panelReactRoot: Root | null = null
+let panelLayoutCleanup: (() => void) | null = null
 let inGameModalRoot: Root | null = null
 let inGameModalContainer: HTMLDivElement | null = null
 let inGameModalRenderToken = 0
@@ -1611,6 +1612,8 @@ function mapOpggAugments(augmentGroups: OpggAugmentGroup[]): BuildRecommendation
       items: group.augments.slice(0, 5).map((augment) => ({
         id: augment.id,
         pickRate: augment.pick_rate,
+        winRate: Number.isFinite(augment.win) && augment.play > 0 && augment.win >= 0 && augment.win <= augment.play
+          ? augment.win / augment.play : undefined,
         averagePlace: augment.total_place / Math.max(augment.play, 1),
         firstPlace: augment.first_place / Math.max(augment.play, 1),
       })),
@@ -1727,6 +1730,8 @@ function getSummaryLines(champion: OpggChampion): string[] {
 }
 
 function closePanel() {
+  panelLayoutCleanup?.()
+  panelLayoutCleanup = null
   if (panelReactRoot) {
     panelReactRoot.unmount()
     panelReactRoot = null
@@ -1948,8 +1953,8 @@ async function openRecommendationPanel(anchor: HTMLElement, contextOverride?: Re
 
   const view = document.createElement('div')
   view.style.cssText = [
-    'width:1060px',
-    'max-width:calc(100vw - 56px)',
+    'width:1200px',
+    'max-width:calc(100vw - 40px)',
     'background:#010a13',
     'direction:ltr',
     'color:#a09b8c',
@@ -1995,15 +2000,21 @@ async function openRecommendationPanel(anchor: HTMLElement, contextOverride?: Re
   )
   manager.appendChild(root)
 
-  const rect = anchor.getBoundingClientRect()
-  const width = container.offsetWidth
-  const height = container.offsetHeight
-  const margin = 8
-  const left = Math.max(20, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 20))
-  const top = Math.max(20, rect.top - height - margin)
-
-  container.style.left = `${left}px`
-  container.style.top = `${top}px`
+  const positionPanel = () => {
+    if (!root.isConnected || !anchor.isConnected) return
+    const rect = anchor.getBoundingClientRect()
+    const width = container.offsetWidth
+    const height = container.offsetHeight
+    const left = Math.max(20, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 20))
+    const top = Math.max(20, Math.min(rect.top - height - 8, window.innerHeight - height - 20))
+    container.style.left = `${left}px`
+    container.style.top = `${top}px`
+  }
+  positionPanel()
+  const layoutObserver = new ResizeObserver(positionPanel)
+  layoutObserver.observe(container)
+  window.addEventListener('resize', positionPanel)
+  panelLayoutCleanup = () => { layoutObserver.disconnect(); window.removeEventListener('resize', positionPanel) }
   container.style.visibility = 'visible'
   container.style.opacity = '1'
 
@@ -2032,13 +2043,7 @@ async function openRecommendationPanel(anchor: HTMLElement, contextOverride?: Re
         handlePositionChange,
       )
 
-      const updatedRect = anchor.getBoundingClientRect()
-      const updatedWidth = container.offsetWidth
-      const updatedHeight = container.offsetHeight
-      const updatedLeft = Math.max(20, Math.min(updatedRect.left + updatedRect.width / 2 - updatedWidth / 2, window.innerWidth - updatedWidth - 20))
-      const updatedTop = Math.max(20, updatedRect.top - updatedHeight - margin)
-      container.style.left = `${updatedLeft}px`
-      container.style.top = `${updatedTop}px`
+      positionPanel()
     })
   }
 }

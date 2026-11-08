@@ -121,22 +121,28 @@ function ChampionStripItem({ item, selected, onSelect }: { item: ReturnType<type
   const system = usePlayerScoreSystem()
   const selectable = Boolean(onSelect)
   const details = useMemo(()=>{
-    if (!requested) return ''
+    if (!requested) return {rows:[],footer:undefined}
     const score = calculatePlayerScore(item.games.map((match)=>match.game),item.games[0]?.player.puuid || '',system)
     const performance = new Map(performanceSummary(item.games,['damageGold','damageMinute','goldMinute'],'team').map((entry)=>[entry.stat.key,entry.value]))
-    return [
-      `${playerScoreLabel(system)} ${score ? formatPlayerScore(score.score,system) : '—'}`,
-      `KDA ${numberText(item.kda,2)} · 参团 ${percentText(item.participation)}`,
-      `伤转率 ${percentText(performance.get('damageGold'))} · 伤害占比 ${percentText(item.damageShare)}`,
-      `承伤占比 ${percentText(item.takenShare)} · 经济占比 ${percentText(item.goldShare)}`,
-      `场均伤害 ${numberText(item.damage)} · 分均伤害 ${numberText(performance.get('damageMinute'))}`,
-      `补刀 / 分 ${numberText(item.csPerMinute,1)} · 金币 / 分 ${numberText(performance.get('goldMinute'))}`,
-      `友方治疗 ${numberText(item.healing)} · 友方护盾 ${numberText(item.shielding)}`,
-      selectable ? (selected ? '再次点击显示全部英雄战绩' : '点击筛选该英雄战绩') : '',
-    ].filter(Boolean).join('\n')
+    return {rows:[
+      {label:playerScoreLabel(system),value:score ? formatPlayerScore(score.score,system) : '—'},
+      {label:'KDA',value:numberText(item.kda,2)},
+      {label:'参团率',value:percentText(item.participation)},
+      {label:'伤转率',value:percentText(performance.get('damageGold'))},
+      {label:'伤害占比',value:percentText(item.damageShare)},
+      {label:'承伤占比',value:percentText(item.takenShare)},
+      {label:'经济占比',value:percentText(item.goldShare)},
+      {label:'场均金币',value:numberText(item.gold)},
+      {label:'场均伤害',value:numberText(item.damage)},
+      {label:'分均伤害',value:numberText(performance.get('damageMinute'))},
+      {label:'补刀 / 分',value:numberText(item.csPerMinute,1)},
+      {label:'金币 / 分',value:numberText(performance.get('goldMinute'))},
+      {label:'友方治疗',value:numberText(item.healing)},
+      {label:'友方护盾',value:numberText(item.shielding)},
+    ],footer:selectable ? (selected ? '再次点击显示全部英雄战绩' : '点击筛选该英雄战绩') : undefined}
   },[requested,item,system,selected,selectable])
   return <HistoryAssetTooltip title={championName(item.id)} icon={getChampIcon(item.id)} subtitle={`${item.total} 场 · ${item.wins} 胜 ${item.losses} 负 · 胜率 ${percentText(item.winRate)}`}
-    description={details} onShow={()=>setRequested(true)} focusable={false} asChild>
+    stats={details.rows} footer={details.footer} onShow={()=>setRequested(true)} focusable={false} asChild>
     <button type="button" onClick={()=>onSelect?.(item.id)} aria-pressed={onSelect ? selected : undefined}
       aria-label={`${championName(item.id)} · ${item.total} 场 · 胜率 ${percentText(item.winRate)}`} aria-disabled={!onSelect || undefined}>
       <HistoryImage src={getChampIcon(item.id)} label={championName(item.id)} nativeTooltip={false} /><span>{item.total}</span>

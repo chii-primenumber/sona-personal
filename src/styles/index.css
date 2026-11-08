@@ -66,7 +66,10 @@
   min-height: 38px; min-width: 38px; border: 3px solid transparent; background: rgb(var(--sona-muted-rgb) / .36); background-clip: padding-box;
 }
 :is(#sona-root, .sona-modal-overlay, .sobp) .rh-scroll-area::-webkit-scrollbar-thumb:hover,
-:is(#sona-root, .sona-modal-overlay, .sobp) .rh-scroll-area::-webkit-scrollbar-thumb:active {
-  background: rgb(var(--sona-accent-rgb) / .7); background-clip: padding-box;
+:is(#sona-root, .sona-modal-overlay, .sobp) .rh-scroll-area::-webkit-scrollbar-thumb:active,
+:is(#sona-root, .sona-modal-overlay, .sobp) .rh-scroll-area[data-sona-scrollbar-hover]::-webkit-scrollbar-thumb {
+  background: rgb(var(--sona-accent-rgb) / .95); background-clip: padding-box;
+  border-color: rgb(var(--sona-accent-rgb) / .16); box-shadow: 0 0 5px rgb(var(--sona-accent-rgb) / .45);
 }
 :is(#sona-root, .sona-modal-overlay, .sobp) .rh-scroll-area::-webkit-scrollbar-track:hover { background: rgb(var(--sona-accent-rgb) / .035); }
+:is(#sona-root, .sona-modal-overlay, .sobp) .rh-scroll-area[data-sona-scrollbar-hover]::-webkit-scrollbar-track { background: rgb(var(--sona-accent-rgb) / .08); }

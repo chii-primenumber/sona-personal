@@ -1,5 +1,6 @@
 import { useEffect, useState, type RefObject } from 'react'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
+import { bindScrollbarHighlight } from '@/lib/scrollbar-highlight'
 
 export function HistoryScrollTop({ targets, resetKey }: { targets: Array<RefObject<HTMLElement | null>>; resetKey: string }) {
   const [visible, setVisible] = useState(false)
@@ -11,8 +12,9 @@ export function HistoryScrollTop({ targets, resetKey }: { targets: Array<RefObje
       if (next !== last) { last = next; setVisible(next) }
     }
     for (const element of elements) element.addEventListener('scroll',update,{passive:true})
+    const releaseHighlights = elements.map(bindScrollbarHighlight)
     update()
-    return () => { for (const element of elements) element.removeEventListener('scroll',update) }
+    return () => { for (const element of elements) element.removeEventListener('scroll',update); releaseHighlights.forEach((release)=>release()) }
   }, [targets,resetKey])
   if (!visible) return null
   return <HistoryAssetTooltip title="回到顶部" compact asChild>

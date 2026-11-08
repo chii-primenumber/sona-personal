@@ -4,10 +4,12 @@ import { TeamHistoryModal, type TeamHistoryMode } from '@/components/ui/TeamHist
 import { injector } from '@/lib/InjectorManager'
 import { lcu, LcuEventUri } from '@/lib/lcu'
 import type { GameflowPhase, Lobby } from '@/types/lcu'
+import { syncInGameDetailsLayout } from './in-game-details-layout'
 
 const ATTR = 'data-sona-team-history'
 let mode: TeamHistoryMode | null = null
-let button: HTMLButtonElement | null = null
+let button: HTMLElement | null = null
+let gameContainer: Element | null = null
 let root: Root | null = null
 let host: HTMLDivElement | null = null
 let unsub: (() => void) | null = null
@@ -48,22 +50,33 @@ function injectButton() {
   if (!container) {
     button?.remove()
     button = null
+    syncInGameDetailsLayout(gameContainer); gameContainer = null
     return false
+  }
+  if (gameContainer && gameContainer !== container) {
+    button?.remove(); button = null; syncInGameDetailsLayout(gameContainer); gameContainer = null
   }
   // The existing auto-popup feature has its own in-game button. It opens the same enhanced view.
   if (mode === 'game' && container?.querySelector('[data-sona-game-analysis]')) {
-    button?.remove(); button = null; return true
+    button?.remove(); button = null; gameContainer = container; syncInGameDetailsLayout(container); return true
   }
+  if (button && !button.isConnected) button = null
   if (!button) {
-    button = document.createElement('button')
-    button.type = 'button'
+    button = document.createElement(mode === 'game' ? 'lol-uikit-flat-button' : 'button')
+    if (button instanceof HTMLButtonElement) button.type = 'button'
     button.setAttribute(ATTR, mode)
-    button.className = 'rh-team-entry'
-    button.textContent = mode === 'bp' ? '对局信息' : '十人战绩总览'
+    button.className = mode === 'bp' ? 'rh-team-entry' : 'rh-game-details-entry'
+    button.textContent = mode === 'bp' ? '对局信息' : '对局详情'
+    button.setAttribute('role','button'); button.setAttribute('tabindex','0')
     button.title = mode === 'bp' ? '查看英雄选择阶段的己方队伍' : '查看本局双方队伍的近期战绩'
     button.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); showOverview() })
+    if (mode === 'game') button.addEventListener('keydown',(event)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();showOverview()}})
   }
-  if (button.parentElement !== container) container.appendChild(button)
+  if (button.parentElement !== container) {
+    const build = mode === 'game' ? container.querySelector('[data-sona-opgg-ingame-build]') : null
+    if (build?.parentElement === container) container.insertBefore(button,build); else container.appendChild(button)
+  }
+  if (mode === 'game') { gameContainer = container; syncInGameDetailsLayout(container) }
   return true
 }
 
@@ -82,6 +95,7 @@ function changePhase(nextPhase: GameflowPhase) {
   if (next === mode) return
   injector.unregister(injectButton)
   button?.remove(); button = null
+  syncInGameDetailsLayout(gameContainer); gameContainer = null
   destroyModal()
   mode = next
   if (mode) injector.register(injectButton)

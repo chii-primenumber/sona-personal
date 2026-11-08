@@ -5,6 +5,7 @@ import { lcu, LcuEventUri } from '@/lib/lcu'
 import type { LCUEventMessage, GameflowPhase } from '@/lib/lcu'
 import { injector } from '@/lib/InjectorManager'
 import { GameAnalysisModal } from '@/components/ui/GameAnalysisModal'
+import { syncInGameDetailsLayout } from './in-game-details-layout'
 
 // ==================== 进入游戏自动弹窗战力分析 ====================
 
@@ -70,6 +71,7 @@ function cleanupGameAnalysisModal() {
 // ---- 客户端内嵌按钮 ----
 
 const GAME_ANALYSIS_BTN_ATTR = 'data-sona-game-analysis'
+const gameAnalysisButtons = new Set<HTMLElement>()
 
 /**
  * 注入任务：在 game-in-progress-container 中注入"对局分析"按钮
@@ -80,11 +82,12 @@ function tryInjectGameAnalysisButton(): boolean {
   if (!container) return false
 
   // 已注入过，跳过
-  if (container.querySelector(`[${GAME_ANALYSIS_BTN_ATTR}]`)) return true
+  if (container.querySelector(`[${GAME_ANALYSIS_BTN_ATTR}]`)) { syncInGameDetailsLayout(container); return true }
 
   const btn = document.createElement('lol-uikit-flat-button')
   btn.setAttribute(GAME_ANALYSIS_BTN_ATTR, 'true')
-  btn.textContent = '对局分析'
+  btn.textContent = '对局详情'
+  btn.setAttribute('role','button'); btn.setAttribute('tabindex','0')
   // 布局（display / 间距）统一在 inject.css 里处理，两个按钮的注入先后不固定
 
   btn.addEventListener('click', (e) => {
@@ -93,15 +96,22 @@ function tryInjectGameAnalysisButton(): boolean {
     showGameAnalysisModal()
     logger.info('[GameAnalysis] 打开分析弹窗')
   })
+  btn.addEventListener('keydown',(event)=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();showGameAnalysisModal()}})
 
-  container.appendChild(btn)
+  container.querySelector('[data-sona-team-history="game"]')?.remove()
+  const build = container.querySelector('[data-sona-opgg-ingame-build]')
+  if (build?.parentElement === container) container.insertBefore(btn,build); else container.appendChild(btn)
+  syncInGameDetailsLayout(container)
+  gameAnalysisButtons.add(btn)
   logger.info('[GameAnalysis] 客户端内嵌按钮已注入 ✓')
   return true
 }
 
 /** 清理客户端内嵌按钮 */
 function cleanupGameAnalysisButton() {
-  document.querySelectorAll(`[${GAME_ANALYSIS_BTN_ATTR}]`).forEach((el) => el.remove())
+  const buttons = new Set([...gameAnalysisButtons,...document.querySelectorAll(`[${GAME_ANALYSIS_BTN_ATTR}]`)])
+  buttons.forEach((el) => { const parent=el.parentElement; el.remove(); syncInGameDetailsLayout(parent) })
+  gameAnalysisButtons.clear()
 }
 
 let gameAnalysisBtnRegistered = false

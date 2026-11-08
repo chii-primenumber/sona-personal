@@ -69,7 +69,7 @@ function Preview() {
         <button type="button" className="action-button-container" style={{display:'block',width:178,height:82,margin:'0 auto'}}>锁定</button>
       </div><button type="button" data-testid="qa-rune-editor">符文编辑</button>
     </>}
-    {phase === 'InProgress' && <div className="game-in-progress-container">游戏仍在进行中</div>}
+    {phase === 'InProgress' && <div className="qa-in-game-screen"><div className="game-in-progress-container">游戏仍在进行中……</div></div>}
     <div className="qa-tools"><ToolsPage /></div>
     <div className="qa-tools"><SettingsPage /></div>
   </>

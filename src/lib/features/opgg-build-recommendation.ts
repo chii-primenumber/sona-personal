@@ -2123,6 +2123,8 @@ function tryInjectInGameBuildButton(): boolean {
 
   const btn = document.createElement('lol-uikit-flat-button')
   btn.setAttribute(IN_GAME_BUILD_BUTTON_ATTR, 'true')
+  btn.setAttribute('role','button')
+  btn.setAttribute('tabindex','0')
   btn.textContent = '配装推荐'
   // 布局（display / 间距）统一在 inject.css 里处理，两个按钮的注入先后不固定
 
@@ -2137,7 +2139,7 @@ function tryInjectInGameBuildButton(): boolean {
     })
   })
 
-  const gameAnalysisBtn = container.querySelector('[data-sona-game-analysis]')
+  const gameAnalysisBtn = container.querySelector('[data-sona-game-analysis], [data-sona-team-history="game"]')
   if (gameAnalysisBtn?.parentElement === container) {
     gameAnalysisBtn.insertAdjacentElement('afterend', btn)
   } else {

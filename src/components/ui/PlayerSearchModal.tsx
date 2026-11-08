@@ -4,9 +4,10 @@ import { HistoryImage } from './HistoryWidgets'
 import { HistoryPlayerName } from './HistoryPlayerName'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
 import { SearchIcon } from './icons'
+import { bindScrollbarHighlight } from '@/lib/scrollbar-highlight'
 import { deadline } from '@/lib/history-api'
 import { profileIconUrl } from '@/lib/history-model'
-import { historyPlayerFromFriend, historyPlayerMatches, historySearchServers, historyServerName, parsePlayerQuery,
+import { historyPlayerFromFriend, historyPlayerLevel, historyPlayerMatches, historySearchServers, historyServerName, parsePlayerQuery,
   searchHistoryPlayers, TENCENT_MERGED_SERVERS, type HistoryPlayer } from '@/lib/history-search'
 import { lcu } from '@/lib/lcu'
 import { store } from '@/lib/store'
@@ -45,6 +46,8 @@ function PlayerSearchContent({ initialQuery, onSelect }: {
   const [state, setState] = useState<SearchState>(emptySearch)
   const [showMerged, setShowMerged] = useState(false)
   const request = useRef<AbortController | null>(null)
+  const resultsRef = useRef<HTMLDivElement | null>(null)
+  useEffect(()=>resultsRef.current ? bindScrollbarHighlight(resultsRef.current) : undefined,[])
 
   const startSearch = useCallback(async (text: string, region: string) => {
     request.current?.abort()
@@ -79,13 +82,15 @@ function PlayerSearchContent({ initialQuery, onSelect }: {
     return () => { controller.abort(); request.current?.abort(); unsubscribe() }
   }, [initialQuery, startSearch])
 
-  const recentPlayers = Array.isArray(recent) ? recent.filter((player) => player?.puuid && player.name) : []
+  const recentPlayers = useMemo(()=>Array.isArray(recent) ? recent.filter((player) => player?.puuid && player.name) : [],[recent])
   const friendPlayers = useMemo(() => friends.flatMap((friend) => {
     const player = historyPlayerFromFriend(friend, currentServer)
+    if (player && player.level == null) player.level = recentPlayers.find((recent)=>recent.puuid===player.puuid && recent.serverId===player.serverId)?.level
     return player ? [player] : []
   }).sort((a, b) => Number(a.availability === 'offline') - Number(b.availability === 'offline') ||
-    a.name.localeCompare(b.name, 'zh-CN')), [friends, currentServer])
-  const results = new Map(state.results.map((player) => [player.puuid, player]))
+    a.name.localeCompare(b.name, 'zh-CN')), [friends, currentServer,recentPlayers])
+  const knownPlayers = new Map([...recentPlayers,...friendPlayers].map((player)=>[`${player.serverId ?? ''}:${player.puuid}`,player]))
+  const results = new Map<string,HistoryPlayer>(state.results.map((player) => [player.puuid,{...player,level:player.level ?? knownPlayers.get(`${player.serverId ?? ''}:${player.puuid}`)?.level}]))
   if (state.query && !state.pending) {
     for (const player of [...recentPlayers, ...friendPlayers]) {
       if ((player.serverId ?? '') === serverId && historyPlayerMatches(player, state.query) && !results.has(player.puuid)) {
@@ -107,9 +112,8 @@ function PlayerSearchContent({ initialQuery, onSelect }: {
     </aside>
     <main className="rh-search-main">
       <header>
-        <span className="rh-eyebrow">SONA · 个人战绩</span>
         <div className="rh-search-heading">
-          <h2>搜索召唤师</h2>
+          <h2>搜索召唤师 <span className="rh-search-kaomoji" aria-hidden="true">(｡･ω･｡)ﾉ</span></h2>
           {currentServer.startsWith('TENCENT_') && <button type="button" className="rh-text-button"
             aria-expanded={showMerged} onClick={() => setShowMerged((value) => !value)}>合区参照</button>}
         </div>
@@ -133,11 +137,11 @@ function PlayerSearchContent({ initialQuery, onSelect }: {
           </button><span>{members}</span>
         </div>)}
       </div>}
-      <div className="rh-search-results" aria-live="polite">
+      <div className="rh-search-results rh-scroll-area" aria-live="polite" ref={resultsRef}>
         {state.pending ? <div className="rh-empty"><span className="rh-spinner" />正在搜索召唤师…</div> : results.size ? <>
           <p className="rh-search-result-count">{results.size} 位玩家</p>
           {state.error && <p className="rh-search-result-count">好友和最近访问中的匹配结果</p>}
-          {[...results.values()].map((player) => <PlayerRow key={player.puuid} player={player} onSelect={onSelect} />)}
+          <div className="rh-search-card-grid">{[...results.values()].map((player) => <PlayerRow key={player.puuid} player={player} onSelect={onSelect} card />)}</div>
         </> : <div className="rh-search-empty">
           <strong role={state.error ? 'alert' : undefined}>{state.error || (state.query ? '没有找到匹配的玩家' : '暂无搜索结果')}</strong>
           <p>可按名字、完整的名字#编号或 PUUID 搜索。</p>
@@ -152,6 +156,8 @@ function PlayerList({ title, players, emptyText, onSelect }: {
   title: string; players: HistoryPlayer[]; emptyText: string; onSelect: (player: HistoryPlayer) => void
 }) {
   const [filter, setFilter] = useState('')
+  const listRef = useRef<HTMLDivElement | null>(null)
+  useEffect(()=>listRef.current ? bindScrollbarHighlight(listRef.current) : undefined,[])
   const filtered = players.filter((player) => historyPlayerMatches(player, filter))
   return <section className="rh-search-list" aria-label={title}>
     <div className="rh-search-list-title">
@@ -159,7 +165,7 @@ function PlayerList({ title, players, emptyText, onSelect }: {
       <input type="search" aria-label={`筛选${title}`} placeholder="筛选" value={filter}
         onChange={(event) => setFilter(event.target.value)} />
     </div>
-    <div className="rh-search-list-items">
+    <div className="rh-search-list-items rh-scroll-area" ref={listRef}>
       {filtered.length ? filtered.map((player) =>
         <PlayerRow key={`${player.serverId ?? ''}:${player.puuid}`} player={player} onSelect={onSelect} />)
         : <p className="rh-search-list-empty">{players.length ? '没有匹配的玩家' : emptyText}</p>}
@@ -167,15 +173,18 @@ function PlayerList({ title, players, emptyText, onSelect }: {
   </section>
 }
 
-function PlayerRow({ player, onSelect }: { player: HistoryPlayer; onSelect: (player: HistoryPlayer) => void }) {
+function PlayerRow({ player, onSelect, card = false }: { player: HistoryPlayer; onSelect: (player: HistoryPlayer) => void; card?: boolean }) {
   const tag = player.name.split('#')[1]
+  const level = historyPlayerLevel(player.level)
   const status = player.availability ? ONLINE_STATUS[player.availability] : undefined
-  return <button type="button" className="rh-search-player" onClick={() => onSelect(player)} aria-label={`查看 ${player.name} 的战绩`}>
+  return <button type="button" className={`rh-search-player${card?' rh-search-player-card':''}`} onClick={() => onSelect(player)} aria-label={`查看 ${player.name} 的战绩`}>
     <span className="rh-search-portrait">
       <HistoryImage src={profileIconUrl(player.iconId)} label={player.name} nativeTooltip={false} />
+      {card && <small className="rh-search-avatar-level">{level ?? '—'}</small>}
       {status && <HistoryAssetTooltip title={status} compact focusable={false} asChild><i className={`rh-search-status rh-search-status-${player.availability}`} aria-label={status} /></HistoryAssetTooltip>}
     </span>
-    <span className="rh-search-identity"><strong><HistoryPlayerName name={player.name} /></strong>
+    <span className="rh-search-identity"><span className="rh-search-name-line"><strong><HistoryPlayerName name={player.name} /></strong>
+      {!card && <small className="rh-search-level">lv.{level ?? '—'}</small>}</span>
       {(tag || player.serverId) && <small>{[tag && `#${tag}`, player.serverId && historyServerName(player.serverId)].filter(Boolean).join(' · ')}</small>}
     </span>
   </button>

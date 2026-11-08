@@ -137,7 +137,18 @@
 .rh-search-status-chat, .rh-search-status-mobile { background: #24bd82; }
 .rh-search-status-away { background: #e84057; }
 .rh-search-status-dnd, .rh-search-status-inQueue { background: #00c8df; }
-.rh-search-identity { display: grid; min-width: 0; }
+.rh-search-identity { display: grid; min-width: 0; flex: 1; }
+.rh-search-name-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rh-search-name-line > strong { min-width: 0; flex: 1; }
+.rh-search-name-line .rh-search-level { flex: 0 0 auto; color: var(--rh-muted); font-size: 10px; }
+.rh-search-card-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; padding: 3px 0 7px; }
+.rh-search-results .rh-search-player-card { border: 1px solid var(--rh-line); border-radius: 7px; padding: 9px 10px; background: var(--sona-history-raised); min-width: 0; }
+.rh-search-results .rh-search-player-card:hover, .rh-search-results .rh-search-player-card:focus-visible { border-color: rgb(var(--sona-accent-rgb) / .65); background: var(--sona-history-hover); }
+.rh-search-player-card .rh-search-portrait { width: 42px; height: 42px; flex-basis: 42px; }
+.rh-search-player-card .rh-search-portrait > :is(img,.rh-image-fallback) { border-radius: 6px; }
+.rh-search-avatar-level { position: absolute; right: -2px; bottom: -2px; padding: 0 3px; border-radius: 3px; background: rgb(var(--sona-base-rgb)); color: rgb(var(--sona-text-rgb)); font-size: 9px !important; line-height: 13px; }
+.rh-search-player-card .rh-search-status { top: -2px; bottom: auto; }
+.rh-search-kaomoji { font-size: 14px; font-weight: 400; color: rgb(var(--sona-pale-rgb)); white-space: nowrap; }
 .rh-search-identity :is(strong,small) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rh-search-identity small { color: var(--rh-muted); }
 .rh-search-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
@@ -411,6 +422,7 @@
   .rh-search-list + .rh-search-list { border: 0; border-left: 1px solid var(--rh-line); }
 }
 @media (max-width: 480px) {
+  .rh-search-card-grid { grid-template-columns: 1fr; }
   .rh-rune-details > main { grid-template-columns: 1fr; }
   .rh-header-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 100px; }
   .rh-rank-card .rh-rank-crest { width: 34px; height: 34px; }

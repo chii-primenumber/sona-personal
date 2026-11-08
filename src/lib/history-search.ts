@@ -45,11 +45,16 @@ export function historySearchServers(current: string) {
     : []
 }
 
+export function historyPlayerLevel(value: unknown): number | undefined {
+  if (typeof value === 'string') { if (!/^\d+$/.test(value.trim())) return undefined; value = Number(value) }
+  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 0 ? value : undefined
+}
+
 export function historyPlayerFromSummoner(data: SgpSummonerLite, serverId?: string, fallbackName?: string): HistoryPlayer | null {
   const baseName = data.gameName || data.displayName || data.name
   const name = baseName && data.tagLine && !baseName.includes('#') ? `${baseName}#${data.tagLine}` : baseName || fallbackName
   if (!data.puuid || !name) return null
-  return { puuid: data.puuid, name, serverId, iconId: data.profileIconId ?? data.profileIcon, level: data.summonerLevel ?? data.level }
+  return { puuid: data.puuid, name, serverId, iconId: data.profileIconId ?? data.profileIcon, level: historyPlayerLevel(data.summonerLevel ?? data.level) }
 }
 
 export function historyPlayerFromFriend(friend: ChatFriend, currentServer: string): HistoryPlayer | null {
@@ -63,7 +68,7 @@ export function historyPlayerFromFriend(friend: ChatFriend, currentServer: strin
     if (gameStatus === 'inGame' || gameStatus === 'championSelect') availability = 'dnd'
   }
   return { puuid: friend.puuid, name: [name, friend.gameTag].filter(Boolean).join('#'), iconId: friend.icon,
-    availability, serverId }
+    availability, serverId, level: historyPlayerLevel(friend.lol?.level) }
 }
 
 export function historyPlayerMatches(player: HistoryPlayer, query: string) {

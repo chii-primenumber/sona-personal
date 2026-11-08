@@ -7,6 +7,7 @@ import { HistoryPlayerName } from './HistoryPlayerName'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
 import { HistoryPerformanceStats } from './HistoryPerformanceStats'
 import { HistoryScrollTop } from './HistoryScrollTop'
+import { bindScrollbarHighlight } from '@/lib/scrollbar-highlight'
 import { RefreshIcon, SettingsIcon } from './icons'
 import { lcu, LcuEventUri } from '@/lib/lcu'
 import { store } from '@/lib/store'
@@ -244,6 +245,7 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
   const allStats = useMemo(() => summarize(matches), [matches])
   const stats = useMemo(() => summarize(selectedMatches), [selectedMatches])
   const valid = useMemo(() => validMatches(selectedMatches), [selectedMatches])
+  useEffect(()=>recentRef.current ? bindScrollbarHighlight(recentRef.current) : undefined,[pages.loading,stats.total,hidden])
   useEffect(()=>{ setChampionFilter(0) },[queueId,member.puuid])
   useEffect(()=>{
     if (!pages.loading && championFilter && !allValid.some((match)=>match.player.championId===championFilter)) setChampionFilter(0)

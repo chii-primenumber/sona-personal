@@ -138,11 +138,12 @@ function PlayerSearchContent({ initialQuery, onSelect }: {
         </div>)}
       </div>}
       <div className="rh-search-results rh-scroll-area" aria-live="polite" ref={resultsRef}>
-        {state.pending ? <div className="rh-empty"><span className="rh-spinner" />正在搜索召唤师…</div> : results.size ? <>
+        {state.pending ? <div className="rh-empty"><span className="rh-spinner" />正在搜索召唤师…<span className="rh-kaomoji" aria-hidden="true">(｡･ω･｡)</span></div> : results.size ? <>
           <p className="rh-search-result-count">{results.size} 位玩家</p>
           {state.error && <p className="rh-search-result-count">好友和最近访问中的匹配结果</p>}
           <div className="rh-search-card-grid">{[...results.values()].map((player) => <PlayerRow key={player.puuid} player={player} onSelect={onSelect} card />)}</div>
         </> : <div className="rh-search-empty">
+          {!state.error && <span className="rh-kaomoji rh-empty-kaomoji" aria-hidden="true">(｡•ㅅ•｡)</span>}
           <strong role={state.error ? 'alert' : undefined}>{state.error || (state.query ? '没有找到匹配的玩家' : '暂无搜索结果')}</strong>
           <p>可按名字、完整的名字#编号或 PUUID 搜索。</p>
           <p>点击好友或最近访问的玩家，可直接查看战绩。</p>

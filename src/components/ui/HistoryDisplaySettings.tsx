@@ -57,7 +57,7 @@ export function HistoryDisplaySettings({ open, onClose, initialSection }: {
       <div className="rh-shell rh-display-settings" data-testid="history-display-settings">
         <header>
           <h2>战绩显示设置</h2>
-          <p className="rh-muted">勾选要显示的项目，修改即时生效。</p>
+          <p className="rh-muted">勾选要显示的项目，修改即时生效。<span className="rh-kaomoji" aria-hidden="true">(｡•ᴗ•｡)ﾉ</span></p>
         </header>
         <nav className="rh-tabs" aria-label="显示范围">
           {sections.map((key) => (

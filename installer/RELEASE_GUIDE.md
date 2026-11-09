@@ -1,15 +1,15 @@
 
 ## 下载与安装
 
-- **首次使用选 `sona-v1.10.0-personal.24-one-click-windows.zip`**：已含官方 Pengu Loader v1.1.6、Sona、脚本、中文说明和许可证。
-- **已有 Loader 可选 `sona-v1.10.0-personal.24.zip`**：仅 Sona 插件。
+- **首次使用选 `sona-v1.10.0-personal.25-one-click-windows.zip`**：已含官方 Pengu Loader v1.1.6、Sona、脚本、中文说明和许可证。
+- **已有 Loader 可选 `sona-v1.10.0-personal.25.zip`**：仅 Sona 插件。
 - `SHA256SUMS.txt` 提供两个 ZIP 的 SHA256。
 
 一键安装：完整解压 → 退出英雄联盟客户端和 Loader 窗口 → 双击 **一键安装.cmd** → 允许管理员授权 → 安装完成后重新启动客户端，按 **F1** 打开。
 
 脚本自动寻找客户端；多个结果时选序号，找不到时粘贴游戏或 LeagueClient 目录。自动备份旧安装、保留本机设置和自定义资源、安装并激活 Loader。缺少 C++ 运行库时才从微软官网下载校验后安装。适用于 64 位 Windows 10（1803 起）／11。
 
-[详细安装、运行库、备份与回退说明](https://github.com/chii-primenumber/sona-personal/blob/v1.10.0-personal.24/installer/INSTALL.md) · [全部新增功能介绍](https://github.com/chii-primenumber/sona-personal/blob/v1.10.0-personal.24/README.md)
+[详细安装、运行库、备份与回退说明](https://github.com/chii-primenumber/sona-personal/blob/v1.10.0-personal.25/installer/INSTALL.md) · [全部新增功能介绍](https://github.com/chii-primenumber/sona-personal/blob/v1.10.0-personal.25/README.md)
 
 ## 开源来源
 

@@ -1,87 +1,59 @@
-/**
- * InjectorManager - 集中式注入管理器
- *
- * 设计理念：一个全局 MutationObserver 守护所有注入任务。
- *
- * - 永不掉线：不调用 disconnect()，任何注入点被客户端刷掉后，
- *   下一次 DOM 变动时自动补回。
- * - 绝对流畅：整个插件只有一个 Observer，配合 requestAnimationFrame
- *   节流，一帧最多检查一次，不会因 Ember.js 的大量 DOM 变动而卡顿。
- * - 易于扩展：未来新增注入点只需 injector.register(task) 即可。
- */
-
 import { logger } from '@/index'
 
-/** 注入任务：返回 true 表示注入成功/已存在，false 表示还没找到位置 */
 type InjectTask = () => boolean
+interface InjectOptions { selector?: string }
+const OWNED = '#sona-root, .sona-modal-overlay, .rh-asset-tooltip, #sona-opgg-build-panel'
 
-class InjectorManager {
-  private tasks: Set<InjectTask> = new Set()
+/** Batch native changes; plugin contents do not trigger another pass through native injection tasks. */
+export class InjectorManager {
+  private tasks = new Map<InjectTask, InjectOptions>()
   private observer: MutationObserver | null = null
-  private isThrottled = false
+  private records: MutationRecord[] = []
+  private timer = 0
+  private frame = 0
+  private lastRun = 0
 
-  /**
-   * 注册一个新的注入任务
-   * 注册后立即尝试执行一次
-   */
-  register(task: InjectTask) {
-    this.tasks.add(task)
-    try {
-      task()
-    } catch (e) {
-      logger.error('[Injector] Task failed on register:', e)
-    }
+  register(task: InjectTask, options: InjectOptions = {}) {
+    this.tasks.set(task, options)
+    this.run(task)
   }
-
-  /**
-   * 取消注册一个注入任务
-   */
-  unregister(task: InjectTask) {
-    this.tasks.delete(task)
+  unregister(task: InjectTask) { this.tasks.delete(task) }
+  private run(task: InjectTask) {
+    try { task() } catch (error) { logger.error('[Injector] Task failed:', error) }
   }
-
-  /**
-   * 启动全局 DOM 守护者
-   * 只会启动一次，重复调用无效
-   */
+  private relevant(record: MutationRecord, selector: string) {
+    const parent = record.target instanceof Element ? record.target : record.target.parentElement
+    if (parent?.closest(selector)) return true
+    return [...record.addedNodes, ...record.removedNodes].some((node) => node instanceof Element && (node.matches(selector) || Boolean(node.querySelector(selector))))
+  }
   start() {
     if (this.observer) return
-
-    logger.info('[Injector] Starting global DOM observer...')
-
-    this.observer = new MutationObserver(() => {
-      if (this.isThrottled) return
-      this.isThrottled = true
-
-      requestAnimationFrame(() => {
-        for (const task of this.tasks) {
-          try {
-            task()
-          } catch (e) {
-            logger.error('[Injector] Task failed:', e)
+    this.observer = new MutationObserver((records) => {
+      for (const record of records) {
+        const target = record.target instanceof Element ? record.target : record.target.parentElement
+        if (target?.closest(OWNED)) continue
+        const changed = [...record.addedNodes, ...record.removedNodes]
+        if (changed.length && changed.every((node) => node instanceof Element && node.id !== 'sona-root' && node.matches(OWNED))) continue
+        this.records.push(record)
+      }
+      if (!this.records.length || this.timer || this.frame) return
+      this.timer = window.setTimeout(() => {
+        this.timer = 0
+        this.frame = requestAnimationFrame(() => {
+          this.frame = 0; this.lastRun = performance.now()
+          const pending = this.records; this.records = []
+          for (const [task, options] of this.tasks) {
+            if (!options.selector || pending.some((record) => this.relevant(record, options.selector!))) this.run(task)
           }
-        }
-        this.isThrottled = false
-      })
+        })
+      }, Math.max(0, 100 - (performance.now() - this.lastRun)))
     })
-
-    this.observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    })
+    this.observer.observe(document.body, { childList: true, subtree: true })
   }
-
-  /**
-   * 停止全局守护（一般不需要调用）
-   */
   stop() {
-    if (this.observer) {
-      this.observer.disconnect()
-      this.observer = null
-      logger.info('[Injector] Global DOM observer stopped')
-    }
+    this.observer?.disconnect(); this.observer = null
+    clearTimeout(this.timer); cancelAnimationFrame(this.frame)
+    this.timer = 0; this.frame = 0; this.records = []
   }
 }
-
-/** 全局注入管理器单例 */
 export const injector = new InjectorManager()

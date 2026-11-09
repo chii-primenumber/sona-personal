@@ -155,7 +155,7 @@ export function TeamHistoryModal({ open, onClose, mode, party = emptyParty }: {
             <div className="rh-team-groups">
               {snapshot.teams.map((team) => (
                 <TeamSection key={team.id} team={team} queueId={queueId} count={count} open={open} hidden={hidden}
-                  onInspect={(puuid, name) => setTarget({ puuid, name })} onMatch={setSelectedMatch} />
+                  onInspect={(puuid, name) => setTarget({ puuid, name })} onMatch={setSelectedMatch} revision={revision} />
               ))}
             </div>}
         </div>
@@ -176,9 +176,10 @@ export function TeamHistoryModal({ open, onClose, mode, party = emptyParty }: {
   </>
 }
 
-function TeamSection({ team, queueId, count, open, hidden, onInspect, onMatch }: {
+function TeamSection({ team, queueId, count, open, hidden, onInspect, onMatch, revision }: {
   team: Team; queueId: number; count: number; open: boolean; hidden: HistoryHiddenFields
   onInspect: (puuid: string, name: string) => void; onMatch: (match: HistoryMatch) => void
+  revision: number
 }) {
   const [summaries, setSummaries] = useState<Record<string, PlayerSummary>>({})
   const updateSummary = useCallback((key: string, stats: PlayerSummary | null) => {
@@ -211,7 +212,7 @@ function TeamSection({ team, queueId, count, open, hidden, onInspect, onMatch }:
         {team.members.map((member) => {
           const party = member.premade ? parties.indexOf(member.premade) : -1
           return <TeamPlayerCard key={member.key} member={member} queueId={queueId} count={count} open={open} hidden={hidden}
-            premade={party >= 0 ? String.fromCharCode(65 + party) : undefined}
+            premade={party >= 0 ? String.fromCharCode(65 + party) : undefined} revision={revision}
             onInspect={(name) => onInspect(member.puuid, name)} onMatch={onMatch} updateSummary={updateSummary} />
         })}
       </div>
@@ -219,10 +220,11 @@ function TeamSection({ team, queueId, count, open, hidden, onInspect, onMatch }:
   )
 }
 
-function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspect, onMatch, updateSummary }: {
+function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspect, onMatch, updateSummary, revision }: {
   member: Member; queueId: number; count: number; open: boolean; hidden: HistoryHiddenFields; premade?: string
   onInspect: (name: string) => void; onMatch: (match: HistoryMatch) => void
   updateSummary: (key: string, stats: PlayerSummary | null) => void
+  revision: number
 }) {
   const [profile, setProfile] = useState<SummonerInfo | null>(null)
   const [ranks, setRanks] = useState<HistoryRank[] | null>(null)
@@ -230,15 +232,16 @@ function TeamPlayerCard({ member, queueId, count, open, hidden, premade, onInspe
   const [championFilter, setChampionFilter] = useState(0)
   const recentRef = useRef<HTMLDivElement | null>(null)
   const scoreSystem = usePlayerScoreSystem()
-  const pages = useHistoryPages(member.puuid, queueId, count, open)
+  const pages = useHistoryPages(member.puuid, queueId, count, open, undefined, revision)
+  const showRanks = isHistoryFieldVisible(hidden, 'team', 'ranks')
   useEffect(() => {
     if (!open || !member.puuid) return
     const controller = new AbortController()
     setProfile(null); setRanks(null); setRankLoading(true)
-    void fetchHistorySummoner(member.puuid, controller.signal).then((value) => { if (!controller.signal.aborted) setProfile(value) }).catch(() => {})
-    void fetchHistoryRanks(member.puuid, controller.signal).then((value) => { if (!controller.signal.aborted) setRanks(value) }).catch(() => {}).finally(() => { if (!controller.signal.aborted) setRankLoading(false) })
+    void fetchHistorySummoner(member.puuid, controller.signal, revision > 0).then((value) => { if (!controller.signal.aborted) setProfile(value) }).catch(() => {})
+    if (showRanks) void fetchHistoryRanks(member.puuid, controller.signal, undefined, revision > 0).then((value) => { if (!controller.signal.aborted) setRanks(value) }).catch(() => {}).finally(() => { if (!controller.signal.aborted) setRankLoading(false) })
     return () => controller.abort()
-  }, [open, member.puuid])
+  }, [open, member.puuid, revision, showRanks])
   const matches = useMemo(() => toHistoryMatches(pages.games, member.puuid).filter((m) => !queueId || m.game.json.queueId === queueId), [pages.games, member.puuid, queueId])
   const allValid = useMemo(() => validMatches(matches), [matches])
   const selectedMatches = useMemo(()=>championFilter ? matches.filter((match)=>match.player.championId===championFilter) : matches,[matches,championFilter])

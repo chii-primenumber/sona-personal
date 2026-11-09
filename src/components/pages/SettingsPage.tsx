@@ -23,6 +23,7 @@ export function SettingsPage() {
   const [hotkey, setHotkey] = useState(store.get('hotkey'))
   const [hideSonaIcon, setHideSonaIcon] = useState(store.get('hideSonaIcon'))
   const [globalParticle, setGlobalParticle] = useState(store.get('globalParticle'))
+  const [dynamicEffects, setDynamicEffects] = useState(store.get('dynamicEffects'))
   const [theme, setTheme] = useState(store.get('theme'))
   const [skippedUpdateVersion, setSkippedUpdateVersion] = useState(store.get('skippedUpdateVersion'))
   const localeOptions = [
@@ -37,6 +38,7 @@ export function SettingsPage() {
       store.onChange('hotkey', setHotkey),
       store.onChange('hideSonaIcon', setHideSonaIcon),
       store.onChange('globalParticle', setGlobalParticle),
+      store.onChange('dynamicEffects', setDynamicEffects),
       store.onChange('theme', setTheme),
       store.onChange('skippedUpdateVersion', setSkippedUpdateVersion),
     ]
@@ -82,6 +84,9 @@ export function SettingsPage() {
             checked={hideSonaIcon}
             onChange={(v) => { setHideSonaIcon(v); store.set('hideSonaIcon', v) }}
           />
+        </SettingCard>
+        <SettingCard title={t('settings.dynamicEffects.title')} description={t('settings.dynamicEffects.description')}>
+          <SonaSwitch checked={dynamicEffects} onChange={(value) => store.set('dynamicEffects', value)} />
         </SettingCard>
         <SettingCard
           title={t('settings.globalParticle.title')}

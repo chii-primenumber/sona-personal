@@ -1,6 +1,6 @@
 # Sona 个人战绩增强版
 
-版本为 `1.10.0-personal.25`，基于 **原作者 WJZ-P** 的 **Sona v1.10.0** 定制，沿用原项目的 **AGPL-3.0** 许可。主要增强个人战绩、玩家搜索、队伍总览、对位与回放，并提供全局主题和显示设置。队伍卡片与 Akari 评分参考 Hanxven 的 [League Akari](https://github.com/LeagueAkari/LeagueAkari)，评分适配保留其 MIT 许可。[Sona 上游项目](https://github.com/WJZ-P/sona/tree/v1.10.0)
+版本为 `1.10.0-personal.26`，基于 **原作者 WJZ-P** 的 **Sona v1.10.0** 定制，沿用原项目的 **AGPL-3.0** 许可。主要增强个人战绩、玩家搜索、队伍总览、对位与回放，并提供全局主题和显示设置。队伍卡片与 Akari 评分参考 Hanxven 的 [League Akari](https://github.com/LeagueAkari/LeagueAkari)，评分适配保留其 MIT 许可。[Sona 上游项目](https://github.com/WJZ-P/sona/tree/v1.10.0)
 
 本个人版新增功能主要参考开源项目 [League Akari](https://github.com/LeagueAkari/LeagueAkari) 的个人战绩、队伍卡片、玩家搜索、数据展示与交互，并适配其评分机制。[完整功能介绍](README.md)
 
@@ -16,7 +16,7 @@ Release 中带 `one-click-windows.zip` 的包包含官方 Pengu Loader v1.1.6、
 2. 将已经安装的 `sona` 文件夹整个备份到**插件目录外**。先留好这一份，以便回退。
 3. 将交付目录里的 `sona` 文件夹复制到插件目录。确认结构为 `plugins/sona/index.js`，旁边有 `index.css` 和 `assets`。
 4. 如果原版 `assets` 中有你自己的壁纸、视频或头像，把这些自定义文件复制到新版 `sona/assets` 中。请只启用一份 Sona。保留 `sona` 文件夹名，以便沿用原先的资源路径和设置。
-5. 刷新 Pengu Loader 的插件列表，确认 Sona 已启用，再启动 LOL 客户端。个人版在客户端中显示版本 `1.10.0-personal.25`。
+5. 刷新 Pengu Loader 的插件列表，确认 Sona 已启用，再启动 LOL 客户端。个人版在客户端中显示版本 `1.10.0-personal.26`。
 
 回退时，退出客户端，把个人版移出插件目录，再把备份的原版 `sona` 移回去，刷新插件列表后重启。定制版不会在启动时主动弹出上游更新提示，避免将定制代码误覆盖。
 
@@ -87,3 +87,11 @@ Release 中带 `one-click-windows.zip` 的包包含官方 Pengu Loader v1.1.6、
 浏览器模拟覆盖了主题切换、玩家搜索、跨大区请求路由、显示设置、段位徽章、占比条、装备与海克斯提示，以及两个队伍页、生涯按钮和右键菜单。真实客户端的跨区接口仍待安装后确认。
 
 定制源码和修改记录保存在本地 Git 分支 `personal/match-history`。安装依赖后运行 `npm run build`，构建结果保存在 `dist`。
+
+## 加载与特效
+
+返回上一位玩家会恢复筛选、分页、展开战报和滚动位置。近期战绩在内存中短暂复用，刷新按钮会重新查询；超过缓存时效或容量后重新加载。超过 80 场时仅绘制附近卡片，英雄统计可选择排序和最低场次。
+
+「设置 → 动态粒子特效」统一控制弹窗与全局粒子。只播放最上层窗口的粒子，后台页面暂停；全局粒子仍沿用单独的开关。
+
+开发验证：`npm ci`，首次执行 `npx playwright install chromium`，再运行 `npm run verify`。验证包含生产构建、统计字段、评分对照、共享查询与浏览器模拟。

@@ -1,7 +1,7 @@
 {
   "name": "sona",
   "private": true,
-  "version": "1.10.0-personal.25",
+  "version": "1.10.0-personal.26",
   "type": "module",
   "description": "Sona - A League of Legends client plugin for Pengu Loader",
   "license": "AGPL-3.0",
@@ -13,7 +13,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "update-balance": "tsx scripts/update-champion-balance.ts"
+    "update-balance": "tsx scripts/update-champion-balance.ts",
+    "test:models": "tsx qa-local/verify-performance.ts && tsx qa-local/verify-player-score.ts && tsx qa-local/verify-shared-requests.ts",
+    "test:browser": "node qa-local/verify.mjs",
+    "verify": "npm run build && npm run test:models && npm run test:browser"
   },
   "dependencies": {
     "react": "^19.1.0",
@@ -26,6 +29,7 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.4.1",
     "luaparse": "^0.3.1",
+    "playwright": "1.62.1",
     "tsx": "^4.21.0",
     "typescript": "^5.8.3",
     "undici": "^7.25.0",

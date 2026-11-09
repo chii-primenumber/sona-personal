@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import assert from 'node:assert/strict'
 import path from 'node:path'
 import fs from 'node:fs/promises'
+import { verifyUiOptimizations } from './verify-ui-optimizations.mjs'
 
 const require = createRequire(import.meta.url)
 const { chromium } = require(process.env.SONA_PLAYWRIGHT_PATH || 'playwright')
@@ -75,7 +76,8 @@ const accountSearchBatches = []
 const fuzzyAccounts = Array.from({length:33},(_,index) => ({ puuid:`region-search-${index}`,alias:{game_name:`全区玩家${index}`,tag_line:`S${index}`} }))
 const replayActions = []
 let augmentRequests = 0
-let slowQueue = 0, failSgp = false, failMastery = false
+let slowQueue = 0, failSgp = false, failMastery = false, longHistory = false
+const longGames = Array.from({length:260},(_,i)=>makeGame(i))
 let unrankedProfile = false, mixedTeamRanks = false
 
 function image(url) {
@@ -162,7 +164,7 @@ try {
       if (isOtherRegion && p.includes(ids[8])) crossRegionRequests.push('matches')
       if (queue && queue===slowQueue) await new Promise((resolve)=>setTimeout(resolve,700))
       if (failSgp) return json({message:'fixture fallback'},503)
-      return json({games:games.filter((g)=>!queue||g.json.queueId===queue).slice(start,start+count)})
+      return json({games:(longHistory ? longGames : games).filter((g)=>!queue||g.json.queueId===queue).slice(start,start+count)})
     }
     if (isOtherRegion && p.startsWith('/summoner-ledge/v1/regions/HN10/summoners/name/')) {
       crossRegionRequests.push('name')
@@ -232,6 +234,7 @@ try {
     return route.continue()
   })
   await page.goto(`${origin}/qa-local/index.html`)
+  await verifyUiOptimizations(page)
   const privacySwitch = page.locator('.sona-setting-card').filter({hasText:'解锁隐藏生涯'}).getByRole('switch')
   await privacySwitch.waitFor()
   assert.equal(await privacySwitch.getAttribute('aria-checked'), 'true')
@@ -655,6 +658,55 @@ try {
   await profileView.getByText('已加载完毕',{exact:true}).waitFor()
   assert.equal(await profileView.locator('.rh-match').count(),66)
   assert.ok(counts.some((entry)=>entry.start===50))
+  // Navigation restores pagination, local filters, expanded reports and both scroll positions.
+  await profileView.getByLabel('筛选胜负').selectOption('win')
+  const savedMatchCount = await profileView.locator('.rh-match').count()
+  if (await profileView.locator('.rh-expand').first().getAttribute('aria-expanded') !== 'true') await profileView.locator('.rh-expand').first().click()
+  await profileView.locator('.rh-content').evaluate((node)=>{node.scrollTop=430})
+  await profileView.locator('.rh-sidebar').evaluate((node)=>{node.scrollTop=160})
+  const savedMainTop=await profileView.locator('.rh-content').evaluate((node)=>node.scrollTop)
+  const savedSideTop=await profileView.locator('.rh-sidebar').evaluate((node)=>node.scrollTop)
+  await profileView.locator('.rh-mini-roster button').nth(1).evaluate((node)=>node.click())
+  await profileView.getByRole('heading',{name:'薄荷汽水#DEMO',exact:true}).waitFor()
+  await profileView.locator('.rh-match').first().waitFor()
+  const requestsBeforeBack=counts.length
+  await profileView.getByRole('button',{name:'‹ 返回'}).click()
+  await profileView.getByRole('heading',{name:'练习星轨#DEMO',exact:true}).waitFor()
+  assert.equal(await profileView.getByLabel('筛选胜负').inputValue(),'win')
+  assert.equal(await profileView.locator('.rh-match').count(),savedMatchCount)
+  assert.ok(await profileView.locator('.rh-expand[aria-expanded="true"]').count()>0)
+  assert.ok(Math.abs(await profileView.locator('.rh-content').evaluate((node)=>node.scrollTop)-savedMainTop)<2)
+  assert.ok(Math.abs(await profileView.locator('.rh-sidebar').evaluate((node)=>node.scrollTop)-savedSideTop)<2)
+  assert.equal(counts.length,requestsBeforeBack)
+  await profileView.getByRole('button',{name:'重置筛选'}).click()
+  await profileView.getByRole('button',{name:/英雄统计/}).click()
+  await profileView.getByLabel('英雄统计排序').selectOption('winRate')
+  const rates=await profileView.locator('.rh-champion-table tbody tr td:nth-child(3)').allTextContents()
+  const parsedRates=rates.map((text)=>Number(text.replace('%','')))
+  assert.deepEqual(parsedRates,[...parsedRates].sort((a,b)=>b-a))
+  await profileView.getByLabel('英雄统计最低场次').selectOption('5')
+  assert.ok((await profileView.locator('.rh-champion-table tbody tr td:nth-child(2)').allTextContents()).every((text)=>Number(text)>=5))
+  await profileView.screenshot({path:path.join(out,'英雄统计排序与最低场次_模拟数据.png')})
+  await profileView.getByLabel('英雄统计最低场次').selectOption('1')
+  await profileView.getByRole('button',{name:/战绩明细/}).click()
+  // A larger source exercises variable row heights and offscreen unmount/remount.
+  longHistory=true
+  await profileView.getByLabel('每次加载场次').selectOption('100')
+  await profileView.locator('.rh-match-list[data-virtualized="true"]').waitFor()
+  assert.ok(await profileView.locator('.rh-match').count()<35)
+  if (await profileView.locator('.rh-expand').first().getAttribute('aria-expanded') !== 'true') await profileView.locator('.rh-expand').first().click()
+  await profileView.locator('.rh-content').evaluate((node)=>{node.scrollTop=node.scrollHeight})
+  await profileView.getByRole('button',{name:'继续加载 100 场'}).click()
+  await page.waitForFunction(()=>document.querySelector('[data-testid="player-history"] .rh-tabs button')?.textContent.includes('199'))
+  await profileView.locator('.rh-content').evaluate((node)=>{node.scrollTop=node.scrollHeight})
+  await page.waitForFunction(()=>!document.querySelector('[data-match-id="HN1:99000000"]'))
+  assert.ok(await profileView.locator('.rh-match').count()<35)
+  await profileView.locator('.rh-content').evaluate((node)=>{node.scrollTop=0})
+  await profileView.locator('.rh-match-slot').first().getByRole('button',{name:'收起详细战报',exact:true}).waitFor()
+  await profileView.screenshot({path:path.join(out,'长战绩按需渲染_模拟数据.png')})
+  longHistory=false
+  await profileView.getByLabel('每次加载场次').selectOption('50')
+  await profileView.locator('.rh-match').nth(65).waitFor()
   slowQueue = 420
   await profileView.getByLabel('游戏模式').selectOption('420')
   await profileView.getByLabel('游戏模式').selectOption('2400')
@@ -753,6 +805,7 @@ try {
   assert.equal(await bpEntry.evaluate((node) => node.parentElement.classList.contains('bottom-right-buttons')),true)
   bp.queueId = 0
   mixedTeamRanks = true
+  await page.evaluate(async()=>{(await import('/src/lib/shared-requests.ts')).clearHistoryRequests()})
   await bpEntry.click()
   const bpView = page.getByTestId('bp-history')
   await bpView.locator('.rh-team-card').nth(4).waitFor()
@@ -1024,6 +1077,7 @@ try {
   assert.equal(await page.locator('[data-sona-team-history]').count(),0)
   await page.setViewportSize({width:1000,height:660})
   failMastery = true
+  await page.evaluate(async()=>{(await import('/src/lib/shared-requests.ts')).clearHistoryRequests()})
   await query.fill('练习星轨#DEMO')
   await page.getByRole('button',{name:'查询战绩',exact:true}).click()
   await profileView.getByText('该玩家的英雄点数暂不可用',{exact:true}).waitFor()
@@ -1111,7 +1165,7 @@ try {
   await assertProfile('白昼拾荒#DEMO')
   assert.equal(errors.length,0,errors.join('\n'))
   assert.equal(writes.length,0,writes.join('\n'))
-  console.log(JSON.stringify({result:'passed', checks:['current, peak and previous ranks', 'split, copyable and hover-only Riot IDs', 'single-button replay download and playback', 'icon-only report expansion', 'segmented bars and missing breakdown', 'equipment and Mayhem tooltips', 'display settings for team, personal and report', 'shared and persisted plugin theme', 'name, Riot ID and PUUID search', 'friends, visits and region reference', 'cross-region profile, ranks and matches', 'native locked enemy row with nonstandard portrait path', 'ranked and custom draft gating', 'Korean lane/tier queries and no-data state', 'champion filter toggle and damage badge', 'personal history', 'player search and return', 'encounter profile icons', 'filters and pagination', 'native fallback', 'BP party colors and game ten', 'recent match detail', 'transparent nested scrollbars', 'nested Escape', 'phase exit', '1000px layout', 'native search clearance and exclusive profile entry', 'history and postgame context menus', 'no unexpected writes or page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
+  console.log(JSON.stringify({result:'passed', checks:['current, peak and previous ranks', 'split, copyable and hover-only Riot IDs', 'single-button replay download and playback', 'icon-only report expansion', 'segmented bars and missing breakdown', 'equipment and Mayhem tooltips', 'display settings for team, personal and report', 'shared and persisted plugin theme', 'name, Riot ID and PUUID search', 'friends, visits and region reference', 'cross-region profile, ranks and matches', 'native locked enemy row with nonstandard portrait path', 'ranked and custom draft gating', 'Korean lane/tier queries and no-data state', 'champion filter toggle and damage badge', 'personal history', 'player search and return', 'encounter profile icons', 'filters and pagination', 'native fallback', 'BP party colors and game ten', 'recent match detail', 'transparent nested scrollbars', 'nested Escape', 'phase exit', '1000px layout', 'native search clearance and exclusive profile entry', 'history and postgame context menus', 'navigation preserves filters, pagination, expansion and scroll without refetch', 'champion sorting and minimum samples', 'variable-height virtual history', 'batched and scoped native scans', 'visible-layer particles and hidden-page pause', 'persisted effects switch', 'no unexpected writes or page errors'], requests:counts.length, blockedUnrelatedExternal:[...new Set(external)]},null,2))
 } finally {
   await browser?.close()
   await server.close()

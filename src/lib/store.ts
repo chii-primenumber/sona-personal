@@ -122,6 +122,8 @@ export interface SonaConfig {
   sideIndicatorMsgType: string
   /** 全局粒子美化效果 */
   globalParticle: boolean
+  /** 统一控制全局和弹窗的动态粒子 */
+  dynamicEffects: boolean
   /** 壁纸模式：隐藏主页活动中心，并清空右侧栏背景 */
   beautifyWallpaperMode: boolean
   /** 壁纸模式：模式选择 / 大厅场景背景切换器的毛玻璃模糊强度（px） */
@@ -283,6 +285,7 @@ const DEFAULT_CONFIG: SonaConfig = {
   sideIndicator: false,
   sideIndicatorMsgType: 'celebration',
   globalParticle: false,
+  dynamicEffects: true,
   beautifyWallpaperMode: false,
   beautifyWallpaperSceneBlur: 4,
   beautifyWallpaperSceneOpacity: 15,

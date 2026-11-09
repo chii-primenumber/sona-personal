@@ -1156,8 +1156,10 @@ export function initFeatures() {
   store.onChange('smartBuildRecommendation', updateOpggLifecycle)
   store.onChange('smartItemSetBuild', updateOpggLifecycle)
 
-  updateGlobalParticle(store.get('globalParticle'))
-  store.onChange('globalParticle', updateGlobalParticle)
+  const syncGlobalParticle = () => updateGlobalParticle(store.get('globalParticle') && store.get('dynamicEffects'))
+  syncGlobalParticle()
+  store.onChange('globalParticle', syncGlobalParticle)
+  store.onChange('dynamicEffects', syncGlobalParticle)
 
   updateFriendSmartGroup(store.get('friendSmartGroup'))
   store.onChange('friendSmartGroup', updateFriendSmartGroup)

@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import '@/styles/Modal.css'
+import { store } from '@/lib/store'
+import { modalStack, notifyModalStack, startParticleAnimation } from '@/lib/particle-animation'
+const subscribeEffects = (listener: () => void) => store.onChange('dynamicEffects', listener)
+const getEffects = () => store.get('dynamicEffects')
 
 /** 退场动画 0.2s，略留余量后强制卸载，避免 animationend 不触发时卡死 */
 const CLOSE_ANIMATION_FALLBACK_MS = 400
-const modalStack: symbol[] = []
 let initialBodyOverflow = ''
 
 export interface ModalProps {
@@ -33,6 +36,7 @@ export function Modal({
   maskClosable = true,
   closable = true,
 }: ModalProps) {
+  const dynamicEffects = useSyncExternalStore(subscribeEffects, getEffects)
   const dialogRef = useRef<HTMLDivElement>(null)
   const modalId = useRef(Symbol('sona-modal'))
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -118,92 +122,10 @@ export function Modal({
     return () => document.removeEventListener('keydown', handleKey)
   }, [open, requestClose])
 
-  // 🪄 Sona 音乐星光粒子效果
   useEffect(() => {
-    if (!mounted || closing) return
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    let animationFrameId: number
-    let initialized = false
-    const particles: Array<{
-      x: number; y: number; size: number;
-      speedY: number; speedX: number; opacity: number; isGold: boolean
-    }> = []
-
-    const resizeCanvas = () => {
-      const parent = canvas.parentElement
-      if (parent) {
-        const w = parent.offsetWidth
-        const h = parent.offsetHeight
-        if (w > 0 && h > 0) {
-          canvas.width = w
-          canvas.height = h
-        }
-      }
-    }
-
-    const initParticles = () => {
-      if (initialized || canvas.width === 0 || canvas.height === 0) return
-      initialized = true
-      for (let i = 0; i < 80; i++) {
-        particles.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          size: Math.random() * 1.5 + 0.5,
-          speedY: Math.random() * 0.4 + 0.1,
-          speedX: (Math.random() - 0.5) * 0.2,
-          opacity: Math.random() * 0.3 + 0.1,
-          isGold: Math.random() > 0.7,
-        })
-      }
-    }
-
-    const render = () => {
-      if (!initialized) {
-        resizeCanvas()
-        initParticles()
-      }
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      particles.forEach((p) => {
-        p.y -= p.speedY
-        p.x += p.speedX
-        p.opacity += (Math.random() - 0.5) * 0.02
-        if (p.opacity < 0.1) p.opacity = 0.1
-        if (p.opacity > 0.5) p.opacity = 0.5
-        if (p.y < 0) {
-          p.y = canvas.height
-          p.x = Math.random() * canvas.width
-        }
-        if (p.isGold) {
-          ctx.shadowBlur = 4
-          ctx.shadowColor = `rgba(200, 170, 110, ${p.opacity})`
-        } else {
-          ctx.shadowBlur = 3
-          ctx.shadowColor = `rgba(0, 180, 255, ${p.opacity * 0.8})`
-        }
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-        ctx.fillStyle = p.isGold
-          ? `rgba(220, 190, 130, ${p.opacity})`
-          : `rgba(80, 200, 255, ${p.opacity * 0.85})`
-        ctx.fill()
-      })
-      ctx.shadowBlur = 0
-      ctx.shadowColor = 'transparent'
-      animationFrameId = requestAnimationFrame(render)
-    }
-
-    animationFrameId = requestAnimationFrame(render)
-    window.addEventListener('resize', resizeCanvas)
-
-    return () => {
-      window.removeEventListener('resize', resizeCanvas)
-      cancelAnimationFrame(animationFrameId)
-    }
-  }, [mounted, closing])
+    if (!mounted || closing || !dynamicEffects || !canvasRef.current) return
+    return startParticleAnimation(canvasRef.current, 80, () => modalStack[modalStack.length - 1] === modalId.current)
+  }, [mounted, closing, dynamicEffects])
 
   // 打开时阻止背景滚动
   useEffect(() => {
@@ -211,10 +133,12 @@ export function Modal({
     const id = modalId.current
     if (!modalStack.length) initialBodyOverflow = document.body.style.overflow
     modalStack.push(id)
+    notifyModalStack()
     document.body.style.overflow = 'hidden'
     return () => {
       const index = modalStack.lastIndexOf(id)
       if (index !== -1) modalStack.splice(index, 1)
+      notifyModalStack()
       if (!modalStack.length) document.body.style.overflow = initialBodyOverflow
     }
   }, [open, mounted, closing])

@@ -98,7 +98,7 @@ function changePhase(nextPhase: GameflowPhase) {
   syncInGameDetailsLayout(gameContainer); gameContainer = null
   destroyModal()
   mode = next
-  if (mode) injector.register(injectButton)
+  if (mode) injector.register(injectButton, { selector: '.bottom-right-buttons, .game-in-progress-container' })
 }
 
 export function updateTeamHistoryOverview(enabled: boolean) {

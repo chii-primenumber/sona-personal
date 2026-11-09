@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Modal } from './Modal'
 import { HistoryDisplaySettings } from './HistoryDisplaySettings'
 import { PlayerSearchModal } from './PlayerSearchModal'
@@ -7,7 +7,8 @@ import { HistoryAssetTooltip } from './HistoryAssetTooltip'
 import { HistoryPerformanceStats } from './HistoryPerformanceStats'
 import { HistoryScrollTop } from './HistoryScrollTop'
 import { RefreshIcon, SettingsIcon, SearchIcon } from './icons'
-import { ChampionStrip, HistoryImage, HistoryMatchCard, RankCards, SummaryStats, championName } from './HistoryWidgets'
+import { ChampionStrip, HistoryImage, RankCards, SummaryStats, championName } from './HistoryWidgets'
+import { HistoryMatchList } from './HistoryMatchList'
 import { getChampIcon, getPlayableQueues, getQueueName } from '@/lib/assets'
 import { deadline, fetchHistoryMastery, fetchHistoryRanks, fetchHistorySummoner, type HistoryMastery, type HistoryRank } from '@/lib/history-api'
 import { lcu } from '@/lib/lcu'
@@ -18,41 +19,57 @@ import { usePlayerScoreSystem } from '@/lib/use-player-score'
 import { useHistoryPages } from '@/lib/use-history-pages'
 import { useHistoryHiddenFields } from '@/lib/use-history-display'
 import { isHistoryFieldVisible, type HistoryDisplayField } from '@/lib/history-display'
+import { getHistoryEpoch, historyRequests } from '@/lib/shared-requests'
 import '@/styles/PersonalHistory.css'
 
 export interface PlayerHistoryModalProps { open: boolean; onClose: () => void; puuid: string; playerName: string; queueId?: number }
+interface HistoryView {
+  queueId: number; batchSize: number; championId: number; position: string; result: string; hideAborted: boolean
+  tab: 'matches' | 'champions'; showAllMastery: boolean; expanded: string[]; sidebarTop: number; contentTop: number
+  championSort: string; championMin: number
+}
 
 export function PlayerHistoryModal({ open, onClose, puuid, playerName, queueId }: PlayerHistoryModalProps) {
+  const views = useRef(new Map<string, HistoryView>())
   const [navigation, setNavigation] = useState<{ base: string; current: HistoryPlayer; trail: HistoryPlayer[] }>({ base: puuid, current: { puuid, name: playerName }, trail: [] })
   useEffect(() => { if (open) setNavigation({ base: puuid, current: { puuid, name: playerName }, trail: [] }) }, [open, puuid, playerName])
   const current = navigation.base === puuid ? navigation.current : { puuid, name: playerName }
   const inspect = (player: HistoryPlayer) => {
     if (!player.puuid || (player.puuid === current.puuid && player.serverId === current.serverId)) return
-    setNavigation((nav) => ({ ...nav, current: player, trail: [...nav.trail, nav.current] }))
+    setNavigation((nav) => ({ ...nav, current: player, trail: [...nav.trail, nav.current].slice(-20) }))
   }
+  const viewKey = `${getHistoryEpoch()}:${current.serverId ?? ''}:${current.puuid}`
   return <Modal open={open} onClose={onClose} width="min(1320px, 95vw)" height="min(940px, 92vh)">
-    {current.puuid && <PlayerHistoryContent key={`${current.serverId ?? ''}:${current.puuid}`} open={open} target={current}
+    {current.puuid && <PlayerHistoryContent key={viewKey} open={open} target={current}
+      savedView={views.current.get(viewKey)} rememberView={(view) => {
+        views.current.delete(viewKey); views.current.set(viewKey, view)
+        while (views.current.size > 12) views.current.delete(views.current.keys().next().value!)
+      }}
       defaultQueueId={queueId || 0} onSelectPlayer={inspect}
       onBack={navigation.trail.length ? () => setNavigation((nav) => ({ ...nav, current: nav.trail[nav.trail.length - 1], trail: nav.trail.slice(0, -1) })) : undefined} />}
   </Modal>
 }
 
-function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, onBack }: {
+function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, onBack, savedView, rememberView }: {
   open: boolean; target: HistoryPlayer; defaultQueueId: number; onSelectPlayer: (player: HistoryPlayer) => void; onBack?: () => void
+  savedView?: HistoryView; rememberView: (view: HistoryView) => void
 }) {
-  const [queueId, setQueueId] = useState(defaultQueueId)
-  const [batchSize, setBatchSize] = useState(50)
-  const [championId, setChampionId] = useState(0)
-  const [position, setPosition] = useState('')
-  const [result, setResult] = useState('')
-  const [hideAborted, setHideAborted] = useState(true)
-  const [tab, setTab] = useState<'matches' | 'champions'>('matches')
+  const [queueId, setQueueId] = useState(savedView?.queueId ?? defaultQueueId)
+  const [batchSize, setBatchSize] = useState(savedView?.batchSize ?? 50)
+  const [championId, setChampionId] = useState(savedView?.championId ?? 0)
+  const [position, setPosition] = useState(savedView?.position ?? '')
+  const [result, setResult] = useState(savedView?.result ?? '')
+  const [hideAborted, setHideAborted] = useState(savedView?.hideAborted ?? true)
+  const [tab, setTab] = useState<'matches' | 'champions'>(savedView?.tab ?? 'matches')
+  const [expanded, setExpanded] = useState(() => new Set(savedView?.expanded ?? []))
+  const [championSort, setChampionSort] = useState(savedView?.championSort ?? 'total')
+  const [championMin, setChampionMin] = useState(savedView?.championMin ?? 1)
   const [profile, setProfile] = useState<HistoryPlayer | null>(null)
   const [ranks, setRanks] = useState<HistoryRank[] | null>(null)
   const [rankStatus, setRankStatus] = useState('正在查询…')
   const [mastery, setMastery] = useState<HistoryMastery[] | null>(null)
   const [masteryStatus, setMasteryStatus] = useState('正在查询英雄点数…')
-  const [showAllMastery, setShowAllMastery] = useState(false)
+  const [showAllMastery, setShowAllMastery] = useState(savedView?.showAllMastery ?? false)
   const [profileRevision, setProfileRevision] = useState(0)
   const [searchText, setSearchText] = useState('')
   const [showSearch, setShowSearch] = useState(false)
@@ -65,6 +82,27 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
   const hidden = useHistoryHiddenFields()
   const scoreSystem = usePlayerScoreSystem()
   const show = (field: HistoryDisplayField<'history'>) => isHistoryFieldVisible(hidden, 'history', field)
+  const showRanks = show('ranks'), showMastery = show('mastery')
+  const viewRef = useRef<HistoryView>(null!)
+  viewRef.current = { queueId, batchSize, championId, position, result, hideAborted, tab, showAllMastery, expanded: [...expanded], sidebarTop: 0, contentTop: 0, championSort, championMin }
+  useLayoutEffect(() => {
+    const sidebar = sidebarRef.current, content = contentRef.current
+    return () => rememberView({ ...viewRef.current, sidebarTop: sidebar?.scrollTop ?? 0, contentTop: content?.scrollTop ?? 0 })
+  }, [])
+  const contentMounted = useRef(false)
+  useLayoutEffect(() => {
+    if (contentMounted.current && contentRef.current) contentRef.current.scrollTop = 0
+    contentMounted.current = true
+  }, [queueId, tab])
+  const restored = useRef(false)
+  useLayoutEffect(() => {
+    if (pages.loading || restored.current) return
+    restored.current = true
+    if (savedView) {
+      if (sidebarRef.current) sidebarRef.current.scrollTop = savedView.sidebarTop
+      if (contentRef.current) contentRef.current.scrollTop = savedView.contentTop
+    }
+  }, [pages.loading, savedView])
 
   useEffect(() => {
     if (open) rememberHistoryPlayer(target)
@@ -79,8 +117,8 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
     setProfile(null); setRanks(null); setRankStatus('正在查询…'); setMastery(null); setMasteryStatus('正在查询英雄点数…')
     const serverId = target.serverId
     const profileRequest = serverId
-      ? deadline((signal) => lcu.getHistorySgpSummoner(serverId, target.puuid, signal), controller.signal, 10000)
-      : fetchHistorySummoner(target.puuid, controller.signal)
+      ? historyRequests.run(`profile:${serverId}:${target.puuid}`, (sharedSignal) => deadline((signal) => lcu.getHistorySgpSummoner(serverId, target.puuid, signal), sharedSignal, 10000), { signal: controller.signal, ttlMs: 60000, fresh: profileRevision > 0 })
+      : fetchHistorySummoner(target.puuid, controller.signal, profileRevision > 0)
     void profileRequest.then((value) => {
       if (!value || controller.signal.aborted) return
       const player = historyPlayerFromSummoner(value, serverId, target.name)
@@ -90,21 +128,26 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
         rememberHistoryPlayer(player)
       }
     }).catch(() => {})
-    void fetchHistoryRanks(target.puuid, controller.signal, serverId).then((value) => {
+    if (showRanks) void fetchHistoryRanks(target.puuid, controller.signal, serverId, profileRevision > 0).then((value) => {
       if (!controller.signal.aborted) setRanks(value)
     }).catch(() => { if (!controller.signal.aborted) setRankStatus('暂不可用') })
     if (serverId) setMasteryStatus('跨大区的英雄点数暂不可用')
-    else void fetchHistoryMastery(target.puuid, controller.signal).then((value) => {
+    else if (showMastery) void fetchHistoryMastery(target.puuid, controller.signal, profileRevision > 0).then((value) => {
       if (!controller.signal.aborted) setMastery(value)
     }).catch(() => { if (!controller.signal.aborted) setMasteryStatus('该玩家的英雄点数暂不可用') })
     return () => controller.abort()
-  }, [open, target, profileRevision])
+  }, [open, target, profileRevision, showRanks, showMastery])
 
   const allMatches = useMemo(() => toHistoryMatches(pages.games, target.puuid).filter((m) => !queueId || m.game.json.queueId === queueId), [pages.games, target.puuid, queueId])
   const filtered = useMemo(() => allMatches.filter((m) => (!championId || m.player.championId === championId) && (!position || m.position === position) && (!result || m.outcome === result) && (!hideAborted || (m.outcome !== 'remake' && m.outcome !== 'abort'))), [allMatches, championId, position, result, hideAborted])
   const stats = useMemo(() => summarize(filtered), [filtered])
   const champions = useMemo(() => championStats(allMatches), [allMatches])
   const filteredChampions = useMemo(() => championStats(filtered), [filtered])
+  const sortedChampions = useMemo(() => filteredChampions.filter((item) => item.total >= championMin).sort((a, b) => {
+    const field = championSort as 'total' | 'winRate' | 'kda' | 'participation' | 'damageShare' | 'takenShare' | 'csPerMinute'
+    const left = a[field], right = b[field]
+    return (right ?? -1) - (left ?? -1) || b.total - a.total || a.id - b.id
+  }), [filteredChampions, championSort, championMin])
   const teammates = useMemo(() => encounters(filtered, 'ally'), [filtered])
   const opponents = useMemo(() => encounters(filtered, 'enemy'), [filtered])
   const strength = useMemo(() => {
@@ -197,8 +240,14 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
         <div className="rh-local-filters"><select aria-label="筛选英雄" value={championId} onChange={(e) => setChampionId(Number(e.target.value))}><option value={0}>全部英雄</option>{champions.map((c) => <option key={c.id} value={c.id}>{championName(c.id)} · {c.total} 场</option>)}{championId > 0 && !champions.some((c) => c.id === championId) && <option value={championId}>{championName(championId)} · 当前未加载</option>}</select><select aria-label="筛选位置" value={position} onChange={(e) => setPosition(e.target.value)}><option value="">全部位置</option>{Object.entries(POSITION_NAMES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><select aria-label="筛选胜负" value={result} onChange={(e) => setResult(e.target.value)}><option value="">全部胜负</option><option value="win">胜利</option><option value="loss">失败</option></select><label><input type="checkbox" checked={hideAborted} onChange={(e) => setHideAborted(e.target.checked)} />隐藏重开 / 终止</label><button type="button" className="rh-text-button" onClick={resetLocalFilters}>重置筛选</button></div>
         {pages.scanLimit && <div className="rh-notice">当前范围为最近 {pages.scanLimit} 场。</div>}
         {pages.error && <div className="rh-error" role="alert">{pages.error}<button type="button" onClick={allMatches.length && pages.hasMore ? () => void pages.loadMore() : refresh}>重试</button></div>}
-        <div className="rh-content rh-scroll-area" ref={contentRef} key={`${target.puuid}:${queueId}:${tab}`}>
-          {pages.loading ? <div className="rh-empty"><span className="rh-spinner" />正在加载战绩…<span className="rh-kaomoji" aria-hidden="true">(｡･ω･｡)</span></div> : !filtered.length ? <div className="rh-empty"><span>{allMatches.length ? '当前筛选下没有已加载对局。可重置筛选或继续加载。' : pages.error ? '战绩查询未完成，请重试。' : '当前查询范围没有对局记录。'}</span>{!pages.error && <span className="rh-kaomoji" aria-hidden="true">(・ω・)</span>}</div> : tab === 'matches' ? filtered.map((match) => <HistoryMatchCard key={match.id} match={match} hidden={hidden} onInspect={onInspect} />) : <div className="rh-table-scroll"><table className="rh-champion-table"><thead><tr>{['英雄', '场次', '胜率', 'KDA', '参团', '伤害占比', '承伤占比', '补刀 / 分'].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>{filteredChampions.map((c) => <tr key={c.id}><td><button type="button" className="rh-player-link" onClick={() => { setChampionId(c.id); setTab('matches') }}><HistoryImage src={getChampIcon(c.id)} label={championName(c.id)} /><span>{championName(c.id)}</span></button></td><td>{c.total}</td><td>{percentText(c.winRate)}</td><td>{numberText(c.kda, 2)}</td><td>{percentText(c.participation)}</td><td>{percentText(c.damageShare)}</td><td>{percentText(c.takenShare)}</td><td>{numberText(c.csPerMinute, 1)}</td></tr>)}</tbody></table></div>}
+        <div className="rh-content rh-scroll-area" ref={contentRef}>
+          {pages.loading ? <div className="rh-empty"><span className="rh-spinner" />正在加载战绩…<span className="rh-kaomoji" aria-hidden="true">(｡･ω･｡)</span></div> : !filtered.length ? <div className="rh-empty"><span>{allMatches.length ? '当前筛选下没有已加载对局。可重置筛选或继续加载。' : pages.error ? '战绩查询未完成，请重试。' : '当前查询范围没有对局记录。'}</span>{!pages.error && <span className="rh-kaomoji" aria-hidden="true">(・ω・)</span>}</div> : tab === 'matches' ? <HistoryMatchList matches={filtered} hidden={hidden} onInspect={onInspect} scrollRef={contentRef} expanded={expanded} onExpandedChange={(id, value) => setExpanded((previous) => { const next = new Set(previous); if (value) next.add(id); else next.delete(id); return next })} /> : <div className="rh-champion-results"><div className="rh-champion-controls">
+            <label>排序<select aria-label="英雄统计排序" value={championSort} onChange={(event) => setChampionSort(event.target.value)}>
+              {[['total','场次'],['winRate','胜率'],['kda','KDA'],['participation','参团率'],['damageShare','伤害占比'],['takenShare','承伤占比'],['csPerMinute','补刀 / 分']].map(([key,label]) => <option key={key} value={key}>{label} ↓</option>)}
+            </select></label>
+            <label>最低场次<select aria-label="英雄统计最低场次" value={championMin} onChange={(event) => setChampionMin(Number(event.target.value))}>{[1,3,5,10,20].map((count) => <option key={count} value={count}>{count} 场</option>)}</select></label>
+            <span className="rh-muted">{sortedChampions.length} 位英雄</span>
+          </div><div className="rh-table-scroll"><table className="rh-champion-table"><thead><tr>{['英雄', '场次', '胜率', 'KDA', '参团', '伤害占比', '承伤占比', '补刀 / 分'].map((label) => <th key={label}>{label}</th>)}</tr></thead><tbody>{sortedChampions.map((c) => <tr key={c.id}><td><button type="button" className="rh-player-link" onClick={() => { setChampionId(c.id); setTab('matches') }}><HistoryImage src={getChampIcon(c.id)} label={championName(c.id)} /><span>{championName(c.id)}</span></button></td><td>{c.total}</td><td>{percentText(c.winRate)}</td><td>{numberText(c.kda, 2)}</td><td>{percentText(c.participation)}</td><td>{percentText(c.damageShare)}</td><td>{percentText(c.takenShare)}</td><td>{numberText(c.csPerMinute, 1)}</td></tr>)}</tbody></table></div>{!sortedChampions.length && <div className="rh-empty">没有达到最低场次的英雄</div>}</div>}
           {!pages.loading && <div className="rh-load-more"><button type="button" className="rh-button" disabled={!pages.hasMore || pages.loadingMore} onClick={() => void pages.loadMore()}>{pages.loadingMore ? '正在加载…' : pages.hasMore ? `继续加载 ${batchSize} 场` : '已加载完毕'}</button></div>}
         </div>
       </main>

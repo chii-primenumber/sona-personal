@@ -2158,7 +2158,7 @@ function tryInjectInGameBuildButton(): boolean {
 function registerInGameBuildButton() {
   if (inGameBuildButtonRegistered) return
 
-  injector.register(tryInjectInGameBuildButton)
+  injector.register(tryInjectInGameBuildButton, { selector: '.game-in-progress-container' })
   inGameBuildButtonRegistered = true
 }
 
@@ -2211,8 +2211,8 @@ function tryInjectPreselectBuildButton(): boolean {
 
 function mount() {
   if (!injectRegistered) {
-    injector.register(tryHijackAbilityPreviewPanel)
-    injector.register(tryInjectPreselectBuildButton)
+    injector.register(tryHijackAbilityPreviewPanel, { selector: TARGET_SELECTOR })
+    injector.register(tryInjectPreselectBuildButton, { selector: '.lock-in' })
     injectRegistered = true
     logger.info('[OPGG] 已检测到本地英雄，开始接管技能预览入口')
   }

@@ -403,10 +403,13 @@ function TeamReportRows({ players, label, game, focusPuuid, onInspect, columns, 
   </>
 }
 
-export function HistoryMatchCard({ match, hidden, onInspect }: {
+export function HistoryMatchCard({ match, hidden, onInspect, expanded: controlledExpanded, onExpandedChange }: {
   match: HistoryMatch; hidden: HistoryHiddenFields; onInspect?: (puuid: string, name: string) => void
+  expanded?: boolean; onExpandedChange?: (expanded: boolean) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [localExpanded, setLocalExpanded] = useState(false)
+  const expanded = controlledExpanded ?? localExpanded
+  const setExpanded = (value: boolean) => { setLocalExpanded(value); onExpandedChange?.(value) }
   const [copied, setCopied] = useState(false)
   const { game, player, outcome } = match
   const show = (field: HistoryDisplayField<'history'>) => isHistoryFieldVisible(hidden, 'history', field)

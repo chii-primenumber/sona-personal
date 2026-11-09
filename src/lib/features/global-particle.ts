@@ -1,5 +1,6 @@
 import { logger } from '@/index'
 import { injector } from '@/lib/InjectorManager'
+import { modalStack, startParticleAnimation } from '@/lib/particle-animation'
 
 // ==================== 全局粒子美化效果 ====================
 
@@ -37,69 +38,8 @@ function tryInjectGlobalParticle(): boolean {
   canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:821;'
   host.appendChild(canvas)
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return false
-
-
-  let animId = 0
-  let initialized = false
-  const particles: Array<{
-    x: number; y: number; size: number
-    speedY: number; speedX: number; opacity: number; isGold: boolean
-  }> = []
-
-  const resize = () => {
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-  }
-
-  const initParticles = () => {
-    if (initialized || canvas.width === 0) return
-    initialized = true
-    for (let i = 0; i < 300; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        size: Math.random() * 1.5 + 0.5,
-        speedY: Math.random() * 0.4 + 0.1,
-        speedX: (Math.random() - 0.5) * 0.2,
-        opacity: Math.random() * 0.3 + 0.1,
-        isGold: Math.random() > 0.7,
-      })
-    }
-  }
-
-  const render = () => {
-    if (!initialized) { resize(); initParticles() }
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    for (const p of particles) {
-      p.y -= p.speedY
-      p.x += p.speedX
-      p.opacity += (Math.random() - 0.5) * 0.02
-      if (p.opacity < 0.1) p.opacity = 0.1
-      if (p.opacity > 0.5) p.opacity = 0.5
-      if (p.y < 0) { p.y = canvas.height; p.x = Math.random() * canvas.width }
-      if (p.isGold) { ctx.shadowBlur = 4; ctx.shadowColor = `rgba(200, 170, 110, ${p.opacity})` }
-      else { ctx.shadowBlur = 3; ctx.shadowColor = `rgba(0, 180, 255, ${p.opacity * 0.8})` }
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-      ctx.fillStyle = p.isGold ? `rgba(220, 190, 130, ${p.opacity})` : `rgba(80, 200, 255, ${p.opacity * 0.85})`
-      ctx.fill()
-    }
-    ctx.shadowBlur = 0
-    ctx.shadowColor = 'transparent'
-    animId = requestAnimationFrame(render)
-  }
-
-  resize()
-  window.addEventListener('resize', resize)
-  animId = requestAnimationFrame(render)
-
-  globalParticleAnimCleanup = () => {
-    cancelAnimationFrame(animId)
-    window.removeEventListener('resize', resize)
-    canvas.remove()
-  }
+  const stop = startParticleAnimation(canvas, 300, () => !modalStack.length)
+  globalParticleAnimCleanup = () => { stop(); canvas.remove() }
 
   logger.info('Global particle canvas injected ✓')
   return true

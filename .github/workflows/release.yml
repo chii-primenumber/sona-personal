@@ -35,10 +35,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build plugin
+      - name: Install browser for regression checks
+        run: npx playwright install --with-deps chromium
+
+      - name: Build and verify plugin
         run: |
           test "$RELEASE_TAG" = "v$(node -p "require('./package.json').version")"
-          npm run build
+          npm run verify
 
       - name: Prepare release package
         run: |

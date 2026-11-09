@@ -45,6 +45,9 @@ import { SGP_SERVERS, TENCENT_MATCH_HISTORY_INTEROP } from '@/types/sgp'
 import type { SgpEntitlementsToken, SgpGameSummaryLol, SgpMatchHistoryLol, SgpParticipantLol, SgpPerks, SgpTeam } from '@/types/sgp'
 import { deobfuscateChampSelectPuuid } from '@/lib/champ-select-puuid'
 import { store } from '@/lib/store'
+import { SharedRequests, clearHistoryRequests } from './shared-requests'
+
+const historySessionRequests = new SharedRequests(2, 8)
 
 // Re-export types for convenience
 export type { SummonerInfo, LobbyConfig, Lobby, GameflowPhase, GameflowSession, LCUEventMessage, ChatConversation, ChatMessage, ChatMe, Availability, SendChatMessageBody, ReadyCheck, ChampSelectSession, ChampSelectPlayerDetail, MatchHistoryResponse, MatchDetail, ChatFriend, SpectatorLaunchPayload, ChampSelectSummoner, RewardsGrant }
@@ -364,6 +367,7 @@ class LCUManager {
    * 应在 init(context) 生命周期中调用
    */
   bindContext(context: PenguContext) {
+    clearHistoryRequests(); historySessionRequests.clear()
     this.penguContext = context
 
     // context / socket 变了，但已有业务回调仍然有效：
@@ -393,6 +397,14 @@ class LCUManager {
   private _initSgpTokenKeepAlive() {
     // 1. 主动拉取初始 token
     this._fetchInitialTokens()
+    let currentPuuid = ''
+    this.observe('/lol-summoner/v1/current-summoner', (event) => {
+      const next = (event.data as { puuid?: string } | null)?.puuid || ''
+      if (event.eventType === 'Delete' || (currentPuuid && next && currentPuuid !== next)) {
+        clearHistoryRequests(); historySessionRequests.clear()
+      }
+      currentPuuid = next
+    })
 
     // 2. 监听 WS 事件保活
     this.observe('/entitlements/v1/token', (event) => {
@@ -1280,7 +1292,14 @@ class LCUManager {
   /** 从 /lol-chat/v1/me 的 platformId 解析 SGP 服务器 ID（fallback） */
   private async _parseSgpServerIdFromPlatformId(): Promise<string> {
     try {
-      const me = await this.getChatMe()
+      const me = await historySessionRequests.run('platform', async (signal) => {
+        const controller = new AbortController()
+        const abort = () => controller.abort()
+        signal.addEventListener('abort', abort, { once: true })
+        const timer = setTimeout(abort, 8000)
+        try { return await get<ChatMe>('/lol-chat/v1/me', controller.signal) }
+        finally { clearTimeout(timer); signal.removeEventListener('abort', abort) }
+      }, { ttlMs: 30000 })
       const platformId = me.platformId?.toUpperCase() ?? ''
       if (!platformId) return ''
 
@@ -1335,9 +1354,6 @@ class LCUManager {
     }
 
     try {
-      const chatMe = await this.getChatMe().catch(() => null)
-      debugContext.platformId = chatMe?.platformId ?? ''
-
       const token = this._entitlementsToken ?? await this.getEntitlementsToken()
       if (!this._entitlementsToken) {
         this._entitlementsToken = token

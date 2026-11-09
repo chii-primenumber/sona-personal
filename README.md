@@ -1,10 +1,12 @@
 # Sona 个人战绩增强版
 
-当前版本 **1.10.0-personal.25**。基于 **WJZ-P 的 [Sona v1.10.0](https://github.com/WJZ-P/sona/tree/v1.10.0)** 开发，通过 Pengu Loader 加载，沿用 **AGPL-3.0** 许可。
+当前源码版本 **1.10.0-personal.26**。基于 **WJZ-P 的 [Sona v1.10.0](https://github.com/WJZ-P/sona/tree/v1.10.0)** 开发，通过 Pengu Loader 加载，沿用 **AGPL-3.0** 许可。
 
 **本个人版新增功能主要参考 Hanxven 及贡献者的开源项目 [League Akari](https://github.com/LeagueAkari/LeagueAkari)**，包括个人战绩、队伍卡片、玩家搜索、数据展示与交互，并适配 Akari 评分机制。Akari 相关评分代码的 MIT 许可随包保留，见 [评分来源与口径](AKARI评分说明.md) 和 [MIT 许可](assets/licenses/LeagueAkari-MIT.txt)。感谢两个上游项目的作者与贡献者。
 
 ## 下载与一键安装
+
+以下下载链接对应 personal.25；personal.26 已提供本机解压安装目录。
 
 - **首次使用**：[下载 Windows 一键安装包](https://github.com/chii-primenumber/sona-personal/releases/download/v1.10.0-personal.25/sona-v1.10.0-personal.25-one-click-windows.zip)，内含官方 Pengu Loader v1.1.6、Sona、一键安装脚本和说明。
 - **已有 Pengu Loader**：也可下载 [仅 Sona 插件包](https://github.com/chii-primenumber/sona-personal/releases/download/v1.10.0-personal.25/sona-v1.10.0-personal.25.zip)。

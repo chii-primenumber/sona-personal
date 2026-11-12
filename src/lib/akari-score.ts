@@ -69,3 +69,18 @@ export function calculateAkariPlayerScore(games: SgpGameSummaryLol[], puuid: str
   return {score,maxScore:17,validGames:samples.length,breakdown,
     outstanding:score>=6.5 && samples.length>=5,extraordinary:score>=8 && samples.length>=8}
 }
+
+/**
+ * 逐场趋势分（DSH 优化版）：九项分量之和，但**排除胜率项**。
+ * 原因：胜负已经由趋势图底部的色带单独表达，再把 winRateScore 计入会让折线同时编码结果。
+ * 满分因此为 16，与聚合分（0–17）不同，仅用于观察走势。
+ */
+export function calculateAkariGameTrendScore(game: SgpGameSummaryLol, puuid: string): number | null {
+  const sample = prepare(game, puuid)
+  if (!sample) return null
+  const { components } = sample
+  const total = components.kdaScore + components.dmgScore + components.dmgTakenScore
+    + components.healingScore + components.csScore + components.goldScore
+    + components.participationScore + components.visionScore
+  return Number.isFinite(total) ? total : null
+}

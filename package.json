@@ -14,7 +14,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "update-balance": "tsx scripts/update-champion-balance.ts",
-    "test:models": "tsx qa-local/verify-performance.ts && tsx qa-local/verify-player-score.ts && tsx qa-local/verify-shared-requests.ts",
+    "test:models": "tsx qa-local/verify-performance.ts && tsx qa-local/verify-player-score.ts && tsx qa-local/verify-shared-requests.ts && tsx qa-local/verify-charts.ts",
     "test:browser": "node qa-local/verify.mjs",
     "verify": "npm run build && npm run test:models && npm run test:browser"
   },

@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Modal } from './Modal'
 import { HistoryDisplaySettings } from './HistoryDisplaySettings'
+import { HistoryTrendPanel } from './HistoryTrendPanel'
+import { HistoryCompareModal } from './HistoryCompareModal'
 import { PlayerSearchModal } from './PlayerSearchModal'
 import { HistoryPlayerName } from './HistoryPlayerName'
 import { HistoryAssetTooltip } from './HistoryAssetTooltip'
@@ -25,7 +27,7 @@ import '@/styles/PersonalHistory.css'
 export interface PlayerHistoryModalProps { open: boolean; onClose: () => void; puuid: string; playerName: string; queueId?: number }
 interface HistoryView {
   queueId: number; batchSize: number; championId: number; position: string; result: string; hideAborted: boolean
-  tab: 'matches' | 'champions'; showAllMastery: boolean; expanded: string[]; sidebarTop: number; contentTop: number
+  tab: 'matches' | 'champions' | 'trend'; showAllMastery: boolean; expanded: string[]; sidebarTop: number; contentTop: number
   championSort: string; championMin: number
 }
 
@@ -60,7 +62,7 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
   const [position, setPosition] = useState(savedView?.position ?? '')
   const [result, setResult] = useState(savedView?.result ?? '')
   const [hideAborted, setHideAborted] = useState(savedView?.hideAborted ?? true)
-  const [tab, setTab] = useState<'matches' | 'champions'>(savedView?.tab ?? 'matches')
+  const [tab, setTab] = useState<'matches' | 'champions' | 'trend'>(savedView?.tab ?? 'matches')
   const [expanded, setExpanded] = useState(() => new Set(savedView?.expanded ?? []))
   const [championSort, setChampionSort] = useState(savedView?.championSort ?? 'total')
   const [championMin, setChampionMin] = useState(savedView?.championMin ?? 1)
@@ -74,6 +76,7 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
   const [searchText, setSearchText] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showCompare, setShowCompare] = useState(false)
   const [copyStatus, setCopyStatus] = useState('')
   const sidebarRef = useRef<HTMLElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
@@ -150,6 +153,14 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
   }), [filteredChampions, championSort, championMin])
   const teammates = useMemo(() => encounters(filtered, 'ally'), [filtered])
   const opponents = useMemo(() => encounters(filtered, 'enemy'), [filtered])
+  const filteredGames = useMemo(() => filtered.map((match) => match.game), [filtered])
+  const compareCandidates = useMemo(() => {
+    const map = new Map<string, { puuid: string; name: string }>()
+    for (const person of [...teammates, ...opponents]) {
+      if (person.puuid && person.puuid !== target.puuid) map.set(person.puuid, { puuid: person.puuid, name: person.name })
+    }
+    return [...map.values()]
+  }, [teammates, opponents, target.puuid])
   const strength = useMemo(() => {
     try { const score = calculatePlayerScore(filtered.filter((m) => m.outcome === 'win' || m.outcome === 'loss').map((m) => m.game), target.puuid, scoreSystem); return score && Number.isFinite(score.score) ? score : null } catch { return null }
   }, [filtered, target.puuid, scoreSystem])
@@ -189,6 +200,7 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
       </div>
       {show('ranks') && <RankCards ranks={ranks} status={rankStatus} />}
       <div className="rh-header-actions">
+        <HistoryAssetTooltip title="玩家对比" compact asChild><button type="button" className="rh-button rh-icon-button" aria-label="玩家对比" onClick={() => setShowCompare(true)} disabled={!compareCandidates.length}><span aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><rect x="1.5" y="3" width="5.5" height="10" rx="1" /><rect x="9" y="3" width="5.5" height="10" rx="1" /></svg></span></button></HistoryAssetTooltip>
         <HistoryAssetTooltip title="刷新" compact asChild><button type="button" className="rh-button rh-icon-button" aria-label="刷新" onClick={refresh} disabled={pages.loading}><span aria-hidden="true"><RefreshIcon /></span></button></HistoryAssetTooltip>
         <HistoryAssetTooltip title="显示设置" compact asChild><button type="button" className="rh-button rh-icon-button" aria-label="显示设置" onClick={() => setShowSettings(true)}><span aria-hidden="true"><SettingsIcon /></span></button></HistoryAssetTooltip>
       </div>
@@ -229,6 +241,7 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
           <div className="rh-tabs">
             <button type="button" className={tab === 'matches' ? 'is-active' : ''} onClick={() => setTab('matches')}>战绩明细 <small>{filtered.length}</small></button>
             <button type="button" className={tab === 'champions' ? 'is-active' : ''} onClick={() => setTab('champions')}>英雄统计 <small>{filteredChampions.length}</small></button>
+            <button type="button" className={tab === 'trend' ? 'is-active' : ''} onClick={() => setTab('trend')}>趋势分析 <small>{filtered.length}</small></button>
           </div>
           <form className="rh-player-search" onSubmit={(event) => { event.preventDefault(); setShowSearch(true) }} role="search">
             <input type="search" aria-label="搜索玩家" placeholder="名字 / 名字#编号 / PUUID" maxLength={120}
@@ -241,7 +254,7 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
         {pages.scanLimit && <div className="rh-notice">当前范围为最近 {pages.scanLimit} 场。</div>}
         {pages.error && <div className="rh-error" role="alert">{pages.error}<button type="button" onClick={allMatches.length && pages.hasMore ? () => void pages.loadMore() : refresh}>重试</button></div>}
         <div className="rh-content rh-scroll-area" ref={contentRef}>
-          {pages.loading ? <div className="rh-empty"><span className="rh-spinner" />正在加载战绩…<span className="rh-kaomoji" aria-hidden="true">(｡･ω･｡)</span></div> : !filtered.length ? <div className="rh-empty"><span>{allMatches.length ? '当前筛选下没有已加载对局。可重置筛选或继续加载。' : pages.error ? '战绩查询未完成，请重试。' : '当前查询范围没有对局记录。'}</span>{!pages.error && <span className="rh-kaomoji" aria-hidden="true">(・ω・)</span>}</div> : tab === 'matches' ? <HistoryMatchList matches={filtered} hidden={hidden} onInspect={onInspect} scrollRef={contentRef} expanded={expanded} onExpandedChange={(id, value) => setExpanded((previous) => { const next = new Set(previous); if (value) next.add(id); else next.delete(id); return next })} /> : <div className="rh-champion-results"><div className="rh-champion-controls">
+          {pages.loading ? <div className="rh-empty"><span className="rh-spinner" />正在加载战绩…<span className="rh-kaomoji" aria-hidden="true">(｡･ω･｡)</span></div> : !filtered.length ? <div className="rh-empty"><span>{allMatches.length ? '当前筛选下没有已加载对局。可重置筛选或继续加载。' : pages.error ? '战绩查询未完成，请重试。' : '当前查询范围没有对局记录。'}</span>{!pages.error && <span className="rh-kaomoji" aria-hidden="true">(・ω・)</span>}</div> : tab === 'matches' ? <HistoryMatchList matches={filtered} hidden={hidden} onInspect={onInspect} scrollRef={contentRef} expanded={expanded} onExpandedChange={(id, value) => setExpanded((previous) => { const next = new Set(previous); if (value) next.add(id); else next.delete(id); return next })} /> : tab === 'trend' ? <HistoryTrendPanel matches={filtered} games={filteredGames} puuid={target.puuid} system={scoreSystem} score={strength} /> : <div className="rh-champion-results"><div className="rh-champion-controls">
             <label>排序<select aria-label="英雄统计排序" value={championSort} onChange={(event) => setChampionSort(event.target.value)}>
               {[['total','场次'],['winRate','胜率'],['kda','KDA'],['participation','参团率'],['damageShare','伤害占比'],['takenShare','承伤占比'],['csPerMinute','补刀 / 分']].map(([key,label]) => <option key={key} value={key}>{label} ↓</option>)}
             </select></label>
@@ -259,5 +272,6 @@ function PlayerHistoryContent({ open, target, defaultQueueId, onSelectPlayer, on
       setSearchText('')
       onSelectPlayer(player)
     }} />
+    <HistoryCompareModal open={open && showCompare} onClose={() => setShowCompare(false)} games={filteredGames} puuid={target.puuid} system={scoreSystem} candidates={compareCandidates} />
   </div>
 }
